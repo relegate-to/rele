@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Lora, DM_Mono, Crimson_Pro } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 import { PageTransitionProvider } from "@/components/page-transition";
 import "./globals.css";
 
@@ -40,7 +41,7 @@ export default function RootLayout({
       <body
         className={`${lora.variable} ${dmMono.variable} ${crimsonPro.variable} antialiased`}
       >
-        <ClerkProvider>
+        <ClerkProvider appearance={clerkAppearance}>
           <PageTransitionProvider>{children}</PageTransitionProvider>
         </ClerkProvider>
       </body>

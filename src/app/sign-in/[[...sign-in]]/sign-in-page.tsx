@@ -94,81 +94,9 @@ export default function SignInPageClient() {
             </h1>
           </div>
 
-          {/* Clerk SignIn component */}
+          {/* Clerk SignIn component — appearance inherited from ClerkProvider */}
           <div style={{ position: "relative", zIndex: 1 }}>
-            <SignIn
-              forceRedirectUrl="/home"
-              appearance={{
-                variables: {
-                  colorBackground: C.surface,
-                  colorPrimary: C.copper,
-                  colorText: C.text,
-                  colorTextSecondary: C.textDim,
-                  colorInputBackground: C.bg,
-                  colorInputText: C.cream,
-                  borderRadius: "6px",
-                  fontFamily: "var(--font-crimson-pro), serif",
-                  fontSize: "15px",
-                },
-                elements: {
-                  card: {
-                    border: `1px solid ${C.border}`,
-                    boxShadow: "none",
-                    background: C.surface,
-                  },
-                  headerTitle: {
-                    fontFamily: "var(--font-lora), serif",
-                    fontWeight: 400,
-                    color: C.cream,
-                  },
-                  headerSubtitle: {
-                    color: C.textDim,
-                    fontFamily: "var(--font-crimson-pro), serif",
-                  },
-                  formFieldLabel: {
-                    color: C.textDim,
-                    fontFamily: "var(--font-dm-mono), monospace",
-                    fontSize: "0.65rem",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                  },
-                  formFieldInput: {
-                    background: C.bg,
-                    border: `1px solid ${C.border}`,
-                    color: C.cream,
-                    fontFamily: "var(--font-crimson-pro), serif",
-                  },
-                  formButtonPrimary: {
-                    background: C.copper,
-                    color: "#1a1510",
-                    fontFamily: "var(--font-dm-mono), monospace",
-                    fontSize: "0.72rem",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                  },
-                  footerActionLink: {
-                    color: C.copper,
-                  },
-                  dividerLine: {
-                    background: C.border,
-                  },
-                  dividerText: {
-                    color: C.muted,
-                  },
-                  identityPreviewEditButton: {
-                    color: C.copper,
-                  },
-                  socialButtonsBlockButton: {
-                    border: `1px solid ${C.border}`,
-                    background: C.bgWarm,
-                    color: C.text,
-                  },
-                  socialButtonsBlockButtonText: {
-                    color: C.text,
-                  },
-                },
-              }}
-            />
+            <SignIn forceRedirectUrl="/home" />
           </div>
         </div>
       </ClerkLoaded>
