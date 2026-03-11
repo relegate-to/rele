@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #1a1510;
+  --bg-warm: #211a12;
+  --surface: #2a2118;
+  --surface-hi: #332820;
+  --border: #3d3025;
+  --border-hi: #5a4535;
+  --text: #e8ddd0;
+  --text-dim: #a8998a;
+  --muted: #6b5c4e;
+  --copper: #c8845a;
+  --copper-dim: #8a5a3a;
+  --cream: #f0e8d8;
+}
+
+@theme inline {
+  --font-lora: var(--font-lora);
+  --font-dm-mono: var(--font-dm-mono);
+  --font-crimson-pro: var(--font-crimson-pro);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-crimson-pro), Georgia, serif;
+  font-weight: 300;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.75); }
+}
+
+.rele-input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.rele-input:focus {
+  border-color: var(--copper-dim) !important;
+  outline: none;
+}
