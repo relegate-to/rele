@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - gate/**
+  workflow_dispatch:
 
 jobs:
   deploy:
