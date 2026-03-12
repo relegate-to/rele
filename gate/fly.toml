@@ -1,26 +1,23 @@
-app = "rele-gate"
-primary_region = "iad"
+# fly.toml app configuration file generated for rele on 2026-03-12T09:20:08Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'rele'
+primary_region = 'iad'
 
 [build]
-  [build.args]
-    BUN_VERSION = "latest"
-
-[env]
-  PORT = "3001"
 
 [http_service]
   internal_port = 3001
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-
-  [http_service.concurrency]
-    type = "connections"
-    hard_limit = 1000
-    soft_limit = 800
+  processes = ['app']
 
 [[vm]]
-  memory = "512mb"
-  cpu_kind = "shared"
+  memory = '1gb'
+  cpu_kind = 'shared'
   cpus = 1
+  memory_mb = 1024
