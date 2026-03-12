@@ -1,7 +1,9 @@
-name: Deploy
+name: Deploy Gate
 on:
   push:
     branches: [main]
+    paths:
+      - gate/**
 
 jobs:
   deploy:
