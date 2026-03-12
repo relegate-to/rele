@@ -1,13 +1,42 @@
+"use client";
+
 import { C } from "@/lib/theme";
 import UserPill from "@/components/user-pill";
+import { useAuth } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
 
-const MOCK_TASKS = [
-  { id: 1, label: "Draft follow-up email to client", status: "done" },
-  { id: 2, label: "Summarise meeting notes from Thursday", status: "done" },
-  { id: 3, label: "Research competitors pricing page", status: "running" },
-];
+const API = "https://api.rele.to";
+
+type HealthData = { ok: boolean } | null;
+type MeData = { userId: string } | null;
 
 export default function HomePage() {
+  const { getToken } = useAuth();
+
+  const [health, setHealth] = useState<HealthData>(null);
+  const [healthError, setHealthError] = useState(false);
+
+  const [me, setMe] = useState<MeData>(null);
+  const [meError, setMeError] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API}/health`)
+      .then((r) => r.json())
+      .then(setHealth)
+      .catch(() => setHealthError(true));
+  }, []);
+
+  useEffect(() => {
+    getToken().then((token) =>
+      fetch(`${API}/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .then(setMe)
+        .catch(() => setMeError(true))
+    );
+  }, [getToken]);
+
   return (
     <div
       style={{
@@ -77,7 +106,7 @@ export default function HomePage() {
               lineHeight: 1.2,
             }}
           >
-            Good morning.
+            Backend status
           </h1>
           <p
             style={{
@@ -87,99 +116,113 @@ export default function HomePage() {
               lineHeight: 1.6,
             }}
           >
-            Your agent is standing by.
+            Checking connectivity to{" "}
+            <span style={{ fontFamily: "var(--font-dm-mono), monospace", fontSize: "0.85rem" }}>
+              api.rele.to
+            </span>
           </p>
         </div>
 
-        {/* New task input (mock) */}
+        {/* Status rows */}
         <div
           style={{
-            background: C.surface,
             border: `1px solid ${C.border}`,
             borderRadius: "6px",
-            padding: "1rem 1.25rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
-            marginBottom: "2.5rem",
+            overflow: "hidden",
           }}
         >
-          <span
-            style={{
-              fontFamily: "var(--font-dm-mono), monospace",
-              fontSize: "0.7rem",
-              color: C.copper,
-            }}
-          >
-            ✦
-          </span>
-          <span
-            style={{
-              fontSize: "1rem",
-              color: C.muted,
-              fontStyle: "italic",
-            }}
-          >
-            Give rele a task…
-          </span>
-        </div>
-
-        {/* Recent tasks */}
-        <div>
-          <p
-            style={{
-              fontFamily: "var(--font-dm-mono), monospace",
-              fontSize: "0.62rem",
-              color: C.muted,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              marginBottom: "1rem",
-            }}
-          >
-            Recent
-          </p>
+          {/* /health */}
           <div
             style={{
-              border: `1px solid ${C.border}`,
-              borderRadius: "6px",
-              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "0.9rem 1.25rem",
+              borderBottom: `1px solid ${C.border}`,
+              background: C.surface,
             }}
           >
-            {MOCK_TASKS.map((task, i) => (
-              <div
-                key={task.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "0.9rem 1.25rem",
-                  borderBottom:
-                    i < MOCK_TASKS.length - 1
-                      ? `1px solid ${C.border}`
-                      : undefined,
-                  background: C.surface,
-                }}
-              >
-                <span style={{ fontSize: "0.95rem", color: C.text }}>
-                  {task.label}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-dm-mono), monospace",
-                    fontSize: "0.6rem",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color:
-                      task.status === "running" ? C.copper : C.muted,
-                  }}
-                >
-                  {task.status === "running" ? "● running" : "✓ done"}
-                </span>
-              </div>
-            ))}
+            <span
+              style={{
+                fontFamily: "var(--font-dm-mono), monospace",
+                fontSize: "0.8rem",
+                color: C.text,
+              }}
+            >
+              GET /health
+            </span>
+            <StatusBadge
+              loading={!health && !healthError}
+              error={healthError}
+              value={health ? JSON.stringify(health) : null}
+            />
+          </div>
+
+          {/* /me */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "0.9rem 1.25rem",
+              background: C.surface,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "var(--font-dm-mono), monospace",
+                fontSize: "0.8rem",
+                color: C.text,
+              }}
+            >
+              GET /me
+            </span>
+            <StatusBadge
+              loading={!me && !meError}
+              error={meError}
+              value={me ? JSON.stringify(me) : null}
+            />
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function StatusBadge({
+  loading,
+  error,
+  value,
+}: {
+  loading: boolean;
+  error: boolean;
+  value: string | null;
+}) {
+  const monoStyle: React.CSSProperties = {
+    fontFamily: "var(--font-dm-mono), monospace",
+    fontSize: "0.65rem",
+    letterSpacing: "0.06em",
+  };
+
+  if (loading) {
+    return (
+      <span style={{ ...monoStyle, color: C.muted }}>
+        waiting…
+      </span>
+    );
+  }
+
+  if (error) {
+    return (
+      <span style={{ ...monoStyle, color: "#c0504d" }}>
+        ✕ error
+      </span>
+    );
+  }
+
+  return (
+    <span style={{ ...monoStyle, color: C.copper }}>
+      {value}
+    </span>
   );
 }
