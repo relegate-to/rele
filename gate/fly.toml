@@ -1,0 +1,26 @@
+app = "rele-gate"
+primary_region = "iad"
+
+[build]
+  [build.args]
+    BUN_VERSION = "latest"
+
+[env]
+  PORT = "3001"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 1000
+    soft_limit = 800
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
