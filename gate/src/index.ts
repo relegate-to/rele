@@ -7,11 +7,12 @@ const app = new Hono();
 
 app.use("*", logger());
 app.use("*", cors());
-app.use("*", clerkMiddleware());
 
-app.get("/", (c) => {
+app.get("/health", (c) => {
   return c.json({ ok: true });
 });
+
+app.use("*", clerkMiddleware());
 
 app.get("/me", (c) => {
   const auth = getAuth(c);
