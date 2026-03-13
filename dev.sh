@@ -8,7 +8,7 @@ CONFIG_REPO="https://github.com/relegate-to/configuration"
 case $CMD in
   env:push)
     echo "Pushing .env.local files to configuration..."
-    find "$ROOT_DIR" -name ".env.local" \
+    find "$ROOT_DIR" -name ".env*" \
       -not -path "*/configuration/*" \
       -not -path "*/node_modules/*" \
       | while read file; do
@@ -31,7 +31,7 @@ case $CMD in
     cd "$CONFIG_DIR" && git pull
     cd "$ROOT_DIR"
     echo "Applying .env.local files..."
-    find "$CONFIG_DIR" -name ".env.local" \
+    find "$CONFIG_DIR" -name ".env*" \
       | while read file; do
           relative="${file#$CONFIG_DIR/}"
           dest="$ROOT_DIR/$relative"
@@ -46,7 +46,7 @@ case $CMD in
     echo "Cloning configuration..."
     git clone "$CONFIG_REPO" "$CONFIG_DIR"
     echo "Applying .env.local files..."
-    find "$CONFIG_DIR" -name ".env.local" \
+    find "$CONFIG_DIR" -name ".env*" \
       | while read file; do
           relative="${file#$CONFIG_DIR/}"
           dest="$ROOT_DIR/$relative"
