@@ -1,0 +1,81 @@
+#!/bin/bash
+
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONFIG_DIR="$ROOT_DIR/configuration"
+CONFIG_REPO="https://github.com/relegate-to/configuration"
+
+case $1 in
+  up)
+    docker compose -f "$ROOT_DIR/supabase/supabase.yml" --env-file "$ROOT_DIR/supabase/.env" --project-name supabase up -d
+    docker compose -f "$ROOT_DIR/docker-compose.yml" up "${@:2}"
+    ;;
+
+  down)
+    docker compose -f "$ROOT_DIR/docker-compose.yml" down "${@:2}"
+    docker compose -f "$ROOT_DIR/supabase/supabase.yml" --project-name supabase down "${@:2}"
+    ;;
+
+  setup)
+    echo "Cloning configuration..."
+    git clone "$CONFIG_REPO" "$CONFIG_DIR"
+    echo "Applying .env files..."
+    find "$CONFIG_DIR" -name ".env*" \
+      | while read file; do
+          relative="${file#$CONFIG_DIR/}"
+          dest="$ROOT_DIR/$relative"
+          mkdir -p "$(dirname "$dest")"
+          cp "$file" "$dest"
+          echo "  ✓ $relative"
+        done
+    echo "Cleaning up..."
+    rm -rf "$CONFIG_DIR"
+    echo "Done."
+    ;;
+
+  env:push)
+    echo "Pushing .env files to configuration..."
+    find "$ROOT_DIR" -name ".env*" \
+      -not -path "*/configuration/*" \
+      -not -path "*/node_modules/*" \
+      | while read file; do
+          relative="${file#$ROOT_DIR/}"
+          dest="$CONFIG_DIR/$relative"
+          mkdir -p "$(dirname "$dest")"
+          cp "$file" "$dest"
+          echo "  ✓ $relative"
+        done
+    echo "Committing and pushing..."
+    cd "$CONFIG_DIR"
+    git add .
+    git commit -m "update env files"
+    git push
+    echo "Done."
+    ;;
+
+  env:pull)
+    echo "Pulling latest configuration..."
+    cd "$CONFIG_DIR" && git pull
+    cd "$ROOT_DIR"
+    echo "Applying .env files..."
+    find "$CONFIG_DIR" -name ".env*" \
+      | while read file; do
+          relative="${file#$CONFIG_DIR/}"
+          dest="$ROOT_DIR/$relative"
+          mkdir -p "$(dirname "$dest")"
+          cp "$file" "$dest"
+          echo "  ✓ $relative"
+        done
+    echo "Done."
+    ;;
+
+  *)
+    echo "Usage: ./run <command>"
+    echo ""
+    echo "Commands:"
+    echo "  up [args]    Start supabase (detached) then web/gate (foreground)"
+    echo "  down [args]  Stop web/gate then supabase"
+    echo "  setup        Clone configuration repo and apply env files"
+    echo "  env:push     Copy env files into configuration repo and push"
+    echo "  env:pull     Pull latest configuration and apply env files"
+    ;;
+esac
