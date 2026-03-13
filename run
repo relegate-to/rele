@@ -53,11 +53,10 @@ case $1 in
     ;;
 
   migrate)
-    for file in "$ROOT_DIR/supabase/supabase/migrations"/*.sql; do
-      echo "  Applying $(basename "$file")..."
-      psql postgresql://postgres:postgres@localhost:54322/postgres -f "$file"
-    done
-    echo "Done."
+    source "$ROOT_DIR/supabase/.env"
+    supabase db push \
+      --workdir "$ROOT_DIR/supabase/supabase" \
+      --db-url "postgresql://postgres:${POSTGRES_PASSWORD}@localhost:54322/postgres"
     ;;
 
   env:pull)
