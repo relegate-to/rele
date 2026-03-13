@@ -7,8 +7,10 @@ services:
       - "3000:3000"
     env_file:
       - ./web/.env.local
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
+    volumes:
+      - ./web:/app
+      - ./.docker-cache/next:/app/.next/cache
+    command: sh -c "bun install && bun run dev"
     depends_on:
       - gate
 
@@ -19,4 +21,7 @@ services:
     ports:
       - "3001:3001"
     env_file:
-      - ./gate/.env
+      - ./gate/.env.local
+    volumes:
+      - ./gate:/app
+    command: sh -c "bun install && bun run dev"

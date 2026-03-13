@@ -29,6 +29,9 @@ export const metadata: Metadata = {
   title: "Rele — The easiest way to get an AI agent running",
   description:
     "Sensible configuration, zero setup pain. The easiest way to get a capable agent running.",
+  icons: {
+      icon: '/favicon.svg',
+    }
 };
 
 export default function RootLayout({
