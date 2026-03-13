@@ -53,10 +53,10 @@ case $1 in
     ;;
 
   migrate)
-    source "$ROOT_DIR/supabase/.env"
+    POSTGRES_PASSWORD=$(grep -E "^POSTGRES_PASSWORD=" "$ROOT_DIR/supabase/.env" | cut -d= -f2)
     supabase db push \
       --workdir "$ROOT_DIR/supabase/supabase" \
-      --db-url "postgresql://postgres:${POSTGRES_PASSWORD}@localhost:54322/postgres"
+      --db-url "postgresql://postgres:${POSTGRES_PASSWORD}@127.0.0.1:54322/postgres"
     ;;
 
   env:pull)
