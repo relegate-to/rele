@@ -22,7 +22,7 @@ case $1 in
     echo "Done."
     ;;
 
-  setup)
+  env:setup)
     echo "Cloning configuration..."
     git clone "$CONFIG_REPO" "$CONFIG_DIR"
     echo "Applying .env files..."
@@ -40,6 +40,10 @@ case $1 in
     ;;
 
   env:push)
+    if [ ! -d "$CONFIG_DIR" ]; then
+      echo "Cloning configuration..."
+      git clone "$CONFIG_REPO" "$CONFIG_DIR"
+    fi
     echo "Pushing .env files to configuration..."
     find "$ROOT_DIR" -name ".env*" \
       -not -path "*/configuration/*" \
@@ -80,9 +84,13 @@ case $1 in
     ;;
 
   env:pull)
-    echo "Pulling latest configuration..."
-    cd "$CONFIG_DIR" && git pull
-    cd "$ROOT_DIR"
+    if [ ! -d "$CONFIG_DIR" ]; then
+      echo "Cloning configuration..."
+      git clone "$CONFIG_REPO" "$CONFIG_DIR"
+    else
+      echo "Pulling latest configuration..."
+      cd "$CONFIG_DIR" && git pull && cd "$ROOT_DIR"
+    fi
     echo "Applying .env files..."
     find "$CONFIG_DIR" -name ".env*" \
       | while read file; do
