@@ -26,9 +26,4 @@ services:
       - ./gate:/app
     command: sh -c "bun install && bun run dev"
     depends_on:
-      db:
-        condition: service_healthy
-
-include:
-  - path: supabase/supabase.yml
-    env_file: supabase/.env
+      - gate
