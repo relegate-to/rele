@@ -60,6 +60,18 @@ case $1 in
     echo "Done."
     ;;
 
+  db:reset)
+    echo "Resetting database..."
+    docker exec -i supabase-db psql -U postgres -d postgres \
+      -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+    echo "Running migrations..."
+    for file in "$ROOT_DIR/supabase/supabase/migrations"/*.sql; do
+      echo "  Applying $(basename "$file")..."
+      docker exec -i supabase-db psql -U postgres -d postgres < "$file"
+    done
+    echo "Done."
+    ;;
+
   env:pull)
     echo "Pulling latest configuration..."
     cd "$CONFIG_DIR" && git pull
@@ -84,6 +96,7 @@ case $1 in
     echo "  down [args]  Stop web/gate then supabase"
     echo "  setup        Clone configuration repo and apply env files"
     echo "  migrate      Push migrations to the local Supabase database"
+    echo "  db:reset     Drop and recreate public schema, then re-run migrations"
     echo "  env:push     Copy env files into configuration repo and push"
     echo "  env:pull     Pull latest configuration and apply env files"
     ;;
