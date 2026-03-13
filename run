@@ -53,10 +53,11 @@ case $1 in
     ;;
 
   migrate)
-    POSTGRES_PASSWORD=$(grep -E "^POSTGRES_PASSWORD=" "$ROOT_DIR/supabase/.env" | cut -d= -f2)
-    supabase db push \
-      --workdir "$ROOT_DIR/supabase/supabase" \
-      --db-url "postgresql://postgres:${POSTGRES_PASSWORD}@127.0.0.1:54322/postgres"
+    for file in "$ROOT_DIR/supabase/supabase/migrations"/*.sql; do
+      echo "  Applying $(basename "$file")..."
+      docker exec -i supabase-db psql -U postgres -d postgres < "$file"
+    done
+    echo "Done."
     ;;
 
   env:pull)
