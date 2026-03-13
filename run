@@ -15,6 +15,13 @@ case $1 in
     docker compose -f "$ROOT_DIR/supabase/supabase.yml" --project-name supabase down "${@:2}"
     ;;
 
+  nuke)
+    echo "Stopping and wiping all Supabase volumes..."
+    docker compose -f "$ROOT_DIR/docker-compose.yml" down
+    docker compose -f "$ROOT_DIR/supabase/supabase.yml" --project-name supabase down -v
+    echo "Done."
+    ;;
+
   setup)
     echo "Cloning configuration..."
     git clone "$CONFIG_REPO" "$CONFIG_DIR"
@@ -94,6 +101,7 @@ case $1 in
     echo "Commands:"
     echo "  up [args]    Start supabase (detached) then web/gate (foreground)"
     echo "  down [args]  Stop web/gate then supabase"
+    echo "  nuke         Stop everything and wipe all Supabase volumes"
     echo "  setup        Clone configuration repo and apply env files"
     echo "  migrate      Push migrations to the local Supabase database"
     echo "  db:reset     Drop and recreate public schema, then re-run migrations"
