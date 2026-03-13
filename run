@@ -57,7 +57,7 @@ case $1 in
         done
     echo "Committing and pushing..."
     cd "$CONFIG_DIR"
-    git add .
+    git add -A
     git commit -m "update env files"
     git push
     echo "Done."
