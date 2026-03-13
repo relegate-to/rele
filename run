@@ -22,29 +22,10 @@ case $1 in
     echo "Done."
     ;;
 
-  env:setup)
+  env:push)
     echo "Cloning configuration..."
     git clone "$CONFIG_REPO" "$CONFIG_DIR"
-    echo "Applying .env files..."
-    find "$CONFIG_DIR" -name ".env*" \
-      | while read file; do
-          relative="${file#$CONFIG_DIR/}"
-          dest="$ROOT_DIR/$relative"
-          mkdir -p "$(dirname "$dest")"
-          cp "$file" "$dest"
-          echo "  ✓ $relative"
-        done
-    echo "Cleaning up..."
-    rm -rf "$CONFIG_DIR"
-    echo "Done."
-    ;;
-
-  env:push)
-    if [ ! -d "$CONFIG_DIR" ]; then
-      echo "Cloning configuration..."
-      git clone "$CONFIG_REPO" "$CONFIG_DIR"
-    fi
-    echo "Pushing .env files to configuration..."
+    echo "Pushing .env files..."
     find "$ROOT_DIR" -name ".env*" \
       -not -path "*/configuration/*" \
       -not -path "*/node_modules/*" \
@@ -60,6 +41,26 @@ case $1 in
     git add -A
     git commit -m "update env files"
     git push
+    cd "$ROOT_DIR"
+    echo "Cleaning up..."
+    rm -rf "$CONFIG_DIR"
+    echo "Done."
+    ;;
+
+  env:pull)
+    echo "Cloning configuration..."
+    git clone "$CONFIG_REPO" "$CONFIG_DIR"
+    echo "Applying .env files..."
+    find "$CONFIG_DIR" -name ".env*" \
+      | while read file; do
+          relative="${file#$CONFIG_DIR/}"
+          dest="$ROOT_DIR/$relative"
+          mkdir -p "$(dirname "$dest")"
+          cp "$file" "$dest"
+          echo "  ✓ $relative"
+        done
+    echo "Cleaning up..."
+    rm -rf "$CONFIG_DIR"
     echo "Done."
     ;;
 
@@ -83,26 +84,6 @@ case $1 in
     echo "Done."
     ;;
 
-  env:pull)
-    if [ ! -d "$CONFIG_DIR" ]; then
-      echo "Cloning configuration..."
-      git clone "$CONFIG_REPO" "$CONFIG_DIR"
-    else
-      echo "Pulling latest configuration..."
-      cd "$CONFIG_DIR" && git pull && cd "$ROOT_DIR"
-    fi
-    echo "Applying .env files..."
-    find "$CONFIG_DIR" -name ".env*" \
-      | while read file; do
-          relative="${file#$CONFIG_DIR/}"
-          dest="$ROOT_DIR/$relative"
-          mkdir -p "$(dirname "$dest")"
-          cp "$file" "$dest"
-          echo "  ✓ $relative"
-        done
-    echo "Done."
-    ;;
-
   *)
     echo "Usage: ./run <command>"
     echo ""
@@ -110,7 +91,6 @@ case $1 in
     echo "  up [args]    Start supabase (detached) then web/gate (foreground)"
     echo "  down [args]  Stop web/gate then supabase"
     echo "  nuke         Stop everything and wipe all Supabase volumes"
-    echo "  setup        Clone configuration repo and apply env files"
     echo "  migrate      Push migrations to the local Supabase database"
     echo "  db:reset     Drop and recreate public schema, then re-run migrations"
     echo "  env:push     Copy env files into configuration repo and push"
