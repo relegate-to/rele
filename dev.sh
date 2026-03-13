@@ -1,8 +1,8 @@
 #!/bin/bash
 
 CMD=$1
-CONFIG_DIR="$(dirname "$0")/configuration"
-ROOT_DIR="$(dirname "$0")"
+CONFIG_DIR="$(cd "$(dirname "$0")" && pwd)/configuration"
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_REPO="https://github.com/relegate-to/configuration"
 
 case $CMD in
@@ -28,8 +28,7 @@ case $CMD in
 
   env:pull)
     echo "Pulling latest configuration..."
-    cd "$CONFIG_DIR"
-    git pull
+    cd "$CONFIG_DIR" && git pull
     cd "$ROOT_DIR"
     echo "Applying .env.local files..."
     find "$CONFIG_DIR" -name ".env.local" \
