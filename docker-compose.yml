@@ -25,3 +25,7 @@ services:
     volumes:
       - ./gate:/app
     command: sh -c "bun install && bun run dev"
+
+include:
+  - path:
+      - supabase/supabase.yml

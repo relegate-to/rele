@@ -9,7 +9,9 @@
     "build": "bun build src/index.ts --outdir dist --target bun"
   },
   "dependencies": {
+    "@clerk/backend": "^3.2.0",
     "@hono/clerk-auth": "^3.1.0",
+    "@supabase/supabase-js": "^2.99.1",
     "hono": "^4.7.0"
   },
   "devDependencies": {

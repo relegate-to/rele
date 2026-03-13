@@ -1,4 +1,4 @@
 node_modules/
 .env
-gate/.env.local
+.env.local
 configuration/
