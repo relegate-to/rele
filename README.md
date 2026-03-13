@@ -17,36 +17,39 @@ A monorepo with a Next.js frontend, a Hono/Bun API, and a local Supabase stack.
 
 ## Setup
 
-Clone the configuration repo to get your env files:
+Pull env files from the configuration repo:
 
 ```bash
-bash dev.sh setup
+./run env:pull
 ```
-
-This copies `.env.local` files into place for `web`, `gate`, and `supabase`.
 
 ## Running locally
 
 ```bash
-bash compose.sh up
+./run up
 ```
 
-This starts the Supabase stack in the background, then brings up `web` and `gate` in the foreground with log output.
-
-In Docker Desktop you'll see two separate groups:
-
-- **supabase** — the full Supabase local dev stack
-- **rele** — web and gate
-
-To stop everything:
+Starts Supabase in the background, then `web` and `gate` in the foreground. In Docker Desktop you'll see two separate groups — `supabase` and `rele`.
 
 ```bash
-bash compose.sh down
+./run down
 ```
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `./run up` | Start Supabase (detached) then web + gate (foreground) |
+| `./run down` | Stop web + gate then Supabase |
+| `./run nuke` | Stop everything and wipe all Supabase volumes |
+| `./run migrate` | Apply all migrations to the local database |
+| `./run db:reset` | Wipe the public schema and re-run all migrations |
+| `./run env:push` | Push local env files to the configuration repo |
+| `./run env:pull` | Pull env files from the configuration repo |
 
 ## Supabase
 
-The local Supabase stack runs as its own Docker Compose project (`supabase/supabase.yml`) with configuration in `supabase/.env`.
+The local Supabase stack runs as its own Docker Compose project (`supabase/supabase.yml`) with configuration in `supabase/.env` (gitignored).
 
 | URL | Description |
 |---|---|
@@ -55,13 +58,7 @@ The local Supabase stack runs as its own Docker Compose project (`supabase/supab
 | `http://localhost:54323` | Supabase Studio |
 | `http://localhost:54324` | Inbucket (email testing) |
 
-### Migrations
-
-Migrations live in `supabase/supabase/migrations/`. To apply them against the local database:
-
-```bash
-supabase db push --workdir supabase/supabase
-```
+Migrations live in `supabase/supabase/migrations/` and are applied with `./run migrate`. After a `./run nuke`, run `./run up` then `./run migrate` to get back to a clean state.
 
 ## Project structure
 
@@ -73,7 +70,7 @@ rele/
 │   ├── supabase.yml      # Supabase Docker Compose project
 │   ├── .env              # Supabase env vars (gitignored)
 │   ├── volumes/          # Init SQL, Kong config, Vector config
-│   └── supabase/         # Supabase CLI project (migrations, config.toml)
+│   └── supabase/         # Migrations and config.toml
 ├── docker-compose.yml    # web + gate
-└── compose.sh            # Starts/stops both compose projects
+└── run                   # Task runner
 ```
