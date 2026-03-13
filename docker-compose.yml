@@ -25,5 +25,3 @@ services:
     volumes:
       - ./gate:/app
     command: sh -c "bun install && bun run dev"
-    depends_on:
-      - gate
