@@ -5,7 +5,7 @@ import UserPill from "@/components/user-pill";
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 
-const API = "https://api.rele.to";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "https://api.rele.to";
 
 type HealthData = { ok: boolean } | null;
 type MeData = { userId: string } | null;
@@ -118,7 +118,7 @@ export default function HomePage() {
           >
             Checking connectivity to{" "}
             <span style={{ fontFamily: "var(--font-dm-mono), monospace", fontSize: "0.85rem" }}>
-              api.rele.to
+              {process.env.NEXT_PUBLIC_API_URL ?? "api.rele.to"}
             </span>
           </p>
         </div>
