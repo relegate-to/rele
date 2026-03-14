@@ -5,8 +5,8 @@ CONFIG_DIR="$ROOT_DIR/configuration"
 CONFIG_REPO="https://github.com/relegate-to/configuration"
 
 case $1 in
-  up)
-    docker compose -f "$ROOT_DIR/docker-compose.yml" up "${@:2}"
+up)
+    docker compose up -d "${@:2}"
     ;;
 
   down)
