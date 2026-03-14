@@ -7,6 +7,7 @@ app = 'rele'
 primary_region = 'iad'
 
 [build]
+  dockerfile = "gate/Dockerfile"
 
 [http_service]
   internal_port = 3001
