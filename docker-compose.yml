@@ -1,27 +1,30 @@
 services:
-  web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
+  postgres:
+    image: postgres:17-alpine
     ports:
-      - "3000:3000"
-    env_file:
-      - ./web/.env.local
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: rele
+      POSTGRES_PASSWORD: rele
+      POSTGRES_DB: rele
     volumes:
-      - ./web:/app
-      - ./.docker-cache/next:/app/.next/cache
-    command: sh -c "bun install && bun run dev"
-    depends_on:
-      - gate
+      - postgres_data:/var/lib/postgresql/data
 
   gate:
-    build:
-      context: ./gate
-      dockerfile: Dockerfile
+    image: oven/bun:1
+    working_dir: /app/gate
     ports:
       - "3001:3001"
     env_file:
       - ./gate/.env.local
     volumes:
-      - ./gate:/app
-    command: sh -c "bun install && bun run dev"
+      - ./gate:/app/gate
+      - ./db:/app/db
+      - ./package.json:/app/package.json
+      - ./bun.lock:/app/bun.lock
+    command: sh -c "cd /app && bun install && bun run --hot gate/src/index.ts"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
