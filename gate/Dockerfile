@@ -10,6 +10,7 @@ RUN bun install --frozen-lockfile --production
 FROM base AS release
 COPY --from=install /app/node_modules ./node_modules
 COPY --from=install /app/gate/node_modules ./gate/node_modules
+COPY --from=install /app/gate/node_modules ./db/node_modules
 COPY gate/src ./gate/src
 COPY gate/package.json ./gate/
 COPY db/src ./db/src
