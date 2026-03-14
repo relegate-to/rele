@@ -1,7 +1,11 @@
 {
   "name": "rele",
   "private": true,
-  "workspaces": ["web", "gate"],
+  "workspaces": [
+    "web",
+    "gate",
+    "db"
+  ],
   "scripts": {
     "dev": "bun run --filter web dev",
     "dev:gate": "bun run --filter gate dev",
@@ -9,6 +13,10 @@
     "build:gate": "bun run --filter gate build",
     "start": "bun run --filter web start",
     "start:gate": "bun run --filter gate start",
-    "lint": "bun run --filter web lint"
+    "lint": "bun run --filter web lint",
+    "db:generate": "bun run --filter @rele/db generate",
+    "db:migrate": "bun run --filter @rele/db migrate",
+    "db:push": "bun run --filter @rele/db push",
+    "db:studio": "bun run --filter @rele/db studio"
   }
 }
