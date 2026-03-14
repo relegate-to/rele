@@ -6,19 +6,19 @@ CONFIG_REPO="https://github.com/relegate-to/configuration"
 
 case $1 in
   up)
-    docker compose -f "$ROOT_DIR/supabase/supabase.yml" --env-file "$ROOT_DIR/supabase/.env" --project-name supabase up -d
+    docker compose -f "$ROOT_DIR/db/supabase/supabase.yml" --env-file "$ROOT_DIR/db/supabase/.env" --project-name supabase up -d
     docker compose -f "$ROOT_DIR/docker-compose.yml" up "${@:2}"
     ;;
 
   down)
     docker compose -f "$ROOT_DIR/docker-compose.yml" down "${@:2}"
-    docker compose -f "$ROOT_DIR/supabase/supabase.yml" --project-name supabase down "${@:2}"
+    docker compose -f "$ROOT_DIR/db/supabase/supabase.yml" --project-name supabase down "${@:2}"
     ;;
 
   nuke)
     echo "Stopping and wiping all Supabase volumes..."
     docker compose -f "$ROOT_DIR/docker-compose.yml" down
-    docker compose -f "$ROOT_DIR/supabase/supabase.yml" --project-name supabase down -v
+    docker compose -f "$ROOT_DIR/db/supabase/supabase.yml" --project-name supabase down -v
     echo "Done."
     ;;
 
@@ -65,7 +65,7 @@ case $1 in
     ;;
 
   migrate)
-    for file in "$ROOT_DIR/supabase/supabase/migrations"/*.sql; do
+    for file in "$ROOT_DIR/db/supabase/supabase/migrations"/*.sql; do
       echo "  Applying $(basename "$file")..."
       docker exec -i supabase-db psql -U postgres -d postgres < "$file"
     done
@@ -77,7 +77,7 @@ case $1 in
     docker exec -i supabase-db psql -U postgres -d postgres \
       -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
     echo "Running migrations..."
-    for file in "$ROOT_DIR/supabase/supabase/migrations"/*.sql; do
+    for file in "$ROOT_DIR/db/supabase/supabase/migrations"/*.sql; do
       echo "  Applying $(basename "$file")..."
       docker exec -i supabase-db psql -U postgres -d postgres < "$file"
     done
