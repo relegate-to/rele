@@ -5,7 +5,7 @@ CONFIG_DIR="$ROOT_DIR/configuration"
 CONFIG_REPO="https://github.com/relegate-to/configuration"
 
 case $1 in
-up)
+    up)
     docker compose up -d "${@:2}"
     ;;
 
