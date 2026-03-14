@@ -25,27 +25,3 @@ services:
     volumes:
       - ./gate:/app
     command: sh -c "bun install && bun run dev"
-    depends_on:
-      db:
-        condition: service_healthy
-
-  auth:
-    container_name: supabase-auth
-    image: public.ecr.aws/supabase/gotrue:v2.186.0
-    restart: unless-stopped
-    healthcheck:
-      test:
-        - CMD
-        - wget
-        - --no-verbose
-        - --tries=1
-        - --spider
-        - http://localhost:9999/health
-      timeout: 5s
-      interval: 5s
-      retries: 3
-    depends_on:
-      db:
-        condition: service_healthy
-    env_file:
-      - ./db/.env.local
