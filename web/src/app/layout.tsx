@@ -29,8 +29,7 @@ export const metadata: Metadata = {
   title: "Rele",
   description:
     "Sensible configuration, zero setup pain. The easiest way to get a capable agent running.",
-  icons: {
-    }
+  icons: {},
 };
 
 export default function RootLayout({
@@ -43,7 +42,18 @@ export default function RootLayout({
       <body
         className={`${lora.variable} ${dmMono.variable} ${crimsonPro.variable} antialiased`}
       >
-        <NeonAuthUIProvider authClient={authClient} redirectTo="/home" defaultTheme="dark">
+        <NeonAuthUIProvider
+          authClient={authClient}
+          redirectTo="/home"
+          defaultTheme="dark"
+          localization={{
+            EMAIL_PLACEHOLDER: "you@example.com",
+          }}
+          viewPaths={{
+            SIGN_IN: "/sign-in",
+            SIGN_UP: "/sign-up",
+          }}
+        >
           <PageTransitionProvider>{children}</PageTransitionProvider>
         </NeonAuthUIProvider>
       </body>
