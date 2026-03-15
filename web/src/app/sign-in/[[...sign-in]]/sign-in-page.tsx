@@ -118,7 +118,13 @@ export default function SignInPageClient() {
         >
           <AuthView
             path="sign-in"
-            classNames={{ base: "w-full" }}
+            classNames={{
+              base: "w-full",
+              header: "px-6 pt-6 pb-2",
+              content: "px-6 pb-6 gap-4 flex flex-col",
+              footer: "px-6 pb-4",
+              form: { base: "gap-4 flex flex-col" },
+            }}
           />
         </div>
       </div>
