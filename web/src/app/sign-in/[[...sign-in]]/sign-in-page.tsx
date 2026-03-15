@@ -94,6 +94,7 @@ export default function SignInPageClient() {
             zIndex: 1,
             width: "420px",
             maxWidth: "calc(100vw - 2rem)",
+            padding: "0 1rem",
             /* Neon Auth CSS variables */
             ["--neon-background" as string]: C.bg,
             ["--neon-foreground" as string]: C.text,
