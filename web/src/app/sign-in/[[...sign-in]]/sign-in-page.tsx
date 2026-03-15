@@ -6,13 +6,9 @@ import { C } from "@/lib/theme";
 export default function SignInPageClient() {
   return (
     <>
+      {/* Solid background */}
       <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: C.bg,
-          zIndex: -1,
-        }}
+        style={{ position: "fixed", inset: 0, background: C.bg, zIndex: -1 }}
       />
 
       <div
@@ -24,12 +20,12 @@ export default function SignInPageClient() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          fontFamily: "var(--font-crimson-pro), serif",
           position: "relative",
           overflow: "hidden",
           animation: "page-enter 0.3s ease-in-out both",
         }}
       >
+        {/* Noise grain */}
         <div
           aria-hidden
           style={{
@@ -43,6 +39,7 @@ export default function SignInPageClient() {
           }}
         />
 
+        {/* Vignette */}
         <div
           aria-hidden
           style={{
@@ -55,11 +52,12 @@ export default function SignInPageClient() {
           }}
         />
 
+        {/* Wordmark */}
         <div
           style={{
             position: "relative",
             zIndex: 1,
-            marginBottom: "2.5rem",
+            marginBottom: "2rem",
             textAlign: "center",
           }}
         >
@@ -89,7 +87,32 @@ export default function SignInPageClient() {
           </h1>
         </div>
 
-        <div style={{ position: "relative", zIndex: 1 }}>
+        {/* Auth card — override neon vars inline on this wrapper so they win regardless of layer order */}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            /* Neon Auth CSS variables */
+            ["--neon-background" as string]: C.bg,
+            ["--neon-foreground" as string]: C.text,
+            ["--neon-card" as string]: C.surface,
+            ["--neon-card-foreground" as string]: C.text,
+            ["--neon-popover" as string]: C.surface,
+            ["--neon-popover-foreground" as string]: C.text,
+            ["--neon-primary" as string]: C.copper,
+            ["--neon-primary-foreground" as string]: "#1a1510",
+            ["--neon-secondary" as string]: C.surfaceHi,
+            ["--neon-secondary-foreground" as string]: C.text,
+            ["--neon-muted" as string]: C.surface,
+            ["--neon-muted-foreground" as string]: C.textDim,
+            ["--neon-accent" as string]: C.surfaceHi,
+            ["--neon-accent-foreground" as string]: C.text,
+            ["--neon-border" as string]: C.border,
+            ["--neon-input" as string]: C.border,
+            ["--neon-ring" as string]: C.copper,
+            ["--neon-radius" as string]: "0.375rem",
+          }}
+        >
           <AuthView path="sign-in" />
         </div>
       </div>
