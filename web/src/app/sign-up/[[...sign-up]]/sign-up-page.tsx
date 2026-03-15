@@ -1,0 +1,166 @@
+"use client";
+
+import { AuthView } from "@neondatabase/auth/react";
+import { C } from "@/lib/theme";
+
+export default function SignUpPageClient() {
+  return (
+    <>
+      {/* Solid background */}
+      <div
+        style={{ position: "fixed", inset: 0, background: C.bg, zIndex: -1 }}
+      />
+
+      <div
+        style={{
+          background: C.bg,
+          color: C.text,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          overflow: "hidden",
+          animation: "page-enter 0.3s ease-in-out both",
+        }}
+      >
+        {/* Noise grain */}
+        <div
+          aria-hidden
+          style={{
+            position: "fixed",
+            inset: 0,
+            pointerEvents: "none",
+            zIndex: 0,
+            mixBlendMode: "overlay" as React.CSSProperties["mixBlendMode"],
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E")`,
+            backgroundSize: "512px 512px",
+          }}
+        />
+
+        {/* Vignette */}
+        <div
+          aria-hidden
+          style={{
+            position: "fixed",
+            inset: 0,
+            pointerEvents: "none",
+            zIndex: 0,
+            background: `radial-gradient(ellipse at 50% 0%, rgba(200,132,90,0.07) 0%, transparent 60%),
+                         radial-gradient(ellipse at 50% 100%, rgba(26,21,16,0.8) 0%, transparent 70%)`,
+          }}
+        />
+
+        {/* Wordmark */}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            marginBottom: "2rem",
+            textAlign: "center",
+          }}
+        >
+          <p
+            style={{
+              fontFamily: "var(--font-dm-mono), monospace",
+              fontSize: "0.65rem",
+              color: C.copper,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              marginBottom: "0.6rem",
+            }}
+          >
+            By Relegate
+          </p>
+          <h1
+            style={{
+              fontFamily: "var(--font-lora), serif",
+              fontWeight: 400,
+              fontSize: "2.4rem",
+              letterSpacing: "-0.02em",
+              color: C.cream,
+              lineHeight: 1,
+            }}
+          >
+            rele
+          </h1>
+        </div>
+
+        {/* Auth card */}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            width: "420px",
+            maxWidth: "calc(100vw - 2rem)",
+            padding: "0 1rem",
+            ["--neon-background" as string]: C.bg,
+            ["--neon-foreground" as string]: C.text,
+            ["--neon-card" as string]: C.surface,
+            ["--neon-card-foreground" as string]: C.text,
+            ["--neon-popover" as string]: C.surface,
+            ["--neon-popover-foreground" as string]: C.text,
+            ["--neon-primary" as string]: C.copper,
+            ["--neon-primary-foreground" as string]: "#1a1510",
+            ["--neon-secondary" as string]: C.surfaceHi,
+            ["--neon-secondary-foreground" as string]: C.text,
+            ["--neon-muted" as string]: C.surface,
+            ["--neon-muted-foreground" as string]: C.textDim,
+            ["--neon-accent" as string]: C.surfaceHi,
+            ["--neon-accent-foreground" as string]: C.text,
+            ["--neon-border" as string]: C.border,
+            ["--neon-input" as string]: C.border,
+            ["--neon-ring" as string]: C.copper,
+            ["--neon-radius" as string]: "0.375rem",
+          }}
+        >
+          <AuthView
+            path="sign-up"
+            classNames={{
+              base: "!max-w-full p-5! transition-all duration-300 ease-in-out",
+              header: "px-6 pt-6 pb-0",
+              title: "text-2xl font-semibold tracking-tight",
+              description: "text-sm text-muted-foreground mt-1",
+              separator: "my-3",
+              footer:
+                "px-6 py-4 border-t border-white/10 text-sm text-muted-foreground text-center",
+              footerLink:
+                "font-medium underline underline-offset-4 hover:opacity-80",
+              form: {
+                base: "px-6 pb-6 space-y-4",
+                label: "text-sm font-medium",
+                input: "w-full placeholder:text-muted-foreground/40 p-1!",
+                primaryButton: "w-full font-medium mt-2",
+                forgotPasswordLink:
+                  "text-xs text-muted-foreground hover:text-foreground",
+                error: "text-xs text-red-400/70 absolute! bottom-0 left-0 ",
+              },
+            }}
+          />
+          <style>{`
+            .neon-auth-ui [data-slot="form-item"] {
+              position: relative;
+              padding-bottom: 1.25rem;
+            }
+
+            .neon-auth-ui [data-slot="form-message"] {
+              animation: error-in 0.2s ease forwards;
+            }
+
+            @keyframes error-in {
+              from {
+                opacity: 0;
+                transform: translateY(-4px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+          `}</style>
+        </div>
+      </div>
+    </>
+  );
+}
