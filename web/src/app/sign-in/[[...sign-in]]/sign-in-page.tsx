@@ -92,6 +92,8 @@ export default function SignInPageClient() {
           style={{
             position: "relative",
             zIndex: 1,
+            width: "420px",
+            maxWidth: "calc(100vw - 2rem)",
             /* Neon Auth CSS variables */
             ["--neon-background" as string]: C.bg,
             ["--neon-foreground" as string]: C.text,
@@ -113,7 +115,10 @@ export default function SignInPageClient() {
             ["--neon-radius" as string]: "0.375rem",
           }}
         >
-          <AuthView path="sign-in" />
+          <AuthView
+            path="sign-in"
+            classNames={{ base: "w-full" }}
+          />
         </div>
       </div>
     </>
