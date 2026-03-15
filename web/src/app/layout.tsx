@@ -49,9 +49,10 @@ export default function RootLayout({
           localization={{
             EMAIL_PLACEHOLDER: "you@example.com",
           }}
+          basePath="/"
           viewPaths={{
-            SIGN_IN: "/sign-in",
-            SIGN_UP: "/sign-up",
+            SIGN_IN: "sign-in",
+            SIGN_UP: "sign-up",
           }}
         >
           <PageTransitionProvider>{children}</PageTransitionProvider>
