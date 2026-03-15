@@ -1,6 +1,31 @@
 @import "tailwindcss";
 @import "@neondatabase/auth/ui/tailwind";
 
+/* Override Neon Auth UI theme to match the app's warm dark palette */
+:root,
+.dark {
+  --neon-background: #1a1510;
+  --neon-foreground: #e8ddd0;
+  --neon-card: #2a2118;
+  --neon-card-foreground: #e8ddd0;
+  --neon-popover: #2a2118;
+  --neon-popover-foreground: #e8ddd0;
+  --neon-primary: #c8845a;
+  --neon-primary-foreground: #1a1510;
+  --neon-secondary: #332820;
+  --neon-secondary-foreground: #e8ddd0;
+  --neon-muted: #2a2118;
+  --neon-muted-foreground: #a8998a;
+  --neon-accent: #332820;
+  --neon-accent-foreground: #e8ddd0;
+  --neon-destructive: #c0392b;
+  --neon-destructive-foreground: #f0e8d8;
+  --neon-border: #3d3025;
+  --neon-input: #3d3025;
+  --neon-ring: #c8845a;
+  --neon-radius: 0.5rem;
+}
+
 :root {
   --bg: #1a1510;
   --bg-warm: #211a12;

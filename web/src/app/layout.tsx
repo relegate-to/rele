@@ -43,7 +43,7 @@ export default function RootLayout({
       <body
         className={`${lora.variable} ${dmMono.variable} ${crimsonPro.variable} antialiased`}
       >
-        <NeonAuthUIProvider authClient={authClient} redirectTo="/home">
+        <NeonAuthUIProvider authClient={authClient} redirectTo="/home" defaultTheme="dark">
           <PageTransitionProvider>{children}</PageTransitionProvider>
         </NeonAuthUIProvider>
       </body>
