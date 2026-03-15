@@ -54,6 +54,9 @@ export default function RootLayout({
             SIGN_IN: "sign-in",
             SIGN_UP: "sign-up",
           }}
+          social={{
+            providers: ["github", "google"],
+          }}
         >
           <PageTransitionProvider>{children}</PageTransitionProvider>
         </NeonAuthUIProvider>

@@ -73,10 +73,10 @@ function statusColor(s: InstanceStatus): string {
   return s === "running"
     ? "#6dbf8b"
     : s === "degraded"
-    ? "#c8845a"
-    : s === "provisioning"
-    ? "#8ab4d8"
-    : C.muted;
+      ? "#c8845a"
+      : s === "provisioning"
+        ? "#8ab4d8"
+        : C.muted;
 }
 
 function statusLabel(s: InstanceStatus): string {
@@ -266,10 +266,6 @@ function selectCss(): React.CSSProperties {
 // ── Health Panel ──────────────────────────────────────────────────────────────
 
 function HealthPanel() {
-  const getToken = async () => {
-    const { data } = await authClient.token();
-    return data?.token ?? null;
-  };
   const [checks, setChecks] = useState<HealthCheck[]>([
     { label: "API Gateway", endpoint: "/health", ok: null, latencyMs: null },
     { label: "Auth Service", endpoint: "/me", ok: null, latencyMs: null },
@@ -279,7 +275,10 @@ function HealthPanel() {
 
   const runChecks = useCallback(async () => {
     setChecking(true);
-    const token = await getToken().catch(() => null);
+    const { data } = await authClient
+      .getSession()
+      .catch(() => ({ data: null }));
+    const token = data?.session?.token ?? null;
 
     const results = await Promise.all([
       (async () => {
@@ -307,11 +306,15 @@ function HealthPanel() {
     ]);
 
     setChecks((prev) =>
-      prev.map((c, i) => ({ ...c, ok: results[i].ok, latencyMs: results[i].latencyMs }))
+      prev.map((c, i) => ({
+        ...c,
+        ok: results[i].ok,
+        latencyMs: results[i].latencyMs,
+      })),
     );
     setLastChecked(new Date());
     setChecking(false);
-  }, [getToken]);
+  }, []);
 
   useEffect(() => {
     runChecks();
@@ -321,7 +324,11 @@ function HealthPanel() {
 
   const allOk = checks.every((c) => c.ok === true);
   const anyNull = checks.some((c) => c.ok === null);
-  const overallStatus = anyNull ? "checking" : allOk ? "operational" : "degraded";
+  const overallStatus = anyNull
+    ? "checking"
+    : allOk
+      ? "operational"
+      : "degraded";
 
   return (
     <Card>
@@ -370,20 +377,20 @@ function HealthPanel() {
                 overallStatus === "operational"
                   ? "rgba(109,191,139,0.12)"
                   : overallStatus === "degraded"
-                  ? "rgba(200,132,90,0.12)"
-                  : "rgba(107,92,78,0.15)",
+                    ? "rgba(200,132,90,0.12)"
+                    : "rgba(107,92,78,0.15)",
               color:
                 overallStatus === "operational"
                   ? "#6dbf8b"
                   : overallStatus === "degraded"
-                  ? C.copper
-                  : C.muted,
+                    ? C.copper
+                    : C.muted,
               border: `1px solid ${
                 overallStatus === "operational"
                   ? "rgba(109,191,139,0.25)"
                   : overallStatus === "degraded"
-                  ? "rgba(200,132,90,0.25)"
-                  : C.border
+                    ? "rgba(200,132,90,0.25)"
+                    : C.border
               }`,
             }}
           >
@@ -399,24 +406,31 @@ function HealthPanel() {
             alignItems: "center",
             justifyContent: "space-between",
             padding: "0.85rem 1.25rem",
-            borderBottom: i < checks.length - 1 ? `1px solid ${C.border}` : undefined,
+            borderBottom:
+              i < checks.length - 1 ? `1px solid ${C.border}` : undefined,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          >
             <div
               style={{
                 width: "6px",
                 height: "6px",
                 borderRadius: "50%",
                 background:
-                  check.ok === null ? C.muted : check.ok ? "#6dbf8b" : "#c0504d",
+                  check.ok === null
+                    ? C.muted
+                    : check.ok
+                      ? "#6dbf8b"
+                      : "#c0504d",
                 flexShrink: 0,
                 boxShadow:
                   check.ok === true
                     ? "0 0 6px rgba(109,191,139,0.5)"
                     : check.ok === false
-                    ? "0 0 6px rgba(192,80,77,0.5)"
-                    : "none",
+                      ? "0 0 6px rgba(192,80,77,0.5)"
+                      : "none",
               }}
             />
             <Mono size="0.75rem">{check.label}</Mono>
@@ -432,8 +446,8 @@ function HealthPanel() {
                   check.latencyMs < 100
                     ? "#6dbf8b"
                     : check.latencyMs < 300
-                    ? C.copper
-                    : "#c0504d"
+                      ? C.copper
+                      : "#c0504d"
                 }
               >
                 {check.latencyMs}ms
@@ -460,7 +474,11 @@ function HealthPanel() {
         >
           <Mono size="0.58rem" color={C.muted}>
             Last checked{" "}
-            {lastChecked.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            {lastChecked.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
           </Mono>
         </div>
       )}
@@ -520,7 +538,14 @@ function InstanceCard({
           }}
         >
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                marginBottom: "0.25rem",
+              }}
+            >
               <StatusDot status={instance.status} />
               <h3
                 style={{
@@ -535,7 +560,9 @@ function InstanceCard({
                 {instance.name}
               </h3>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
               <Mono size="0.65rem" color={C.muted}>
                 {instance.id}
               </Mono>
@@ -597,8 +624,8 @@ function InstanceCard({
                 instance.latencyMs < 100
                   ? "#6dbf8b"
                   : instance.latencyMs < 300
-                  ? C.copper
-                  : "#c0504d"
+                    ? C.copper
+                    : "#c0504d"
               }
             >
               {instance.latencyMs}ms
@@ -667,7 +694,13 @@ function InstanceCard({
 
 // ── Create Instance Modal ─────────────────────────────────────────────────────
 
-function CreateInstanceModal({ onClose, onCreate }: { onClose: () => void; onCreate: (i: Instance) => void }) {
+function CreateInstanceModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (i: Instance) => void;
+}) {
   const [name, setName] = useState("");
   const [region, setRegion] = useState(REGIONS[0]);
   const [plan, setPlan] = useState(PLANS[1]);
@@ -784,7 +817,15 @@ function CreateInstanceModal({ onClose, onCreate }: { onClose: () => void; onCre
         </div>
 
         {/* Form */}
-        <form onSubmit={handleCreate} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+        <form
+          onSubmit={handleCreate}
+          style={{
+            padding: "1.5rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "1.1rem",
+          }}
+        >
           <div>
             <Label>Instance Name</Label>
             <input
@@ -799,7 +840,13 @@ function CreateInstanceModal({ onClose, onCreate }: { onClose: () => void; onCre
             />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "0.75rem",
+            }}
+          >
             <div>
               <Label>Region</Label>
               <select
@@ -842,7 +889,15 @@ function CreateInstanceModal({ onClose, onCreate }: { onClose: () => void; onCre
               borderRadius: "5px",
             }}
           >
-            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#8ab4d8", flexShrink: 0 }} />
+            <div
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: "#8ab4d8",
+                flexShrink: 0,
+              }}
+            />
             <Mono size="0.7rem" color={C.textDim}>
               {name.trim() || "instance-name"}
             </Mono>
@@ -856,7 +911,9 @@ function CreateInstanceModal({ onClose, onCreate }: { onClose: () => void; onCre
             </Mono>
           </div>
 
-          <div style={{ display: "flex", gap: "0.5rem", paddingTop: "0.25rem" }}>
+          <div
+            style={{ display: "flex", gap: "0.5rem", paddingTop: "0.25rem" }}
+          >
             <button
               type="button"
               onClick={onClose}
@@ -873,8 +930,12 @@ function CreateInstanceModal({ onClose, onCreate }: { onClose: () => void; onCre
                 cursor: "pointer",
                 transition: "border-color 0.15s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.borderHi)}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.borderColor = C.borderHi)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.borderColor = C.border)
+              }
             >
               Cancel
             </button>
@@ -913,13 +974,21 @@ function CreateInstanceModal({ onClose, onCreate }: { onClose: () => void; onCre
 
 // ── Configure Modal ───────────────────────────────────────────────────────────
 
-function ConfigureModal({ instance, onClose }: { instance: Instance; onClose: () => void }) {
+function ConfigureModal({
+  instance,
+  onClose,
+}: {
+  instance: Instance;
+  onClose: () => void;
+}) {
   const [tab, setTab] = useState<"general" | "env" | "scaling">("general");
   const [autoscale, setAutoscale] = useState(true);
   const [maxWorkers, setMaxWorkers] = useState("4");
   const [timeout, setTimeout_] = useState("30");
   const [logLevel, setLogLevel] = useState("info");
-  const [envVars, setEnvVars] = useState("NODE_ENV=production\nLOG_FORMAT=json");
+  const [envVars, setEnvVars] = useState(
+    "NODE_ENV=production\nLOG_FORMAT=json",
+  );
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const tabs: { id: typeof tab; label: string }[] = [
@@ -976,9 +1045,20 @@ function ConfigureModal({ instance, onClose }: { instance: Instance; onClose: ()
           }}
         >
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                marginBottom: "0.2rem",
+              }}
+            >
               <StatusDot status={instance.status} />
-              <Mono size="0.55rem" color={C.copper} style={{ letterSpacing: "0.2em", textTransform: "uppercase" }}>
+              <Mono
+                size="0.55rem"
+                color={C.copper}
+                style={{ letterSpacing: "0.2em", textTransform: "uppercase" }}
+              >
                 Configure Instance
               </Mono>
             </div>
@@ -1025,7 +1105,10 @@ function ConfigureModal({ instance, onClose }: { instance: Instance; onClose: ()
               style={{
                 background: "transparent",
                 border: "none",
-                borderBottom: tab === t.id ? `2px solid ${C.copper}` : "2px solid transparent",
+                borderBottom:
+                  tab === t.id
+                    ? `2px solid ${C.copper}`
+                    : "2px solid transparent",
                 color: tab === t.id ? C.copper : C.muted,
                 fontFamily: "var(--font-dm-mono), monospace",
                 fontSize: "0.65rem",
@@ -1043,10 +1126,23 @@ function ConfigureModal({ instance, onClose }: { instance: Instance; onClose: ()
         </div>
 
         {/* Tab content */}
-        <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div
+          style={{
+            padding: "1.5rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "1rem",
+          }}
+        >
           {tab === "general" && (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "0.75rem",
+                }}
+              >
                 <div>
                   <Label>Region</Label>
                   <Mono size="0.75rem">{instance.region}</Mono>
@@ -1065,7 +1161,9 @@ function ConfigureModal({ instance, onClose }: { instance: Instance; onClose: ()
                   max="300"
                   value={timeout}
                   onChange={(e) => setTimeout_(e.target.value)}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = C.borderHi)}
+                  onFocus={(e) =>
+                    (e.currentTarget.style.borderColor = C.borderHi)
+                  }
                   onBlur={(e) => (e.currentTarget.style.borderColor = C.border)}
                 />
               </div>
@@ -1089,21 +1187,33 @@ function ConfigureModal({ instance, onClose }: { instance: Instance; onClose: ()
           {tab === "env" && (
             <div>
               <Label>Environment Variables</Label>
-              <p style={{ fontFamily: "var(--font-crimson-pro), serif", fontSize: "0.85rem", color: C.muted, marginBottom: "0.5rem", lineHeight: 1.5 }}>
+              <p
+                style={{
+                  fontFamily: "var(--font-crimson-pro), serif",
+                  fontSize: "0.85rem",
+                  color: C.muted,
+                  marginBottom: "0.5rem",
+                  lineHeight: 1.5,
+                }}
+              >
                 One variable per line in KEY=VALUE format.
               </p>
               <textarea
-                style={{
-                  ...inputCss(),
-                  height: "140px",
-                  resize: "vertical",
-                  fontFamily: "var(--font-dm-mono), monospace",
-                  fontSize: "0.72rem",
-                  lineHeight: 1.6,
-                } as React.CSSProperties}
+                style={
+                  {
+                    ...inputCss(),
+                    height: "140px",
+                    resize: "vertical",
+                    fontFamily: "var(--font-dm-mono), monospace",
+                    fontSize: "0.72rem",
+                    lineHeight: 1.6,
+                  } as React.CSSProperties
+                }
                 value={envVars}
                 onChange={(e) => setEnvVars(e.target.value)}
-                onFocus={(e) => (e.currentTarget.style.borderColor = C.borderHi)}
+                onFocus={(e) =>
+                  (e.currentTarget.style.borderColor = C.borderHi)
+                }
                 onBlur={(e) => (e.currentTarget.style.borderColor = C.border)}
                 spellCheck={false}
               />
@@ -1125,7 +1235,14 @@ function ConfigureModal({ instance, onClose }: { instance: Instance; onClose: ()
               >
                 <div>
                   <Mono size="0.72rem">Autoscale</Mono>
-                  <p style={{ fontFamily: "var(--font-crimson-pro), serif", fontSize: "0.8rem", color: C.muted, margin: "0.15rem 0 0" }}>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-crimson-pro), serif",
+                      fontSize: "0.8rem",
+                      color: C.muted,
+                      margin: "0.15rem 0 0",
+                    }}
+                  >
                     Automatically adjust workers based on load
                   </p>
                 </div>
@@ -1168,7 +1285,9 @@ function ConfigureModal({ instance, onClose }: { instance: Instance; onClose: ()
                   value={maxWorkers}
                   onChange={(e) => setMaxWorkers(e.target.value)}
                   disabled={!autoscale}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = C.borderHi)}
+                  onFocus={(e) =>
+                    (e.currentTarget.style.borderColor = C.borderHi)
+                  }
                   onBlur={(e) => (e.currentTarget.style.borderColor = C.border)}
                 />
               </div>
@@ -1176,7 +1295,9 @@ function ConfigureModal({ instance, onClose }: { instance: Instance; onClose: ()
           )}
 
           {/* Save */}
-          <div style={{ display: "flex", gap: "0.5rem", paddingTop: "0.25rem" }}>
+          <div
+            style={{ display: "flex", gap: "0.5rem", paddingTop: "0.25rem" }}
+          >
             <button
               type="button"
               onClick={onClose}
@@ -1193,8 +1314,12 @@ function ConfigureModal({ instance, onClose }: { instance: Instance; onClose: ()
                 cursor: "pointer",
                 transition: "border-color 0.15s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.borderHi)}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.borderColor = C.borderHi)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.borderColor = C.border)
+              }
             >
               Discard
             </button>
@@ -1266,7 +1391,14 @@ export default function HomePage() {
         <GrainOverlay />
 
         {/* User pill */}
-        <div style={{ position: "fixed", top: "1.25rem", right: "1.5rem", zIndex: 10 }}>
+        <div
+          style={{
+            position: "fixed",
+            top: "1.25rem",
+            right: "1.5rem",
+            zIndex: 10,
+          }}
+        >
           <UserPill />
         </div>
 
@@ -1344,9 +1476,16 @@ export default function HomePage() {
                   marginBottom: "0.9rem",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                  }}
+                >
                   <Mono size="0.7rem" color={C.muted}>
-                    {instances.length} instance{instances.length !== 1 ? "s" : ""}
+                    {instances.length} instance
+                    {instances.length !== 1 ? "s" : ""}
                   </Mono>
                 </div>
                 <button
@@ -1382,7 +1521,13 @@ export default function HomePage() {
               </div>
 
               {/* Instance cards */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.85rem",
+                }}
+              >
                 <AnimatePresence mode="popLayout">
                   {instances.length === 0 ? (
                     <motion.div
@@ -1410,10 +1555,21 @@ export default function HomePage() {
                               justifyContent: "center",
                             }}
                           >
-                            <Mono size="1rem" color={C.border}>+</Mono>
+                            <Mono size="1rem" color={C.border}>
+                              +
+                            </Mono>
                           </div>
-                          <Mono size="0.75rem" color={C.muted}>No instances yet</Mono>
-                          <p style={{ fontFamily: "var(--font-crimson-pro), serif", fontSize: "0.9rem", color: C.muted, marginTop: "0.4rem" }}>
+                          <Mono size="0.75rem" color={C.muted}>
+                            No instances yet
+                          </Mono>
+                          <p
+                            style={{
+                              fontFamily: "var(--font-crimson-pro), serif",
+                              fontSize: "0.9rem",
+                              color: C.muted,
+                              marginTop: "0.4rem",
+                            }}
+                          >
                             Create your first instance to get started.
                           </p>
                           <button
@@ -1451,7 +1607,9 @@ export default function HomePage() {
             </div>
 
             {/* Right sidebar */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+            >
               {/* Health panel */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
@@ -1469,23 +1627,36 @@ export default function HomePage() {
               >
                 <Card>
                   <CardHeader>
-                    <Mono size="0.7rem" color={C.muted}>Overview</Mono>
+                    <Mono size="0.7rem" color={C.muted}>
+                      Overview
+                    </Mono>
                   </CardHeader>
-                  <div style={{ padding: "0.9rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.8rem" }}>
+                  <div
+                    style={{
+                      padding: "0.9rem 1.25rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.8rem",
+                    }}
+                  >
                     {[
                       {
                         label: "Running",
-                        value: instances.filter((i) => i.status === "running").length,
+                        value: instances.filter((i) => i.status === "running")
+                          .length,
                         color: "#6dbf8b",
                       },
                       {
                         label: "Degraded",
-                        value: instances.filter((i) => i.status === "degraded").length,
+                        value: instances.filter((i) => i.status === "degraded")
+                          .length,
                         color: C.copper,
                       },
                       {
                         label: "Total requests",
-                        value: fmt(instances.reduce((sum, i) => sum + i.requests, 0)),
+                        value: fmt(
+                          instances.reduce((sum, i) => sum + i.requests, 0),
+                        ),
                         color: C.text,
                       },
                       {
@@ -1498,10 +1669,18 @@ export default function HomePage() {
                     ].map((stat) => (
                       <div
                         key={stat.label}
-                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
                       >
-                        <Mono size="0.65rem" color={C.muted}>{stat.label}</Mono>
-                        <Mono size="0.75rem" color={stat.color}>{String(stat.value)}</Mono>
+                        <Mono size="0.65rem" color={C.muted}>
+                          {stat.label}
+                        </Mono>
+                        <Mono size="0.75rem" color={stat.color}>
+                          {String(stat.value)}
+                        </Mono>
                       </div>
                     ))}
                   </div>

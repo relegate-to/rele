@@ -2,16 +2,17 @@
   "name": "rele",
   "private": true,
   "workspaces": [
+    "db",
     "gate",
-    "db"
+    "web"
   ],
   "scripts": {
+    "dev": "concurrently \"bun run --filter web dev\" \"bun run --filter gate dev\"",
     "dev:gate": "bun run --filter gate dev",
     "build:gate": "bun run --filter gate build",
-    "start:gate": "bun run --filter gate start",
-    "db:generate": "bun run --filter @rele/db generate",
-    "db:migrate": "bun run --filter @rele/db migrate",
-    "db:push": "bun run --filter @rele/db push",
-    "db:studio": "bun run --filter @rele/db studio"
+    "start:gate": "bun run --filter gate start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

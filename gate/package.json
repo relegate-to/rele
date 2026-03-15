@@ -9,12 +9,13 @@
     "build": "bun build src/index.ts --outdir dist --target bun"
   },
   "dependencies": {
-    "@clerk/backend": "^3.2.0",
     "@hono/clerk-auth": "^3.1.0",
     "@supabase/supabase-js": "^2.99.1",
     "drizzle-orm": "0.41.0",
     "hono": "^4.7.0",
-    "postgres": "^3.4.8"
+    "jose": "^6.2.1",
+    "postgres": "^3.4.8",
+    "@rele/db": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest"

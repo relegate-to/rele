@@ -11,11 +11,15 @@
   },
   "dependencies": {
     "dotenv": "^17.3.1",
-    "drizzle-orm": "^0.41.0",
+    "drizzle-orm": "0.41.0",
     "postgres": "^3.4.5"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/node": "^25.5.0",
     "drizzle-kit": "^0.30.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
   }
 }

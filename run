@@ -5,20 +5,6 @@ CONFIG_DIR="$ROOT_DIR/configuration"
 CONFIG_REPO="https://github.com/relegate-to/configuration"
 
 case $1 in
-    up)
-    docker compose up -d "${@:2}"
-    ;;
-
-  down)
-    docker compose -f "$ROOT_DIR/docker-compose.yml" down "${@:2}"
-    ;;
-
-  nuke)
-    echo "Stopping and wiping all Supabase volumes..."
-    docker compose -f "$ROOT_DIR/docker-compose.yml" down
-    echo "Done."
-    ;;
-
   env:push)
     echo "Cloning configuration..."
     git clone "$CONFIG_REPO" "$CONFIG_DIR"
@@ -61,54 +47,10 @@ case $1 in
     echo "Done."
     ;;
 
-  migrate)
-    for file in "$ROOT_DIR/db/supabase/supabase/migrations"/*.sql; do
-      echo "  Applying $(basename "$file")..."
-      docker exec -i supabase-db psql -U postgres -d postgres < "$file"
-    done
-    echo "Done."
-    ;;
-
-  db:reset)
-    echo "Resetting database..."
-    docker exec -i supabase-db psql -U postgres -d postgres \
-      -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-    echo "Running migrations..."
-    for file in "$ROOT_DIR/db/supabase/supabase/migrations"/*.sql; do
-      echo "  Applying $(basename "$file")..."
-      docker exec -i supabase-db psql -U postgres -d postgres < "$file"
-    done
-    echo "Done."
-    ;;
-
-    db:generate)
-    bun run db:generate
-    ;;
-
-    db:migrate)
-    bun run db:migrate
-    ;;
-
-    db:push)
-    bun run db:push
-    ;;
-
-    db:studio)
-    bun run db:studio
-    ;;
-
   *)
       echo "Usage: ./run <command>"
       echo ""
       echo "Commands:"
-      echo "  up [args]        Start supabase (detached) then web/gate (foreground)"
-      echo "  down [args]      Stop web/gate then supabase"
-      echo "  nuke             Stop everything and wipe all Supabase volumes"
-      echo "  migrate          Push migrations to the local Supabase database"
-      echo "  db:reset         Drop and recreate public schema, then re-run migrations"
-      echo "  db:generate      Generate a new migration from schema changes"
-      echo "  db:push          Push schema directly to the database (skips migration files)"
-      echo "  db:studio        Open Drizzle Studio to browse the database"
       echo "  env:push         Copy env files into configuration repo and push"
       echo "  env:pull         Pull latest configuration and apply env files"
       ;;

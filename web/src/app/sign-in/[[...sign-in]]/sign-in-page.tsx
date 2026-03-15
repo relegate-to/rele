@@ -6,7 +6,68 @@ import { C } from "@/lib/theme";
 export default function SignInPageClient() {
   return (
     <>
-      {/* Solid background */}
+      <style>{`
+        @keyframes page-enter {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes wordmark-enter {
+          from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes card-enter {
+          from { opacity: 0; transform: translateY(12px) scale(0.99); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes error-in {
+          from { opacity: 0; transform: translateY(-3px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .wordmark { animation: wordmark-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .auth-card { animation: card-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
+
+        .neon-auth-ui [data-slot="form-item"] {
+          position: relative;
+          padding-bottom: 1.25rem;
+        }
+
+        .neon-auth-ui [data-slot="form-message"] {
+          animation: error-in 0.2s ease forwards;
+        }
+
+        /* Input focus glow */
+        .neon-auth-ui [data-slot="form-control"]:focus {
+          box-shadow: 0 0 0 3px rgba(200, 132, 90, 0.12);
+          border-color: rgba(200, 132, 90, 0.5) !important;
+        }
+
+        /* Button hover */
+        .neon-auth-ui [data-slot="card"] button[type="submit"] {
+          transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .neon-auth-ui [data-slot="card"] button[type="submit"]:hover {
+          box-shadow: 0 4px 20px rgba(200, 132, 90, 0.3);
+          transform: translateY(-1px);
+        }
+        .neon-auth-ui [data-slot="card"] button[type="submit"]:active {
+          transform: translateY(0);
+        }
+
+        /* Subtle card inner shadow */
+        .neon-auth-ui [data-slot="card"] {
+          box-shadow:
+            0 0 0 1px rgba(255,255,255,0.06),
+            0 8px 40px rgba(0,0,0,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+
+        html { overflow: hidden; }
+      `}</style>
+
       <div
         style={{ position: "fixed", inset: 0, background: C.bg, zIndex: -1 }}
       />
@@ -22,7 +83,6 @@ export default function SignInPageClient() {
           justifyContent: "center",
           position: "relative",
           overflow: "hidden",
-          animation: "page-enter 0.3s ease-in-out both",
         }}
       >
         {/* Noise grain */}
@@ -52,50 +112,15 @@ export default function SignInPageClient() {
           }}
         />
 
-        {/* Wordmark */}
+        {/* Auth card */}
         <div
-          style={{
-            position: "relative",
-            zIndex: 1,
-            marginBottom: "2rem",
-            textAlign: "center",
-          }}
-        >
-          <p
-            style={{
-              fontFamily: "var(--font-dm-mono), monospace",
-              fontSize: "0.65rem",
-              color: C.copper,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              marginBottom: "0.6rem",
-            }}
-          >
-            By Relegate
-          </p>
-          <h1
-            style={{
-              fontFamily: "var(--font-lora), serif",
-              fontWeight: 400,
-              fontSize: "2.4rem",
-              letterSpacing: "-0.02em",
-              color: C.cream,
-              lineHeight: 1,
-            }}
-          >
-            rele
-          </h1>
-        </div>
-
-        {/* Auth card — override neon vars inline on this wrapper so they win regardless of layer order */}
-        <div
+          className="auth-card"
           style={{
             position: "relative",
             zIndex: 1,
             width: "420px",
             maxWidth: "calc(100vw - 2rem)",
             padding: "0 1rem",
-            /* Neon Auth CSS variables */
             ["--neon-background" as string]: C.bg,
             ["--neon-foreground" as string]: C.text,
             ["--neon-card" as string]: C.surface,
@@ -113,17 +138,32 @@ export default function SignInPageClient() {
             ["--neon-border" as string]: C.border,
             ["--neon-input" as string]: C.border,
             ["--neon-ring" as string]: C.copper,
-            ["--neon-radius" as string]: "0.375rem",
+            ["--neon-radius" as string]: "0.5rem",
           }}
         >
           <AuthView
             path="sign-in"
             classNames={{
-              base: "w-full",
-              header: "px-6 pt-6 pb-2",
-              content: "px-6 pb-6 gap-4 flex flex-col",
-              footer: "px-6 pb-4",
-              form: { base: "gap-4 flex flex-col" },
+              base: "!max-w-full p-5!",
+              header: "px-6 pt-7 pb-1",
+              title: "text-xl font-semibold tracking-tight",
+              description: "text-sm text-muted-foreground mt-1 leading-relaxed",
+              separator: "my-4 opacity-40",
+              footer:
+                "px-6 py-5 border-t border-white/5 text-sm text-muted-foreground text-center",
+              footerLink:
+                "font-medium underline underline-offset-4 hover:opacity-80 transition-opacity",
+              form: {
+                base: "px-6 pb-7 space-y-5 gap-2",
+                label:
+                  "text-xs font-medium uppercase tracking-widest text-muted-foreground",
+                input:
+                  "w-full placeholder:text-muted-foreground/30 p-1! transition-all duration-200",
+                primaryButton: "w-full font-medium mt-3 tracking-wide",
+                forgotPasswordLink:
+                  "text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors",
+                error: "text-xs text-red-400/70 absolute! bottom-0 left-0",
+              },
             }}
           />
         </div>
