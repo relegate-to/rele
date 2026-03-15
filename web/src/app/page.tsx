@@ -1,13 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useAuth } from "@clerk/nextjs";
+import { authClient } from "@/lib/auth-client";
 import { C, EASE } from "@/lib/theme";
 import { useNavigate } from "@/components/page-transition";
 
 export default function RelePage() {
   const navigate = useNavigate();
-  const { isSignedIn } = useAuth();
+  const { data } = authClient.useSession();
+  const isSignedIn = !!data?.user;
 
   return (
     <div

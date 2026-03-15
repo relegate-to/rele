@@ -1,18 +1,16 @@
 "use client";
 
-import { useUser, UserButton } from "@clerk/nextjs";
+import { UserButton } from "@neondatabase/auth/react";
+import { authClient } from "@/lib/auth-client";
 import { C } from "@/lib/theme";
 
 export default function UserPill() {
-  const { user } = useUser();
+  const { data } = authClient.useSession();
+  const user = data?.user;
 
   if (!user) return null;
 
-  const display =
-    user.firstName ||
-    user.username ||
-    user.primaryEmailAddress?.emailAddress ||
-    "Account";
+  const display = user.name || user.email || "Account";
 
   return (
     <div
@@ -26,16 +24,7 @@ export default function UserPill() {
         padding: "0.35rem 0.75rem 0.35rem 0.35rem",
       }}
     >
-      <UserButton
-        appearance={{
-          elements: {
-            avatarBox: {
-              width: "1.5rem",
-              height: "1.5rem",
-            },
-          },
-        }}
-      />
+      <UserButton />
       <span
         style={{
           fontFamily: "var(--font-dm-mono), monospace",

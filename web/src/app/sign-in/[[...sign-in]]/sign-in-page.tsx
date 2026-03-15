@@ -1,6 +1,6 @@
 "use client";
 
-import { SignIn } from "@clerk/nextjs";
+import { AuthView } from "@neondatabase/auth/react";
 import { C } from "@/lib/theme";
 
 export default function SignInPageClient() {
@@ -90,7 +90,7 @@ export default function SignInPageClient() {
         </div>
 
         <div style={{ position: "relative", zIndex: 1 }}>
-          <SignIn forceRedirectUrl="/home" />
+          <AuthView path="sign-in" />
         </div>
       </div>
     </>

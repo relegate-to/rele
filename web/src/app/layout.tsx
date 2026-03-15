@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Lora, DM_Mono, Crimson_Pro } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
-import { clerkAppearance } from "@/lib/clerk-appearance";
+import { NeonAuthUIProvider } from "@neondatabase/auth/react";
+import { authClient } from "@/lib/auth-client";
 import { PageTransitionProvider } from "@/components/page-transition";
 import "./globals.css";
 
@@ -39,13 +39,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${lora.variable} ${dmMono.variable} ${crimsonPro.variable} antialiased`}
       >
-        <ClerkProvider appearance={clerkAppearance}>
+        <NeonAuthUIProvider authClient={authClient} redirectTo="/home">
           <PageTransitionProvider>{children}</PageTransitionProvider>
-        </ClerkProvider>
+        </NeonAuthUIProvider>
       </body>
     </html>
   );
