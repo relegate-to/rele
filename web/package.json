@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@neondatabase/neon-auth-next": "^0.1.0-alpha.24",
+    "@neondatabase/neon-auth-ui": "^0.1.0-alpha.2",
     "@neondatabase/neon-js": "^0.2.0-beta.1",
     "framer-motion": "^12.35.2",
     "next": "16.1.6",
