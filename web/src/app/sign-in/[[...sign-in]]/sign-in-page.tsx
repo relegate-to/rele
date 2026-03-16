@@ -158,7 +158,7 @@ export default function SignInPageClient() {
                 label:
                   "text-xs font-medium uppercase tracking-widest text-muted-foreground",
                 input:
-                  "w-full placeholder:text-muted-foreground/30 p-1! transition-all duration-200",
+                  "w-full placeholder:text-muted-foreground/30 p-3! transition-all duration-200",
                 primaryButton: "w-full font-medium mt-3 tracking-wide",
                 forgotPasswordLink:
                   "text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors",
