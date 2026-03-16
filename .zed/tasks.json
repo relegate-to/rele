@@ -1,0 +1,8 @@
+[
+  {
+    "label": "Dev",
+    "command": "bun",
+    "args": ["dev"],
+    "tags": ["bun-dev | grep"],
+  },
+]
