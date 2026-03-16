@@ -2,11 +2,12 @@
 
 import { C } from "@/lib/theme";
 import UserPill from "@/components/user-pill";
-import { authClient } from "@/lib/auth-client";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://api.rele.to";
+// All backend calls go through the server-side proxy at /api/gate.
+// The proxy validates the session and injects the JWT — neither is ever
+// visible to the browser.
+const GATE_PROXY = "/api/gate";
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -274,17 +275,11 @@ function HealthPanel() {
   const [checking, setChecking] = useState(false);
 
   const runChecks = useCallback(async () => {
-    setChecking(true);
-    const { data } = await authClient
-      .getSession()
-      .catch(() => ({ data: null }));
-    const token = data?.session?.token ?? null;
-
     const results = await Promise.all([
       (async () => {
         const t0 = performance.now();
         try {
-          const r = await fetch(`${API}/health`);
+          const r = await fetch(`${GATE_PROXY}/health`);
           const ok = r.ok;
           return { ok, latencyMs: Math.round(performance.now() - t0) };
         } catch {
@@ -294,9 +289,7 @@ function HealthPanel() {
       (async () => {
         const t0 = performance.now();
         try {
-          const r = await fetch(`${API}/me`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
+          const r = await fetch(`${GATE_PROXY}/me`);
           const ok = r.ok;
           return { ok, latencyMs: Math.round(performance.now() - t0) };
         } catch {
