@@ -1,76 +1,45 @@
 # rele
-
-A monorepo with a Next.js frontend, a Hono/Bun API, and a local Supabase stack.
+A monorepo with a Next.js frontend and a Hono/Bun API.
 
 ## Stack
-
 | Service | Description | Port |
 |---|---|---|
-| `web` | Next.js frontend (Clerk auth) | 3000 |
-| `gate` | Hono/Bun API (Clerk JWT validation) | 3001 |
-| `supabase` | Local Supabase (Postgres, Auth, Storage, Studio, etc.) | 54321–54327 |
+| `web` | Next.js frontend (Neon Auth) | 3000 |
+| `gate` | Hono/Bun API (JWT validation) | 3001 |
+| `db` | Drizzle schema + migrations | — |
 
 ## Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Bun](https://bun.sh)
 
 ## Setup
-
 Pull env files from the configuration repo:
-
 ```bash
-./run env:pull
+bun run env:pull
 ```
 
 ## Running locally
-
 ```bash
-./run up
+bun run dev
 ```
-
-Starts Supabase in the background, then `web` and `gate` in the foreground. In Docker Desktop you'll see two separate groups — `supabase` and `rele`.
-
-```bash
-./run down
-```
+Starts `web` and `gate` concurrently.
 
 ## Commands
-
 | Command | Description |
 |---|---|
-| `./run up` | Start Supabase (detached) then web + gate (foreground) |
-| `./run down` | Stop web + gate then Supabase |
-| `./run nuke` | Stop everything and wipe all Supabase volumes |
-| `./run migrate` | Apply all migrations to the local database |
-| `./run db:reset` | Wipe the public schema and re-run all migrations |
-| `./run env:push` | Push local env files to the configuration repo |
-| `./run env:pull` | Pull env files from the configuration repo |
+| `bun run dev` | Start web + gate |
+| `bun run dev:gate` | Start gate only |
+| `bun run build:gate` | Build gate for production |
+| `bun run start:gate` | Start gate in production mode |
+| `bun run --filter db push` | Push schema changes to dev database |
+| `bun run --filter db push:prod` | Push schema changes to production database |
 
-## Supabase
+## Database
+The database is managed with [Drizzle Kit](https://orm.drizzle.team) and hosted on [Neon](https://neon.tech).
 
-The local Supabase stack runs as its own Docker Compose project (`supabase/supabase.yml`) with configuration in `supabase/.env` (gitignored).
+Two branches are maintained in Neon:
+- **main** — production database, used by the live app
+- **dev** — development database, used during local development
 
-| URL | Description |
-|---|---|
-| `http://localhost:54321` | API gateway (Kong) |
-| `http://localhost:54322` | Postgres (direct) |
-| `http://localhost:54323` | Supabase Studio |
-| `http://localhost:54324` | Inbucket (email testing) |
+`.env.local` points to the dev branch. `.env.production` (gitignored, lives in the secrets repo) points to the production branch.
 
-Migrations live in `supabase/supabase/migrations/` and are applied with `./run migrate`. After a `./run nuke`, run `./run up` then `./run migrate` to get back to a clean state.
-
-## Project structure
-
-```
-rele/
-├── web/                  # Next.js frontend
-├── gate/                 # Hono/Bun API
-├── supabase/
-│   ├── supabase.yml      # Supabase Docker Compose project
-│   ├── .env              # Supabase env vars (gitignored)
-│   ├── volumes/          # Init SQL, Kong config, Vector config
-│   └── supabase/         # Migrations and config.toml
-├── docker-compose.yml    # web + gate
-└── run                   # Task runner
-```
+During development, run `bun run --filter db push` to sync schema changes to the dev database. When ready to push to production, run `bun run --filter db push:prod` from your local machine.
