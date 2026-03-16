@@ -48,22 +48,18 @@
   --font-lora: var(--font-lora);
   --font-dm-mono: var(--font-dm-mono);
   --font-crimson-pro: var(--font-crimson-pro);
+  --animate-pop-in:  pop-in 0.15s ease-out;
+  --animate-pop-out: pop-out 0.15s ease-in forwards;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@keyframes pop-in {
+  0%   { opacity: 0; transform: translateY(-3px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes page-enter {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes page-exit {
-  from { opacity: 1; }
-  to   { opacity: 0; }
+@keyframes pop-out {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-3px); }
 }
 
 html {

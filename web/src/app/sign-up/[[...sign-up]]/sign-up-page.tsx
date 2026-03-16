@@ -7,6 +7,11 @@ export default function SignUpPageClient() {
   return (
     <>
       <style>{`
+        @keyframes page-enter {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
         @keyframes wordmark-enter {
           from { opacity: 0; transform: translateY(-6px) scale(0.98); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -109,7 +114,7 @@ export default function SignUpPageClient() {
           className="auth-card"
           style={{
             position: "relative",
-            zIndex: 1,
+          zIndex: 1,
             width: "420px",
             maxWidth: "calc(100vw - 2rem)",
             padding: "0 1rem",
@@ -136,22 +141,14 @@ export default function SignUpPageClient() {
           <AuthView
             path="sign-up"
             classNames={{
-              base: "!max-w-full p-5!",
-              header: "px-6 pt-7 pb-1",
-              title: "text-xl font-semibold tracking-tight",
-              description: "text-sm text-muted-foreground mt-1 leading-relaxed",
-              separator: "my-4 opacity-40",
-              footer:
-                "px-6 py-5 border-t border-white/5 text-sm text-muted-foreground text-center",
-              footerLink:
-                "font-medium underline underline-offset-4 hover:opacity-80 transition-opacity",
+              base: "max-w-full z-1 w-[400px] z-inde",
               form: {
-                base: "px-6 pb-3 gap-2",
+                base: "gap-3",
                 label:
                   "text-xs font-medium uppercase tracking-widest text-muted-foreground",
                 input:
-                  "w-full placeholder:text-muted-foreground/30 p-1! transition-all duration-200",
-                primaryButton: "w-full font-medium mt-3 tracking-wide",
+                  "placeholder:text-muted-foreground/50 transition-all duration-200",
+                primaryButton: "w-full font-medium tracking-wide",
                 forgotPasswordLink:
                   "text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors",
                 error: "text-xs text-red-400/70 absolute! bottom-0 left-0",

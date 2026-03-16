@@ -113,53 +113,17 @@ export default function SignInPageClient() {
         />
 
         {/* Auth card */}
-        <div
-          className="auth-card"
-          style={{
-            position: "relative",
-            zIndex: 1,
-            width: "420px",
-            maxWidth: "calc(100vw - 2rem)",
-            padding: "0 1rem",
-            ["--neon-background" as string]: C.bg,
-            ["--neon-foreground" as string]: C.text,
-            ["--neon-card" as string]: C.surface,
-            ["--neon-card-foreground" as string]: C.text,
-            ["--neon-popover" as string]: C.surface,
-            ["--neon-popover-foreground" as string]: C.text,
-            ["--neon-primary" as string]: C.copper,
-            ["--neon-primary-foreground" as string]: "#1a1510",
-            ["--neon-secondary" as string]: C.surfaceHi,
-            ["--neon-secondary-foreground" as string]: C.text,
-            ["--neon-muted" as string]: C.surface,
-            ["--neon-muted-foreground" as string]: C.textDim,
-            ["--neon-accent" as string]: C.surfaceHi,
-            ["--neon-accent-foreground" as string]: C.text,
-            ["--neon-border" as string]: C.border,
-            ["--neon-input" as string]: C.border,
-            ["--neon-ring" as string]: C.copper,
-            ["--neon-radius" as string]: "0.5rem",
-          }}
-        >
           <AuthView
             path="sign-in"
             classNames={{
-              base: "!max-w-full p-5!",
-              header: "px-6 pt-7 pb-1",
-              title: "text-xl font-semibold tracking-tight",
-              description: "text-sm text-muted-foreground mt-1 leading-relaxed",
-              separator: "my-4 opacity-40",
-              footer:
-                "px-6 py-5 border-t border-white/5 text-sm text-muted-foreground text-center",
-              footerLink:
-                "font-medium underline underline-offset-4 hover:opacity-80 transition-opacity",
+              base: "max-w-full z-1 w-[400px] z-inde",
               form: {
-                base: "px-6 pb-7 space-y-5 gap-2",
+                base: "gap-3",
                 label:
                   "text-xs font-medium uppercase tracking-widest text-muted-foreground",
                 input:
-                  "w-full placeholder:text-muted-foreground/30 p-3! transition-all duration-200",
-                primaryButton: "w-full font-medium mt-3 tracking-wide",
+                  "placeholder:text-muted-foreground/50 transition-all duration-200",
+                primaryButton: "w-full font-medium tracking-wide",
                 forgotPasswordLink:
                   "text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors",
                 error: "text-xs text-red-400/70 absolute! bottom-0 left-0",
@@ -167,7 +131,6 @@ export default function SignInPageClient() {
             }}
           />
         </div>
-      </div>
     </>
   );
 }
