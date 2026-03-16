@@ -7,7 +7,8 @@
     "generate": "drizzle-kit generate",
     "migrate": "bun run src/migrate.ts",
     "push": "drizzle-kit push",
-    "studio": "drizzle-kit studio"
+    "studio": "drizzle-kit studio",
+    "push:prod": "drizzle-kit push --config=drizzle.prod.config.ts"
   },
   "dependencies": {
     "dotenv": "^17.3.1",
