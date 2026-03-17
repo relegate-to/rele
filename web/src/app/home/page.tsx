@@ -19,9 +19,9 @@ type HealthCheck = {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function Mono({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function Mono({ children, className = "", style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
-    <span className={`font-[var(--font-dm-mono),monospace] ${className}`}>
+    <span className={`font-[var(--font-dm-mono),monospace] ${className}`} style={style}>
       {children}
     </span>
   );
