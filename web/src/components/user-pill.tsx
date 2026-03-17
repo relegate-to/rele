@@ -20,7 +20,7 @@ export default function UserPill() {
         content: {
           user: { base: "none" },
           separator: "none",
-          base: "origin-top-right min-w-52 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] shadow-xl shadow-black/10 data-[state=open]:animate-pop-in data-[state=closed]:animate-pop-out",
+          base: "origin-top-right min-w-54 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] shadow-xl shadow-black/10 data-[state=open]:animate-pop-in data-[state=closed]:animate-pop-out",
         },
       }}
     />
