@@ -1,9 +1,30 @@
 @import "tailwindcss";
 @import "@neondatabase/auth/ui/tailwind";
 
-/* Override Neon Auth UI theme — must be inside @layer neon-auth to win the cascade */
 @layer neon-auth {
-  :root,
+  :root {
+    --neon-background: #f2ece3;
+    --neon-foreground: #3a2a1e;
+    --neon-card: #faf5ee;
+    --neon-card-foreground: #3a2a1e;
+    --neon-popover: #faf5ee;
+    --neon-popover-foreground: #3a2a1e;
+    --neon-primary: #c8845a;
+    --neon-primary-foreground: #faf5ee;
+    --neon-secondary: #ede4d8;
+    --neon-secondary-foreground: #3a2a1e;
+    --neon-muted: #ede4d8;
+    --neon-muted-foreground: #7a6555;
+    --neon-accent: #ede4d8;
+    --neon-accent-foreground: #3a2a1e;
+    --neon-destructive: #c0392b;
+    --neon-destructive-foreground: #faf5ee;
+    --neon-border: #cbbfb0;
+    --neon-input: #cbbfb0;
+    --neon-ring: #c8845a;
+    --neon-radius: 0.375rem;
+  }
+
   :root.dark,
   .dark {
     --neon-background: #1a1510;
@@ -30,6 +51,22 @@
 }
 
 :root {
+  --bg: #f2ece3;
+  --bg-warm: #faf5ee;
+  --surface: #faf5ee;
+  --surface-hi: #ede4d8;
+  --border: #cbbfb0;
+  --border-hi: #b0a090;
+  --text: #3a2a1e;
+  --text-dim: #7a6555;
+  --muted: #9a8878;
+  --copper: #c8845a;
+  --copper-dim: #8a5a3a;
+  --cream: #faf5ee;
+}
+
+:root.dark,
+.dark {
   --bg: #1a1510;
   --bg-warm: #211a12;
   --surface: #2a2118;
@@ -50,6 +87,8 @@
   --font-crimson-pro: var(--font-crimson-pro);
   --animate-pop-in:  pop-in 0.15s ease-out;
   --animate-pop-out: pop-out 0.15s ease-in forwards;
+  --animate-wordmark-enter: wordmark-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-card-enter: card-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
 @keyframes pop-in {
@@ -60,33 +99,6 @@
 @keyframes pop-out {
   0%   { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-3px); }
-}
-
-html {
-  background: var(--bg);
-}
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-crimson-pro), Georgia, serif;
-  font-weight: 300;
-  animation: page-enter 0.25s ease-in-out both;
-}
-
-@keyframes breathe {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.6; transform: scale(0.75); }
-}
-
-.rele-input::placeholder {
-  color: var(--muted);
-  opacity: 0.7;
-}
-
-.rele-input:focus {
-  border-color: var(--copper-dim) !important;
-  outline: none;
 }
 
 @keyframes wordmark-enter {
@@ -104,14 +116,35 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@theme inline {
-  /* add alongside your existing --animate-* entries */
-  --animate-wordmark-enter: wordmark-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-card-enter: card-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+@keyframes breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.75); }
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-crimson-pro), Georgia, serif;
+  font-weight: 300;
+  animation: page-enter 0.25s ease-in-out both;
 }
 
 .wordmark { animation: var(--animate-wordmark-enter); }
 .auth-card { animation: var(--animate-card-enter); }
+
+.rele-input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.rele-input:focus {
+  border-color: var(--copper-dim) !important;
+  outline: none;
+}
 
 .neon-auth-ui [data-slot="form-item"] {
   position: relative;
@@ -139,6 +172,14 @@ body {
 }
 
 .neon-auth-ui [data-slot="card"] {
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.06),
+    0 8px 40px rgba(0,0,0,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+:root.dark .neon-auth-ui [data-slot="card"],
+.dark .neon-auth-ui [data-slot="card"] {
   box-shadow:
     0 0 0 1px rgba(255,255,255,0.06),
     0 8px 40px rgba(0,0,0,0.4),

@@ -3,6 +3,8 @@ import { Lora, DM_Mono, Crimson_Pro } from "next/font/google";
 import { NeonAuthUIProvider } from "@neondatabase/auth/react";
 import { authClient } from "@/lib/auth-client";
 import { PageTransitionProvider } from "@/components/page-transition";
+import { ThemeProvider } from "next-themes";
+
 import "./globals.css";
 
 const lora = Lora({
@@ -45,7 +47,6 @@ export default function RootLayout({
         <NeonAuthUIProvider
           authClient={authClient}
           redirectTo="/home"
-          defaultTheme="dark"
           localization={{
             EMAIL_PLACEHOLDER: "you@example.com",
           }}
@@ -58,7 +59,7 @@ export default function RootLayout({
             providers: ["github", "google"],
           }}
         >
-          <PageTransitionProvider>{children}</PageTransitionProvider>
+          <PageTransitionProvider><ThemeProvider attribute="class" defaultTheme="system" enableSystem>{children}</ThemeProvider></PageTransitionProvider>
         </NeonAuthUIProvider>
       </body>
     </html>
