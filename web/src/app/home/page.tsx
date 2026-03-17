@@ -1,9 +1,9 @@
 "use client";
 
+import { NoiseGrain, Vignette } from "@/components/bg-effects";
 import UserPill from "@/components/user-pill";
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { NoiseGrain } from "@/components/bg-effects";
 
 const GATE_PROXY = "/api/gate";
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -19,13 +19,7 @@ type HealthCheck = {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function Mono({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
+function Mono({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <span className={`font-[var(--font-dm-mono),monospace] ${className}`}>
       {children}
@@ -35,21 +29,15 @@ function Mono({
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-sm">
       {children}
     </div>
   );
 }
 
-function CardHeader({
-  children,
-  right,
-}: {
-  children: React.ReactNode;
-  right?: React.ReactNode;
-}) {
+function CardHeader({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] bg-[var(--surface-hi)]">
+    <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border)] bg-[var(--surface-hi)]">
       <div>{children}</div>
       {right && <div>{right}</div>}
     </div>
@@ -67,6 +55,7 @@ function HealthPanel() {
   const [checking, setChecking] = useState(false);
 
   const runChecks = useCallback(async () => {
+    setChecking(true);
     const results = await Promise.all([
       (async () => {
         const t0 = performance.now();
@@ -105,23 +94,29 @@ function HealthPanel() {
   const anyNull = checks.some((c) => c.ok === null);
   const overallStatus = anyNull ? "checking" : allOk ? "operational" : "degraded";
 
-  const statusStyles = {
-    operational: {
-      bg: "rgba(109,191,139,0.12)",
-      color: "#6dbf8b",
-      border: "rgba(109,191,139,0.25)",
-    },
-    degraded: {
-      bg: "rgba(200,132,90,0.12)",
-      color: "var(--copper)",
-      border: "rgba(200,132,90,0.25)",
-    },
-    checking: {
-      bg: "rgba(107,92,78,0.15)",
-      color: "var(--muted)",
-      border: "var(--border)",
-    },
-  }[overallStatus];
+  const statusKey = overallStatus === "operational" ? "success" : overallStatus === "degraded" ? "warning" : "neutral";
+
+  function dotColor(ok: boolean | null) {
+    if (ok === null) return "var(--status-neutral)";
+    return ok ? "var(--status-success)" : "var(--status-error)";
+  }
+
+  function dotShadow(ok: boolean | null) {
+    if (ok === true)  return "0 0 8px color-mix(in srgb, var(--status-success) 60%, transparent)";
+    if (ok === false) return "0 0 8px color-mix(in srgb, var(--status-error) 60%, transparent)";
+    return "none";
+  }
+
+  function latencyColor(ms: number) {
+    if (ms < 100) return "var(--status-success)";
+    if (ms < 300) return "var(--status-warning)";
+    return "var(--status-error)";
+  }
+
+  function statusColor(ok: boolean | null) {
+    if (ok === null) return "var(--status-neutral-text)";
+    return ok ? "var(--status-success-text)" : "var(--status-error-text)";
+  }
 
   return (
     <Card>
@@ -130,17 +125,23 @@ function HealthPanel() {
           <button
             onClick={runChecks}
             disabled={checking}
-            className="bg-transparent border border-[var(--border)] rounded text-[var(--muted)] font-[var(--font-dm-mono),monospace] text-[0.62rem] px-[0.6rem] py-1 tracking-[0.06em] transition-colors hover:border-[var(--border-hi)] hover:text-[var(--text)] disabled:cursor-not-allowed cursor-pointer"
+            className="bg-transparent border border-[var(--border)] rounded-md text-[var(--muted)] font-[var(--font-dm-mono),monospace] text-xs px-3 py-1.5 tracking-wide transition-all hover:border-[var(--border-hi)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
           >
             {checking ? "checking…" : "refresh"}
           </button>
         }
       >
-        <div className="flex items-center gap-[0.6rem]">
-          <Mono className="text-[0.7rem] text-[var(--muted)]">System Health</Mono>
+        <div className="flex items-center gap-3">
+          <span className="font-[var(--font-dm-mono),monospace] text-sm font-medium text-[var(--text)]">
+            System Health
+          </span>
           <span
-            className="font-[var(--font-dm-mono),monospace] text-[0.6rem] tracking-[0.1em] px-2 py-[0.15rem] rounded-full border"
-            style={{ background: statusStyles.bg, color: statusStyles.color, borderColor: statusStyles.border }}
+            className="font-[var(--font-dm-mono),monospace] text-xs tracking-widest px-2.5 py-0.5 rounded-full border"
+            style={{
+              background: `var(--status-${statusKey}-bg)`,
+              color: `var(--status-${statusKey}-text)`,
+              borderColor: `var(--status-${statusKey}-border)`,
+            }}
           >
             {overallStatus}
           </span>
@@ -150,32 +151,33 @@ function HealthPanel() {
       {checks.map((check, i) => (
         <div
           key={check.endpoint}
-          className="flex items-center justify-between px-5 py-[0.85rem]"
+          className="flex items-center justify-between px-6 py-4"
           style={{ borderBottom: i < checks.length - 1 ? "1px solid var(--border)" : undefined }}
         >
           <div className="flex items-center gap-3">
             <div
-              className="w-[6px] h-[6px] rounded-full shrink-0"
-              style={{
-                background: check.ok === null ? "var(--muted)" : check.ok ? "#6dbf8b" : "#c0504d",
-                boxShadow: check.ok === true ? "0 0 6px rgba(109,191,139,0.5)" : check.ok === false ? "0 0 6px rgba(192,80,77,0.5)" : "none",
-              }}
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ background: dotColor(check.ok), boxShadow: dotShadow(check.ok) }}
             />
-            <Mono className="text-[0.75rem] text-[var(--text)]">{check.label}</Mono>
-            <Mono className="text-[0.65rem] text-[var(--muted)]">{check.endpoint}</Mono>
+            <span className="font-[var(--font-dm-mono),monospace] text-sm text-[var(--text)]">
+              {check.label}
+            </span>
+            <span className="font-[var(--font-dm-mono),monospace] text-xs text-[var(--muted)]">
+              {check.endpoint}
+            </span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
             {check.latencyMs !== null && (
               <Mono
-                className="text-[0.68rem]"
-                style={{ color: check.latencyMs < 100 ? "#6dbf8b" : check.latencyMs < 300 ? "var(--copper)" : "#c0504d" } as React.CSSProperties}
+                className="text-xs tabular-nums"
+                style={{ color: latencyColor(check.latencyMs) } as React.CSSProperties}
               >
                 {check.latencyMs}ms
               </Mono>
             )}
             <Mono
-              className="text-[0.65rem]"
-              style={{ color: check.ok === null ? "var(--muted)" : check.ok ? "#6dbf8b" : "#c0504d" } as React.CSSProperties}
+              className="text-xs w-8 text-right"
+              style={{ color: statusColor(check.ok) } as React.CSSProperties}
             >
               {check.ok === null ? "—" : check.ok ? "ok" : "error"}
             </Mono>
@@ -184,8 +186,8 @@ function HealthPanel() {
       ))}
 
       {lastChecked && (
-        <div className="px-5 py-2 border-t border-[var(--border)] bg-[var(--bg)]">
-          <Mono className="text-[0.58rem] text-[var(--muted)]">
+        <div className="px-6 py-2.5 border-t border-[var(--border)] bg-[var(--bg)]">
+          <Mono className="text-xs text-[var(--muted)]">
             Last checked{" "}
             {lastChecked.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
           </Mono>
@@ -201,12 +203,13 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-[var(--font-crimson-pro),serif] font-light">
       <NoiseGrain />
+      <Vignette />
 
       <div className="fixed top-5 right-6 z-10">
         <UserPill />
       </div>
 
-      <div className="relative z-10 max-w-[480px] mx-auto px-8 py-20">
+      <div className="relative z-10 max-w-[520px] mx-auto px-8 py-24">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}

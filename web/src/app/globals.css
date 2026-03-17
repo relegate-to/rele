@@ -63,6 +63,31 @@
   --copper: #c8845a;
   --copper-dim: #8a5a3a;
   --cream: #faf5ee;
+
+  --status-success:        #4a9e6a;
+  --status-success-bg:     #eef6ee;
+  --status-success-border: rgba(74, 158, 106, 0.35);
+  --status-success-text:   #2a5a3a;
+
+  --status-warning:        #c8845a;
+  --status-warning-bg:     #faf0e4;
+  --status-warning-border: rgba(200, 132, 90, 0.35);
+  --status-warning-text:   #7a4a20;
+
+  --status-error:          #c0392b;
+  --status-error-bg:       #faeeec;
+  --status-error-border:   rgba(192, 57, 43, 0.35);
+  --status-error-text:     #7a1a12;
+
+  --status-info:           #4a78a8;
+  --status-info-bg:        #eaf0f8;
+  --status-info-border:    rgba(74, 120, 168, 0.35);
+  --status-info-text:      #1a3a5a;
+
+  --status-neutral:        #9a8878;
+  --status-neutral-bg:     #f2ece3;
+  --status-neutral-border: rgba(154, 136, 120, 0.35);
+  --status-neutral-text:   #5a4a3a;
 }
 
 :root.dark,
@@ -79,6 +104,31 @@
   --copper: #c8845a;
   --copper-dim: #8a5a3a;
   --cream: #f0e8d8;
+
+  --status-success:        #6dbf8b;
+  --status-success-bg:     rgba(109, 191, 139, 0.08);
+  --status-success-border: rgba(109, 191, 139, 0.35);
+  --status-success-text:   #a8d8b8;
+
+  --status-warning:        #c8845a;
+  --status-warning-bg:     rgba(200, 132, 90, 0.08);
+  --status-warning-border: rgba(200, 132, 90, 0.35);
+  --status-warning-text:   #e8c898;
+
+  --status-error:          #e05a50;
+  --status-error-bg:       rgba(224, 90, 80, 0.08);
+  --status-error-border:   rgba(224, 90, 80, 0.35);
+  --status-error-text:     #f0a8a0;
+
+  --status-info:           #6a9fd0;
+  --status-info-bg:        rgba(106, 159, 208, 0.08);
+  --status-info-border:    rgba(106, 159, 208, 0.35);
+  --status-info-text:      #a0c0e8;
+
+  --status-neutral:        #6b5c4e;
+  --status-neutral-bg:     rgba(107, 92, 78, 0.12);
+  --status-neutral-border: rgba(107, 92, 78, 0.35);
+  --status-neutral-text:   #a8998a;
 }
 
 @theme inline {
