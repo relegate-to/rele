@@ -1,5 +1,9 @@
 @import "tailwindcss";
 @import "@neondatabase/auth/ui/tailwind";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 @layer neon-auth {
   :root {
@@ -88,6 +92,36 @@
   --status-neutral-bg:     #f2ece3;
   --status-neutral-border: rgba(154, 136, 120, 0.35);
   --status-neutral-text:   #5a4a3a;
+  --background: #f2ece3;
+  --foreground: #3a2a1e;
+  --card: #faf5ee;
+  --card-foreground: #3a2a1e;
+  --popover: #faf5ee;
+  --popover-foreground: #3a2a1e;
+  --primary: #c8845a;
+  --primary-foreground: #faf5ee;
+  --secondary: #ede4d8;
+  --secondary-foreground: #3a2a1e;
+  --muted-foreground: #7a6555;
+  --accent: #ede4d8;
+  --accent-foreground: #3a2a1e;
+  --destructive: oklch(0.577 0.245 27.325);
+  --input: #cbbfb0;
+  --ring: #c8845a;
+  --chart-1: oklch(0.809 0.105 251.813);
+  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-3: oklch(0.546 0.245 262.881);
+  --chart-4: oklch(0.488 0.243 264.376);
+  --chart-5: oklch(0.424 0.199 265.638);
+  --radius: 0.625rem;
+  --sidebar: #faf5ee;
+  --sidebar-foreground: #3a2a1e;
+  --sidebar-primary: #c8845a;
+  --sidebar-primary-foreground: #faf5ee;
+  --sidebar-accent: #ede4d8;
+  --sidebar-accent-foreground: #3a2a1e;
+  --sidebar-border: #cbbfb0;
+  --sidebar-ring: #c8845a;
 }
 
 :root.dark,
@@ -139,6 +173,45 @@
   --animate-pop-out: pop-out 0.15s ease-in forwards;
   --animate-wordmark-enter: wordmark-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-card-enter: card-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+  --font-sans: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 @keyframes pop-in {
@@ -234,4 +307,50 @@ body {
     0 0 0 1px rgba(255,255,255,0.06),
     0 8px 40px rgba(0,0,0,0.4),
     inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.dark {
+  --background: #1a1510;
+  --foreground: #e8ddd0;
+  --card: #2a2118;
+  --card-foreground: #e8ddd0;
+  --popover: #2a2118;
+  --popover-foreground: #e8ddd0;
+  --primary: #c8845a;
+  --primary-foreground: #1a1510;
+  --secondary: #332820;
+  --secondary-foreground: #e8ddd0;
+  --muted: #6b5c4e;
+  --muted-foreground: #a8998a;
+  --accent: #332820;
+  --accent-foreground: #e8ddd0;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: #3d3025;
+  --input: #3d3025;
+  --ring: #c8845a;
+  --chart-1: oklch(0.809 0.105 251.813);
+  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-3: oklch(0.546 0.245 262.881);
+  --chart-4: oklch(0.488 0.243 264.376);
+  --chart-5: oklch(0.424 0.199 265.638);
+  --sidebar: #2a2118;
+  --sidebar-foreground: #e8ddd0;
+  --sidebar-primary: #c8845a;
+  --sidebar-primary-foreground: #1a1510;
+  --sidebar-accent: #332820;
+  --sidebar-accent-foreground: #e8ddd0;
+  --sidebar-border: #3d3025;
+  --sidebar-ring: #c8845a;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }
