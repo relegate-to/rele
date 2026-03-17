@@ -212,6 +212,16 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Font scale — bumped up from Tailwind defaults */
+  --font-size-xs:   0.8125rem;   /* 13px */
+  --font-size-sm:   0.9375rem;   /* 15px */
+  --font-size-base: 1.0625rem;   /* 17px */
+  --font-size-lg:   1.1875rem;   /* 19px */
+  --font-size-xl:   1.3125rem;   /* 21px */
+  --font-size-2xl:  1.5625rem;   /* 25px */
+  --font-size-3xl:  1.9375rem;   /* 31px */
+  --font-size-4xl:  2.3125rem;   /* 37px */
 }
 
 @keyframes pop-in {
@@ -250,6 +260,7 @@
 }
 
 html {
+  font-size: 17px;
   background: var(--bg);
 }
 
@@ -257,7 +268,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-crimson-pro), Georgia, serif;
-  font-weight: 300;
+  font-weight: 400;
   animation: page-enter 0.25s ease-in-out both;
 }
 
