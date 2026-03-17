@@ -59,7 +59,7 @@ export default function RelePage() {
         >
           {isSignedIn ? (
             <button
-              onClick={() => navigate("/home")}
+              onClick={() => navigate("/console")}
               className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase bg-[var(--copper)] text-[var(--bg)] px-6 py-[0.65rem] rounded-[4px] border-none cursor-pointer"
             >
               Go to dashboard

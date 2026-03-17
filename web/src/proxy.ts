@@ -4,7 +4,7 @@ export default auth.middleware({ loginUrl: '/sign-in' });
 
 export const config = {
   matcher: [
-    '/home/:path*',
+    '/console/:path*',
     '/api/:path*',
   ],
 };

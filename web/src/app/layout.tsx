@@ -49,7 +49,7 @@ export default function RootLayout({
       >
         <NeonAuthUIProvider
           authClient={authClient}
-          redirectTo="/home"
+          redirectTo="/console"
           localization={{
             EMAIL_PLACEHOLDER: "you@example.com",
           }}

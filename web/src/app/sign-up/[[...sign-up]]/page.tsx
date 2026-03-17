@@ -4,6 +4,6 @@ import SignUpPageClient from './sign-up-page';
 
 export default async function SignUpPage() {
   const { data: session } = await auth.getSession();
-  if (session?.user) redirect('/home');
+  if (session?.user) redirect('/console');
   return <SignUpPageClient />;
 }
