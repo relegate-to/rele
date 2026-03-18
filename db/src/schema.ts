@@ -249,6 +249,20 @@ export const projectConfigInNeonAuth = neonAuth.table(
   (table) => [unique("project_config_endpoint_id_key").on(table.endpointId)],
 );
 
+export const machines = pgTable("machines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => userInNeonAuth.id),
+  flyMachineId: text("fly_machine_id").notNull(),
+  flyAppName: text("fly_app_name").notNull(),
+  region: text("region").notNull(),
+  state: text("state").notNull(),
+  config: jsonb("config"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const journalEntries = pgTable("journal_entries", {
   id: bigint("id", { mode: "number" })
     .primaryKey()

@@ -4,11 +4,15 @@ import { cors } from "hono/cors";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as jose from "jose";
-import { apiKeys } from "@rele/db"
+import { apiKeys, machines } from "@rele/db"
 import { eq, and } from "drizzle-orm";
 
 const client = postgres(process.env.DATABASE_URL!);
 const db = drizzle(client);
+
+const FLY_API_URL = "https://api.machines.dev/v1";
+const FLY_API_TOKEN = process.env.FLY_API_TOKEN!;
+const FLY_APP_NAME = process.env.FLY_APP_NAME!; // Set automatically by Fly at runtime
 
 type AppVariables = { userId: string };
 
@@ -38,6 +42,25 @@ const authMiddleware = async (c: Context<{ Variables: AppVariables }>, next: Nex
   }
 };
 
+async function flyRequest(path: string, options: RequestInit = {}) {
+  const res = await fetch(`${FLY_API_URL}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${FLY_API_TOKEN}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Fly API error ${res.status}: ${body}`);
+  }
+
+  if (res.status === 204) return null;
+  return res.json();
+}
+
 app.use("*", logger());
 app.use("*", cors());
 
@@ -48,10 +71,14 @@ app.get("/health", (c) => {
 app.use("/me", authMiddleware);
 app.use("/api-keys", authMiddleware);
 app.use("/api-keys/*", authMiddleware);
+app.use("/machines", authMiddleware);
+app.use("/machines/*", authMiddleware);
 
 app.get("/me", (c) => {
   return c.json({ userId: c.get("userId") });
 });
+
+// --- API Keys ---
 
 app.get("/api-keys", async (c) => {
   const userId = c.get("userId");
@@ -100,6 +127,120 @@ app.delete("/api-keys/:id", async (c) => {
     .returning({ id: apiKeys.id });
 
   if (!deleted) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true });
+});
+
+// --- Machines ---
+
+app.get("/machines", async (c) => {
+  const userId = c.get("userId");
+  const rows = await db
+    .select()
+    .from(machines)
+    .where(eq(machines.userId, userId));
+
+  return c.json(rows);
+});
+
+app.post("/machines", async (c) => {
+  const userId = c.get("userId");
+  const body = await c.req.json<{
+    region?: string;
+    config: {
+      image: string;
+      size?: string;
+      env?: Record<string, string>;
+      guest?: { cpus?: number; memory_mb?: number; cpu_kind?: string };
+    };
+  }>();
+
+  if (!body.config?.image) {
+    return c.json({ error: "config.image is required" }, 400);
+  }
+
+  const region = body.region ?? "sin";
+
+  const machineConfig = {
+    image: body.config.image,
+    env: { ...body.config.env, USER_ID: userId },
+    guest: body.config.guest ?? { cpus: 1, memory_mb: 256, cpu_kind: "shared" },
+    metadata: { user_id: userId },
+  };
+
+  const flyMachine = await flyRequest(`/apps/${FLY_APP_NAME}/machines`, {
+    method: "POST",
+    body: JSON.stringify({
+      region,
+      config: machineConfig,
+    }),
+  });
+
+  const [row] = await db
+    .insert(machines)
+    .values({
+      userId,
+      flyMachineId: flyMachine.id,
+      flyAppName: FLY_APP_NAME,
+      region,
+      state: flyMachine.state,
+      config: machineConfig,
+    })
+    .returning();
+
+  return c.json(row, 201);
+});
+
+app.get("/machines/:id", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+
+  const [machine] = await db
+    .select()
+    .from(machines)
+    .where(and(eq(machines.id, id), eq(machines.userId, userId)));
+
+  if (!machine) return c.json({ error: "Not found" }, 404);
+
+  // Fetch live state from Fly
+  const flyMachine = await flyRequest(
+    `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}`
+  );
+
+  // Update local state if changed
+  if (flyMachine.state !== machine.state) {
+    await db
+      .update(machines)
+      .set({ state: flyMachine.state, updatedAt: new Date() })
+      .where(eq(machines.id, id));
+  }
+
+  return c.json({ ...machine, state: flyMachine.state, flyDetails: flyMachine });
+});
+
+app.delete("/machines/:id", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+
+  const [machine] = await db
+    .select()
+    .from(machines)
+    .where(and(eq(machines.id, id), eq(machines.userId, userId)));
+
+  if (!machine) return c.json({ error: "Not found" }, 404);
+
+  // Stop then destroy the Fly machine
+  await flyRequest(
+    `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/stop`,
+    { method: "POST" }
+  );
+
+  await flyRequest(
+    `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}`,
+    { method: "DELETE" }
+  );
+
+  await db.delete(machines).where(eq(machines.id, id));
+
   return c.json({ ok: true });
 });
 
