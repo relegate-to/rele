@@ -12,7 +12,7 @@ const db = drizzle(client);
 
 const FLY_API_URL = "https://api.machines.dev/v1";
 const FLY_API_TOKEN = process.env.FLY_API_TOKEN!;
-const FLY_APP_NAME = process.env.FLY_APP_NAME!; // Set automatically by Fly at runtime
+const FLY_INSTANCES_APP = process.env.FLY_INSTANCES_APP!; // Separate app for user machines
 
 type AppVariables = { userId: string };
 
@@ -139,11 +139,41 @@ app.get("/machines", async (c) => {
     .from(machines)
     .where(eq(machines.userId, userId));
 
-  return c.json(rows);
+  // Refresh state from Fly for each machine
+  const updated = await Promise.all(
+    rows.map(async (row) => {
+      try {
+        const fly = await flyRequest(
+          `/apps/${row.flyAppName}/machines/${row.flyMachineId}`
+        );
+        if (fly.state !== row.state) {
+          await db
+            .update(machines)
+            .set({ state: fly.state, updatedAt: new Date() })
+            .where(eq(machines.id, row.id));
+        }
+        return { ...row, state: fly.state };
+      } catch {
+        return row;
+      }
+    })
+  );
+
+  return c.json(updated);
 });
 
 app.post("/machines", async (c) => {
   const userId = c.get("userId");
+
+  const existing = await db
+    .select({ id: machines.id })
+    .from(machines)
+    .where(eq(machines.userId, userId));
+
+  if (existing.length >= 1) {
+    return c.json({ error: "Machine limit reached (max 1)" }, 409);
+  }
+
   const body = await c.req.json<{
     region?: string;
     config: {
@@ -164,23 +194,29 @@ app.post("/machines", async (c) => {
     image: body.config.image,
     env: { ...body.config.env, USER_ID: userId },
     guest: body.config.guest ?? { cpus: 1, memory_mb: 256, cpu_kind: "shared" },
-    metadata: { user_id: userId },
+    metadata: { user_id: userId, fly_process_group: "user" },
   };
 
-  const flyMachine = await flyRequest(`/apps/${FLY_APP_NAME}/machines`, {
-    method: "POST",
-    body: JSON.stringify({
-      region,
-      config: machineConfig,
-    }),
-  });
+  let flyMachine: any;
+  try {
+    flyMachine = await flyRequest(`/apps/${FLY_INSTANCES_APP}/machines`, {
+      method: "POST",
+      body: JSON.stringify({
+        region,
+        config: machineConfig,
+      }),
+    });
+  } catch (err) {
+    console.error("Fly API create machine failed:", err);
+    return c.json({ error: `Fly API error: ${err instanceof Error ? err.message : String(err)}` }, 502);
+  }
 
   const [row] = await db
     .insert(machines)
     .values({
       userId,
       flyMachineId: flyMachine.id,
-      flyAppName: FLY_APP_NAME,
+      flyAppName: FLY_INSTANCES_APP,
       region,
       state: flyMachine.state,
       config: machineConfig,
@@ -202,9 +238,15 @@ app.get("/machines/:id", async (c) => {
   if (!machine) return c.json({ error: "Not found" }, 404);
 
   // Fetch live state from Fly
-  const flyMachine = await flyRequest(
-    `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}`
-  );
+  let flyMachine: any;
+  try {
+    flyMachine = await flyRequest(
+      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}`
+    );
+  } catch (err) {
+    console.error("Fly API get machine failed:", err);
+    return c.json({ ...machine, flyDetails: null });
+  }
 
   // Update local state if changed
   if (flyMachine.state !== machine.state) {
@@ -215,6 +257,64 @@ app.get("/machines/:id", async (c) => {
   }
 
   return c.json({ ...machine, state: flyMachine.state, flyDetails: flyMachine });
+});
+
+app.post("/machines/:id/start", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+
+  const [machine] = await db
+    .select()
+    .from(machines)
+    .where(and(eq(machines.id, id), eq(machines.userId, userId)));
+
+  if (!machine) return c.json({ error: "Not found" }, 404);
+
+  try {
+    await flyRequest(
+      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/start`,
+      { method: "POST" }
+    );
+
+    await db
+      .update(machines)
+      .set({ state: "started", updatedAt: new Date() })
+      .where(eq(machines.id, id));
+  } catch (err) {
+    console.error("Fly API start machine failed:", err);
+    return c.json({ error: `Fly API error: ${err instanceof Error ? err.message : String(err)}` }, 502);
+  }
+
+  return c.json({ ...machine, state: "started" });
+});
+
+app.post("/machines/:id/stop", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+
+  const [machine] = await db
+    .select()
+    .from(machines)
+    .where(and(eq(machines.id, id), eq(machines.userId, userId)));
+
+  if (!machine) return c.json({ error: "Not found" }, 404);
+
+  try {
+    await flyRequest(
+      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/stop`,
+      { method: "POST" }
+    );
+
+    await db
+      .update(machines)
+      .set({ state: "stopping", updatedAt: new Date() })
+      .where(eq(machines.id, id));
+  } catch (err) {
+    console.error("Fly API stop machine failed:", err);
+    return c.json({ error: `Fly API error: ${err instanceof Error ? err.message : String(err)}` }, 502);
+  }
+
+  return c.json({ ...machine, state: "stopping" });
 });
 
 app.delete("/machines/:id", async (c) => {
@@ -228,16 +328,27 @@ app.delete("/machines/:id", async (c) => {
 
   if (!machine) return c.json({ error: "Not found" }, 404);
 
-  // Stop then destroy the Fly machine
-  await flyRequest(
-    `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/stop`,
-    { method: "POST" }
-  );
+  // Stop the machine, wait for it to reach "stopped", then destroy it
+  try {
+    await flyRequest(
+      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/stop`,
+      { method: "POST" }
+    );
 
-  await flyRequest(
-    `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}`,
-    { method: "DELETE" }
-  );
+    // Wait for the machine to actually stop (up to 30s)
+    await flyRequest(
+      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/wait?state=stopped&timeout=30`,
+      { method: "GET" }
+    );
+
+    await flyRequest(
+      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}`,
+      { method: "DELETE" }
+    );
+  } catch (err) {
+    console.error("Fly API delete machine failed:", err);
+    return c.json({ error: `Fly API error: ${err instanceof Error ? err.message : String(err)}` }, 502);
+  }
 
   await db.delete(machines).where(eq(machines.id, id));
 

@@ -259,6 +259,30 @@
   50%       { opacity: 0.6; transform: scale(0.75); }
 }
 
+@keyframes status-pop {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 var(--status-pulse-color, rgba(34,197,94,0.5)); }
+  40%  { transform: scale(1.025); box-shadow: 0 0 0 5px var(--status-pulse-color, rgba(34,197,94,0.25)); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes status-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-2px); }
+  40%      { transform: translateX(2px); }
+  60%      { transform: translateX(-1.5px); }
+  80%      { transform: translateX(1px); }
+}
+
+@keyframes dot-breathe {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0%   { left: -40%; }
+  100% { left: 140%; }
+}
+
 html {
   font-size: 17px;
   background: var(--bg);

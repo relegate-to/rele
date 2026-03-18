@@ -5,6 +5,6 @@ export default auth.middleware({ loginUrl: '/sign-in' });
 export const config = {
   matcher: [
     '/console/:path*',
-    '/api/:path*',
+    '/api/((?!gate/).*)',
   ],
 };

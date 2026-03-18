@@ -1,38 +1,18 @@
+import { useEffect, useRef, useState } from "react"
 import { SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 
-// ─── Usage ────────────────────────────────────────────────────────────────────
-//
-// With an instance:
-//   <SidebarMenu>
-//     <InstanceItem instance={instance} isActive onStop={...} onRestart={...} />
-//   </SidebarMenu>
-//
-// Without an instance (empty state):
-//   <SidebarMenu>
-//     <AddInstanceItem onClick={handleAdd} />
-//   </SidebarMenu>
-//
-// Drive from data:
-//   <SidebarMenu>
-//     {instance
-//       ? <InstanceItem instance={instance} ... />
-//       : <AddInstanceItem onClick={handleAdd} />}
-//   </SidebarMenu>
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type InstanceStatus = "running" | "provisioning" | "stopped" | "error"
+export type InstanceStatus = "running" | "provisioning" | "stopping" | "stopped" | "error"
 
 export interface Instance {
   id: string
   name: string
   status: InstanceStatus
-  /** Uptime string e.g. "3h 42m" — shown when running */
+  /** Region label — shown when running */
   uptime?: string
-  /** Spend so far this session e.g. "¥420" — shown when running */
-  spend?: string
-  /** Human-readable time e.g. "2d ago" — shown when stopped */
+  /** Region label — shown when stopped */
   lastActive?: string
 }
 
@@ -44,6 +24,7 @@ interface InstanceItemProps {
   onStart?: () => void
   onRestart?: () => void
   onCancel?: () => void
+  onDelete?: () => Promise<void> | void
 }
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -54,27 +35,38 @@ const statusConfig: Record<
     icon: string
     dot: string
     outline: string
+    pulseColor: string
   }
 > = {
   running: {
-    icon:    "border-[#c8845a]/30 bg-[#fdf6ee] text-[#c8845a]",
+    icon:    "border-[#c8845a]/30 bg-[#fdf6ee] text-[#c8845a] shadow-[0_0_8px_rgba(34,197,94,0.35)]",
     dot:     "bg-green-500",
     outline: "border-[#c8845a]/30 hover:border-[#c8845a]/50",
+    pulseColor: "rgba(34,197,94,0.5)",
   },
   provisioning: {
-    icon:    "border-indigo-300/30 bg-indigo-50 text-indigo-400",
+    icon:    "border-indigo-300/30 bg-indigo-50 text-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.3)]",
     dot:     "bg-indigo-400 animate-pulse",
     outline: "border-indigo-300/30 hover:border-indigo-300/50",
+    pulseColor: "rgba(99,102,241,0.5)",
+  },
+  stopping: {
+    icon:    "border-amber-300/30 bg-amber-50 text-amber-400",
+    dot:     "bg-amber-400 animate-pulse",
+    outline: "border-amber-300/30 hover:border-amber-300/50",
+    pulseColor: "transparent",
   },
   stopped: {
     icon:    "border-sidebar-border bg-sidebar text-sidebar-foreground/25",
     dot:     "bg-sidebar-foreground/30",
     outline: "border-sidebar-border hover:border-sidebar-border/60",
+    pulseColor: "transparent",
   },
   error: {
     icon:    "border-destructive/30 bg-destructive/10 text-destructive",
     dot:     "bg-destructive",
     outline: "border-destructive/30 hover:border-destructive/50",
+    pulseColor: "rgba(239,68,68,0.5)",
   },
 }
 
@@ -96,23 +88,6 @@ function PlayIcon() {
   )
 }
 
-function RestartIcon() {
-  return (
-    <svg
-      viewBox="0 0 12 12"
-      className="size-3"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M9.5 2.5A4.5 4.5 0 1 0 10 6.5" />
-      <path d="M10 2.5V5H7.5" />
-    </svg>
-  )
-}
-
 function CancelIcon() {
   return (
     <svg
@@ -124,6 +99,37 @@ function CancelIcon() {
       strokeLinecap="round"
     >
       <path d="M3 3l6 6M9 3l-6 6" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      className="size-3"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 3h8M4.5 3V2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1M3 3l.5 7a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1L9 3" />
+    </svg>
+  )
+}
+
+function SpinnerIcon() {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      className="size-3 animate-spin"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    >
+      <path d="M6 1a5 5 0 0 1 5 5" />
     </svg>
   )
 }
@@ -148,10 +154,14 @@ function PlusIcon() {
 function ActionButton({
   label,
   onClick,
+  destructive,
+  disabled,
   children,
 }: {
   label: string
   onClick?: () => void
+  destructive?: boolean
+  disabled?: boolean
   children: React.ReactNode
 }) {
   return (
@@ -161,9 +171,15 @@ function ActionButton({
       title={label}
       onClick={(e) => {
         e.stopPropagation()
-        onClick?.()
+        if (!disabled) onClick?.()
       }}
-      className="flex size-6 cursor-pointer items-center justify-center rounded-[5px] border border-sidebar-border bg-sidebar text-sidebar-foreground/50 opacity-0 transition-opacity hover:bg-sidebar-accent group-hover/item:opacity-100"
+      className={cn(
+        "flex size-6 cursor-pointer items-center justify-center rounded-[5px] border opacity-0 transition-opacity group-hover/item:opacity-100",
+        destructive
+          ? "border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20"
+          : "border-sidebar-border bg-sidebar text-sidebar-foreground/50 hover:bg-sidebar-accent",
+        disabled && "pointer-events-none opacity-50"
+      )}
     >
       {children}
     </div>
@@ -175,7 +191,7 @@ function InstanceIcon({ status }: { status: InstanceStatus }) {
   return (
     <div
       className={cn(
-        "relative flex size-8 shrink-0 items-center justify-center rounded-lg border font-['Lora',Georgia,serif] text-sm italic",
+        "relative flex size-8 shrink-0 items-center justify-center rounded-lg border font-['Lora',Georgia,serif] text-sm italic transition-shadow duration-500",
         icon
       )}
     >
@@ -191,18 +207,12 @@ function InstanceIcon({ status }: { status: InstanceStatus }) {
 }
 
 function InstanceMeta({ instance }: { instance: Instance }) {
-  const { status, uptime, spend, lastActive } = instance
+  const { status, uptime, lastActive } = instance
 
   if (status === "running") {
     return (
       <p className="truncate text-xs text-[#c8845a]">
-        {uptime && <>up {uptime}</>}
-        {uptime && spend && <> · </>}
-        {spend && (
-          <span className="rounded bg-[#c8845a]/10 px-1 py-px text-xs font-semibold text-[#c8845a]">
-            {spend}
-          </span>
-        )}
+        {uptime ?? "running"}
       </p>
     )
   }
@@ -211,10 +221,14 @@ function InstanceMeta({ instance }: { instance: Instance }) {
     return <p className="truncate text-xs text-indigo-400">provisioning…</p>
   }
 
+  if (status === "stopping") {
+    return <p className="truncate text-xs text-amber-400">stopping…</p>
+  }
+
   if (status === "stopped") {
     return (
       <p className="truncate text-xs text-sidebar-foreground/40">
-        {lastActive ? `last active ${lastActive}` : "stopped"}
+        {lastActive ?? "stopped"}
       </p>
     )
   }
@@ -230,27 +244,45 @@ function InstanceActions({
   instance,
   onStop,
   onStart,
-  onRestart,
-  onCancel,
-}: Pick<InstanceItemProps, "onStop" | "onStart" | "onRestart" | "onCancel"> & {
+  onDelete,
+}: Pick<InstanceItemProps, "onStop" | "onStart" | "onDelete"> & {
   instance: Instance
 }) {
+  const [deleting, setDeleting] = useState(false)
+
+  if (deleting) {
+    return <SpinnerIcon />
+  }
+
   if (instance.status === "running") {
-    return (
-      <>
-        <ActionButton label="Stop" onClick={onStop}><StopIcon /></ActionButton>
-        <ActionButton label="Restart" onClick={onRestart}><RestartIcon /></ActionButton>
-      </>
-    )
+    return <ActionButton label="Stop" onClick={onStop}><StopIcon /></ActionButton>
   }
   if (instance.status === "provisioning") {
-    return <ActionButton label="Cancel" onClick={onCancel}><CancelIcon /></ActionButton>
+    return <ActionButton label="Stop" onClick={onStop}><StopIcon /></ActionButton>
   }
-  if (instance.status === "stopped") {
-    return <ActionButton label="Start" onClick={onStart}><PlayIcon /></ActionButton>
+  if (instance.status === "stopping") {
+    return <SpinnerIcon />
   }
-  if (instance.status === "error") {
-    return <ActionButton label="Restart" onClick={onRestart}><RestartIcon /></ActionButton>
+  if (instance.status === "stopped" || instance.status === "error") {
+    return (
+      <>
+        <ActionButton label="Start" onClick={onStart}><PlayIcon /></ActionButton>
+        <ActionButton
+          label="Delete"
+          destructive
+          onClick={async () => {
+            setDeleting(true)
+            try {
+              await onDelete?.()
+            } catch {
+              setDeleting(false)
+            }
+          }}
+        >
+          <TrashIcon />
+        </ActionButton>
+      </>
+    )
   }
   return null
 }
@@ -263,21 +295,66 @@ export function InstanceItem({
   onClick,
   onStop,
   onStart,
-  onRestart,
-  onCancel,
+  onDelete,
 }: InstanceItemProps) {
-  const { outline } = statusConfig[instance.status]
+  const { outline, pulseColor } = statusConfig[instance.status]
+  const prevStatusRef = useRef(instance.status)
+  const [anim, setAnim] = useState<"pop" | "shake" | null>(null)
+
+  useEffect(() => {
+    const prev = prevStatusRef.current
+    if (prev === instance.status) return
+    prevStatusRef.current = instance.status
+
+    // Machine just came alive — celebrate
+    if (instance.status === "running") {
+      setAnim("pop")
+    }
+    // Stopped or errored — shake
+    else if (instance.status === "stopped" || instance.status === "error") {
+      setAnim("shake")
+    }
+    // Everything else (provisioning) — shimmer handles it
+    else {
+      return
+    }
+
+    const timeout = setTimeout(() => setAnim(null), 600)
+    return () => clearTimeout(timeout)
+  }, [instance.status])
+
+  const isTransitioning = instance.status === "provisioning"
+
+  const animClass =
+    anim === "pop"   ? "animate-[status-pop_0.55s_ease-out]" :
+    anim === "shake" ? "animate-[status-shake_0.4s_ease-out]" :
+    null
 
   return (
     <SidebarMenuItem>
+      <div
+        className={cn("rounded-lg", animClass)}
+        style={anim === "pop" ? { "--status-pulse-color": pulseColor } as React.CSSProperties : undefined}
+        key={anim ? `${instance.status}-${anim}` : undefined}
+      >
       <SidebarMenuButton
         isActive={isActive}
         onClick={onClick}
         className={cn(
-          "group/item h-auto items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-colors",
+          "group/item relative h-auto items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-colors overflow-hidden",
           outline
         )}
       >
+        {isTransitioning && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute top-0 bottom-0 w-[50%] animate-[shimmer_1.8s_ease-in-out_infinite] skew-x-[-20deg]"
+            style={{
+              background:
+                "linear-gradient(90deg, transparent 0%, transparent 38%, rgba(99,102,241,0.3) 40%, rgba(99,102,241,0.3) 60%, transparent 62%, transparent 100%)",
+            }}
+          />
+        )}
         <InstanceIcon status={instance.status} />
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -292,11 +369,11 @@ export function InstanceItem({
             instance={instance}
             onStop={onStop}
             onStart={onStart}
-            onRestart={onRestart}
-            onCancel={onCancel}
+            onDelete={onDelete}
           />
         </div>
       </SidebarMenuButton>
+      </div>
     </SidebarMenuItem>
   )
 }
