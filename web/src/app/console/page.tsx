@@ -2,8 +2,7 @@
 
 import { motion } from "framer-motion";
 import { HealthPanel } from "./_components/health-panel";
-
-const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+import { EASE } from "@/lib/theme";
 
 export default function HomePage() {
   return (
