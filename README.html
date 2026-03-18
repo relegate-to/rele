@@ -1,0 +1,1883 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Rele — Project Docs</title>
+        <style>
+            @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;600&display=swap");
+
+            :root {
+                --bg: #080d1a;
+                --bg2: #0d1424;
+                --bg3: #111c30;
+                --border: #1a2540;
+                --text: #dde6f0;
+                --muted: #4a6080;
+                --dim: #2a3a54;
+                --indigo: #818cf8;
+                --green: #6ee7b7;
+                --pink: #f9a8d4;
+                --amber: #fbbf24;
+                --orange: #fb923c;
+                --slate: #94a3b8;
+                --red: #f87171;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                background: var(--bg);
+                color: var(--text);
+                font-family: "IBM Plex Sans", sans-serif;
+                font-weight: 300;
+                min-height: 100vh;
+            }
+
+            /* grain */
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+                pointer-events: none;
+                z-index: 0;
+                opacity: 0.35;
+            }
+
+            /* layout */
+            .shell {
+                position: relative;
+                z-index: 1;
+                display: flex;
+                min-height: 100vh;
+            }
+
+            /* sidebar */
+            .sidebar {
+                width: 220px;
+                flex-shrink: 0;
+                border-right: 1px solid var(--border);
+                padding: 40px 0;
+                position: sticky;
+                top: 0;
+                height: 100vh;
+                overflow-y: auto;
+            }
+
+            .sidebar-logo {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--indigo);
+                padding: 0 24px 32px;
+                letter-spacing: 1px;
+            }
+            .sidebar-logo span {
+                color: var(--muted);
+                font-weight: 400;
+            }
+
+            .nav-group {
+                margin-bottom: 28px;
+            }
+            .nav-group-label {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 9px;
+                letter-spacing: 4px;
+                text-transform: uppercase;
+                color: var(--muted);
+                padding: 0 24px 8px;
+            }
+            .nav-link {
+                display: block;
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 11px;
+                color: var(--slate);
+                padding: 6px 24px;
+                text-decoration: none;
+                transition:
+                    color 0.15s,
+                    background 0.15s;
+                cursor: pointer;
+            }
+            .nav-link:hover,
+            .nav-link.active {
+                color: var(--text);
+                background: var(--bg3);
+            }
+            .nav-link.active {
+                border-left: 2px solid var(--indigo);
+                padding-left: 22px;
+            }
+
+            /* main */
+            .main {
+                flex: 1;
+                padding: 56px 64px;
+                max-width: 860px;
+            }
+
+            /* page header */
+            .page-header {
+                margin-bottom: 72px;
+                opacity: 0;
+                animation: fadeUp 0.5s ease forwards;
+            }
+            .eyebrow {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 10px;
+                letter-spacing: 5px;
+                color: var(--muted);
+                text-transform: uppercase;
+                margin-bottom: 12px;
+            }
+            .page-title {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 30px;
+                font-weight: 600;
+                color: #f1f5f9;
+                margin-bottom: 8px;
+            }
+            .page-title span {
+                color: var(--indigo);
+            }
+            .page-tagline {
+                font-size: 15px;
+                color: var(--slate);
+                line-height: 1.7;
+                border-left: 2px solid var(--indigo);
+                padding-left: 16px;
+                max-width: 500px;
+                margin-top: 16px;
+            }
+
+            /* sections */
+            .section {
+                margin-bottom: 80px;
+                opacity: 0;
+                animation: fadeUp 0.5s ease forwards;
+            }
+            .section:nth-child(1) {
+                animation-delay: 0.05s;
+            }
+            .section:nth-child(2) {
+                animation-delay: 0.1s;
+            }
+            .section:nth-child(3) {
+                animation-delay: 0.15s;
+            }
+            .section:nth-child(4) {
+                animation-delay: 0.2s;
+            }
+            .section:nth-child(5) {
+                animation-delay: 0.25s;
+            }
+            .section:nth-child(6) {
+                animation-delay: 0.3s;
+            }
+            .section:nth-child(7) {
+                animation-delay: 0.35s;
+            }
+            .section:nth-child(8) {
+                animation-delay: 0.4s;
+            }
+
+            .section-header {
+                display: flex;
+                align-items: baseline;
+                gap: 14px;
+                margin-bottom: 24px;
+                padding-bottom: 14px;
+                border-bottom: 1px solid var(--border);
+            }
+            .section-label {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 9px;
+                letter-spacing: 4px;
+                text-transform: uppercase;
+                color: var(--muted);
+            }
+            .section-title {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 17px;
+                font-weight: 600;
+                color: #f1f5f9;
+            }
+            .section-sub {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 11px;
+                color: var(--muted);
+                font-style: italic;
+            }
+
+            /* prose */
+            .prose {
+                font-size: 14px;
+                color: var(--slate);
+                line-height: 1.8;
+                max-width: 640px;
+            }
+            .prose p {
+                margin-bottom: 14px;
+            }
+            .prose strong {
+                color: var(--text);
+                font-weight: 600;
+            }
+
+            /* tables */
+            .table {
+                width: 100%;
+                border-collapse: collapse;
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 12px;
+                margin-bottom: 24px;
+            }
+            .table th {
+                text-align: left;
+                padding: 8px 12px;
+                font-size: 9px;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                color: var(--muted);
+                border-bottom: 1px solid var(--border);
+            }
+            .table td {
+                padding: 11px 12px;
+                border-bottom: 1px solid var(--bg3);
+                vertical-align: top;
+                color: var(--slate);
+                line-height: 1.6;
+            }
+            .table tr:hover td {
+                background: var(--bg2);
+            }
+            .table td:first-child {
+                color: var(--text);
+            }
+            .table code {
+                background: var(--bg3);
+                padding: 1px 6px;
+                border-radius: 2px;
+                color: var(--green);
+                font-size: 11px;
+            }
+
+            /* code blocks */
+            pre {
+                background: var(--bg2);
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                padding: 20px;
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 12px;
+                color: var(--green);
+                overflow-x: auto;
+                margin-bottom: 20px;
+                line-height: 1.7;
+            }
+            pre .comment {
+                color: var(--muted);
+            }
+            pre .key {
+                color: var(--indigo);
+            }
+            pre .val {
+                color: var(--amber);
+            }
+
+            /* badges */
+            .badge {
+                display: inline-block;
+                padding: 2px 8px;
+                border-radius: 2px;
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 9px;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                font-weight: 600;
+            }
+            .badge-done {
+                background: rgba(110, 231, 183, 0.12);
+                color: var(--green);
+                border: 1px solid rgba(110, 231, 183, 0.25);
+            }
+            .badge-next {
+                background: rgba(129, 140, 248, 0.12);
+                color: var(--indigo);
+                border: 1px solid rgba(129, 140, 248, 0.25);
+            }
+            .badge-later {
+                background: rgba(148, 163, 184, 0.08);
+                color: var(--muted);
+                border: 1px solid var(--border);
+            }
+            .badge-wip {
+                background: rgba(251, 191, 36, 0.12);
+                color: var(--amber);
+                border: 1px solid rgba(251, 191, 36, 0.25);
+            }
+
+            /* stack cards */
+            .stack-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 12px;
+                margin-bottom: 24px;
+            }
+            .stack-card {
+                background: var(--bg2);
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                padding: 16px;
+            }
+            .stack-card-role {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 9px;
+                letter-spacing: 3px;
+                text-transform: uppercase;
+                color: var(--muted);
+                margin-bottom: 6px;
+            }
+            .stack-card-name {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 13px;
+                font-weight: 600;
+                margin-bottom: 3px;
+            }
+            .stack-card-note {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 10px;
+                color: var(--muted);
+            }
+
+            /* parked */
+            .parked-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 12px;
+            }
+            .parked-card {
+                background: var(--bg2);
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                padding: 16px;
+            }
+            .parked-card-title {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--muted);
+                margin-bottom: 6px;
+            }
+            .parked-card-note {
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 10px;
+                color: var(--dim);
+                line-height: 1.6;
+            }
+
+            /* legend */
+            .legend {
+                display: flex;
+                gap: 16px;
+                flex-wrap: wrap;
+                margin-bottom: 16px;
+            }
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 10px;
+                color: var(--slate);
+            }
+            .legend-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 2px;
+            }
+
+            .node {
+                cursor: default;
+            }
+            .node text {
+                pointer-events: none;
+            }
+
+            /* divider */
+            hr {
+                border: none;
+                border-top: 1px solid var(--border);
+                margin: 48px 0;
+            }
+
+            /* footer */
+            .footer {
+                margin-top: 80px;
+                padding-top: 24px;
+                border-top: 1px solid var(--border);
+                font-family: "IBM Plex Mono", monospace;
+                font-size: 11px;
+                color: var(--muted);
+                display: flex;
+                justify-content: space-between;
+            }
+
+            @keyframes fadeUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(14px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @media (max-width: 800px) {
+                .sidebar {
+                    display: none;
+                }
+                .main {
+                    padding: 32px 24px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="shell">
+            <!-- Sidebar -->
+            <nav class="sidebar">
+                <div class="sidebar-logo">rele<span>.to</span></div>
+                <div class="nav-group">
+                    <div class="nav-group-label">Overview</div>
+                    <a class="nav-link active" href="#product">Product</a>
+                    <a class="nav-link" href="#stack">Stack</a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-label">Infrastructure</div>
+                    <a class="nav-link" href="#domains">Domains & DNS</a>
+                    <a class="nav-link" href="#hosting">Hosting</a>
+                    <a class="nav-link" href="#auth">Auth</a>
+                    <a class="nav-link" href="#database">Database</a>
+                    <a class="nav-link" href="#sandboxes">Sandboxes</a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-label">Development</div>
+                    <a class="nav-link" href="#local">Local Dev</a>
+                    <a class="nav-link" href="#repo">Repo</a>
+                </div>
+                <div class="nav-group">
+                    <div class="nav-group-label">Roadmap</div>
+                    <a class="nav-link" href="#roadmap">Phases</a>
+                    <a class="nav-link" href="#architecture">Architecture</a>
+                    <a class="nav-link" href="#parked">Parked</a>
+                </div>
+            </nav>
+
+            <!-- Main -->
+            <main class="main">
+                <div class="page-header">
+                    <div class="eyebrow">Relegate · March 2026</div>
+                    <div class="page-title">
+                        Rele — <span>Project Docs</span>
+                    </div>
+                    <p class="page-tagline">
+                        The easiest way to get a capable AI agent running. One
+                        click. Sensible defaults. No setup pain.
+                    </p>
+                </div>
+
+                <!-- Product -->
+                <div class="section" id="product">
+                    <div class="section-header">
+                        <span class="section-label">Overview</span>
+                        <span class="section-title">What Rele Is</span>
+                    </div>
+                    <div class="prose">
+                        <p>
+                            OpenClaw is more capable than most hosted AI
+                            products — mobile nodes, browser automation, cron
+                            jobs, multi-agent routing, real channel integration,
+                            self-extending agents. But it requires Node 22+, a
+                            terminal, port forwarding, bot tokens, daemon
+                            management, and a mental model of what a "gateway"
+                            even is.
+                        </p>
+                        <p>
+                            Rele is the way normal people access OpenClaw. Not a
+                            simplified version — the full thing, without the
+                            wall in front of it.
+                        </p>
+                        <p>
+                            <strong>The pitch:</strong> "OpenClaw is incredible.
+                            You've never heard of it because you can't set it
+                            up. Rele fixes that."
+                        </p>
+                        <p>
+                            The competition isn't ChatGPT. It's the Hetzner VPS
+                            they haven't gotten around to setting up yet.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Stack -->
+                <div class="section" id="stack">
+                    <div class="section-header">
+                        <span class="section-label">Overview</span>
+                        <span class="section-title">Stack</span>
+                    </div>
+                    <div class="stack-grid">
+                        <div class="stack-card">
+                            <div class="stack-card-role">Frontend</div>
+                            <div
+                                class="stack-card-name"
+                                style="color: var(--indigo)"
+                            >
+                                Next.js
+                            </div>
+                            <div class="stack-card-note">Vercel · rele.to</div>
+                        </div>
+                        <div class="stack-card">
+                            <div class="stack-card-role">API</div>
+                            <div
+                                class="stack-card-name"
+                                style="color: var(--indigo)"
+                            >
+                                Hono
+                            </div>
+                            <div class="stack-card-note">
+                                Node.js · Fly.io · gate
+                            </div>
+                        </div>
+                        <div class="stack-card">
+                            <div class="stack-card-role">Auth</div>
+                            <div
+                                class="stack-card-name"
+                                style="color: var(--green)"
+                            >
+                                Neon Auth
+                            </div>
+                            <div class="stack-card-note">
+                                Email · Google · GitHub (soon)
+                            </div>
+                        </div>
+                        <div class="stack-card">
+                            <div class="stack-card-role">Database</div>
+                            <div
+                                class="stack-card-name"
+                                style="color: var(--green)"
+                            >
+                                Neon
+                            </div>
+                            <div class="stack-card-note">
+                                Postgres · serverless
+                            </div>
+                        </div>
+                        <div class="stack-card">
+                            <div class="stack-card-role">Sandboxes</div>
+                            <div
+                                class="stack-card-name"
+                                style="color: var(--amber)"
+                            >
+                                Fly.io
+                            </div>
+                            <div class="stack-card-note">
+                                Machines API · to build
+                            </div>
+                        </div>
+                        <div class="stack-card">
+                            <div class="stack-card-role">Runtime</div>
+                            <div
+                                class="stack-card-name"
+                                style="color: var(--orange)"
+                            >
+                                OpenClaw
+                            </div>
+                            <div class="stack-card-note">
+                                Inside each sandbox
+                            </div>
+                        </div>
+                        <div class="stack-card">
+                            <div class="stack-card-role">Skills</div>
+                            <div
+                                class="stack-card-name"
+                                style="color: var(--slate)"
+                            >
+                                ClawHub
+                            </div>
+                            <div class="stack-card-note">
+                                Skill registry · external
+                            </div>
+                        </div>
+                        <div class="stack-card">
+                            <div class="stack-card-role">LLMs</div>
+                            <div
+                                class="stack-card-name"
+                                style="color: var(--slate)"
+                            >
+                                OpenAI · Anthropic
+                            </div>
+                            <div class="stack-card-note">
+                                Via OpenClaw · external
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Domains -->
+                <div class="section" id="domains">
+                    <div class="section-header">
+                        <span class="section-label">Infrastructure</span>
+                        <span class="section-title">Domains & DNS</span>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Domain</th>
+                                <th>Registrar</th>
+                                <th>Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>rele.to</td>
+                                <td>Spaceship</td>
+                                <td>Rele product · primary</td>
+                            </tr>
+                            <tr>
+                                <td>relegate.to</td>
+                                <td>Spaceship</td>
+                                <td>Relegate studio site</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="prose">
+                        <p>
+                            DNS is managed via
+                            <strong>Vercel nameservers</strong>. Spaceship
+                            points both domains to Vercel. All DNS records are
+                            configured inside the Vercel dashboard.
+                        </p>
+                        <p>
+                            To update DNS: Vercel Dashboard → rele.to project →
+                            Settings → Domains
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Hosting -->
+                <div class="section" id="hosting">
+                    <div class="section-header">
+                        <span class="section-label">Infrastructure</span>
+                        <span class="section-title">Hosting</span>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Service</th>
+                                <th>Platform</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>web (rele.to)</td>
+                                <td>Vercel — Hobby</td>
+                                <td>
+                                    Next.js · auto-deploy on push to
+                                    <code>main</code> · preview on every PR
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>gate</td>
+                                <td>Fly.io</td>
+                                <td>Hono API · app name: <code>gate</code></td>
+                            </tr>
+                            <tr>
+                                <td>relegate.to</td>
+                                <td>Vercel</td>
+                                <td>Studio site · private repo</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="prose">
+                        <p>
+                            The monorepo lives at
+                            <strong>github.com/relegate-to/rele</strong>. Vercel
+                            is connected to the GitHub org and deploys
+                            <code>web</code> automatically. <code>gate</code> is
+                            deployed to Fly.io separately.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Auth -->
+                <div class="section" id="auth">
+                    <div class="section-header">
+                        <span class="section-label">Infrastructure</span>
+                        <span class="section-title">Auth</span>
+                    </div>
+                    <div class="prose" style="margin-bottom: 20px">
+                        <p>
+                            Auth is handled by <strong>Neon Auth</strong>. The
+                            Next.js app handles auth server-side and
+                            client-side. The Hono API verifies JWTs from Neon
+                            Auth on every request using JWKS.
+                        </p>
+                        <p>
+                            Methods enabled: <strong>Email / password</strong>.
+                            Google OAuth and GitHub OAuth coming soon.
+                        </p>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Variable</th>
+                                <th>Service</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>NEON_AUTH_BASE_URL</code></td>
+                                <td>web</td>
+                                <td>Neon Auth base URL · server-side</td>
+                            </tr>
+                            <tr>
+                                <td><code>NEXT_PUBLIC_NEON_AUTH_URL</code></td>
+                                <td>web</td>
+                                <td>Neon Auth URL · client-side</td>
+                            </tr>
+                            <tr>
+                                <td><code>NEON_AUTH_COOKIE_SECRET</code></td>
+                                <td>web</td>
+                                <td>Cookie signing secret</td>
+                            </tr>
+                            <tr>
+                                <td><code>GATE_URL</code></td>
+                                <td>web</td>
+                                <td>
+                                    Gate API URL · server-only · never prefix
+                                    with NEXT_PUBLIC_
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>NEON_AUTH_URL</code></td>
+                                <td>gate</td>
+                                <td>
+                                    Used by auth middleware for JWKS
+                                    verification
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p
+                        style="
+                            font-family: &quot;IBM Plex Mono&quot;, monospace;
+                            font-size: 11px;
+                            color: var(--muted);
+                            margin-bottom: 12px;
+                        "
+                    >
+                        Gate auth middleware (JWT verification via JWKS):
+                    </p>
+                    <pre><span class="comment">// gate/src/middleware/auth.ts</span>
+const JWKS = jose.createRemoteJWKSet(
+  new URL(`${process.env.<span class="key">NEON_AUTH_URL</span>}/.well-known/jwks.json`)
+);
+
+const authMiddleware = async (c, next) => {
+  const token = c.req.header(<span class="val">"Authorization"</span>)?.split(<span class="val">" "</span>)[1];
+  const { payload } = await jose.jwtVerify(token, JWKS, {
+    issuer: new URL(process.env.<span class="key">NEON_AUTH_URL</span>).origin,
+  });
+  c.set(<span class="val">"userId"</span>, payload.sub);
+  await next();
+};</pre>
+                </div>
+
+                <!-- Database -->
+                <div class="section" id="database">
+                    <div class="section-header">
+                        <span class="section-label">Infrastructure</span>
+                        <span class="section-title">Database</span>
+                    </div>
+                    <div class="prose" style="margin-bottom: 20px">
+                        <p>
+                            Postgres via <strong>Neon</strong> (serverless). One
+                            project covers all environments. The development
+                            instance lives on Neon — local dev points directly
+                            to it, no local Postgres needed.
+                        </p>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Variable</th>
+                                <th>Service</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>DATABASE_URL</code></td>
+                                <td>gate</td>
+                                <td>
+                                    Neon connection string · used by gate to
+                                    connect
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Sandboxes -->
+                <div class="section" id="sandboxes">
+                    <div class="section-header">
+                        <span class="section-label">Infrastructure</span>
+                        <span class="section-title">Sandboxes</span>
+                        <span class="section-sub">— to build</span>
+                    </div>
+                    <div class="prose">
+                        <p>
+                            Each user gets a Docker container on
+                            <strong>Fly.io</strong> running a pre-configured
+                            OpenClaw instance. Containers are provisioned on
+                            signup via the
+                            <strong>Fly.io Machines API</strong> and managed by
+                            <code>gate</code>.
+                        </p>
+                        <p>
+                            This is the next major build milestone. The plan may
+                            evolve — Fly.io Machines API is the current
+                            approach.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Local Dev -->
+                <div class="section" id="local">
+                    <div class="section-header">
+                        <span class="section-label">Development</span>
+                        <span class="section-title">Local Dev</span>
+                    </div>
+                    <div class="prose" style="margin-bottom: 20px">
+                        <p>
+                            No Docker Compose. Both services start from the
+                            monorepo root. The Neon dev database and Neon Auth
+                            are used directly during local development — no
+                            local instances needed.
+                        </p>
+                    </div>
+
+                    <p
+                        style="
+                            font-family: &quot;IBM Plex Mono&quot;, monospace;
+                            font-size: 11px;
+                            color: var(--muted);
+                            margin-bottom: 12px;
+                        "
+                    >
+                        Prerequisites:
+                    </p>
+                    <pre>
+bun
+access to github.com/relegate-to/configuration (private)</pre
+                    >
+
+                    <p
+                        style="
+                            font-family: &quot;IBM Plex Mono&quot;, monospace;
+                            font-size: 11px;
+                            color: var(--muted);
+                            margin-bottom: 12px;
+                        "
+                    >
+                        Setup:
+                    </p>
+                    <pre>git clone git@github.com:relegate-to/rele.git
+cd rele
+bash dev.sh setup    <span class="comment"># applies env files from configuration repo</span></pre>
+
+                    <p
+                        style="
+                            font-family: &quot;IBM Plex Mono&quot;, monospace;
+                            font-size: 11px;
+                            color: var(--muted);
+                            margin-bottom: 12px;
+                        "
+                    >
+                        Run:
+                    </p>
+                    <pre>bun dev    <span class="comment"># starts web (:3000) and gate (:3001) concurrently</span></pre>
+
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Service</th>
+                                <th>URL</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>web</td>
+                                <td>localhost:3000</td>
+                                <td>Next.js frontend</td>
+                            </tr>
+                            <tr>
+                                <td>gate</td>
+                                <td>localhost:3001</td>
+                                <td>Hono API</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p
+                        style="
+                            font-family: &quot;IBM Plex Mono&quot;, monospace;
+                            font-size: 11px;
+                            color: var(--muted);
+                            margin-bottom: 12px;
+                        "
+                    >
+                        Env management via <code>dev.sh</code>:
+                    </p>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>bash dev.sh setup</code></td>
+                                <td>Apply env files on a fresh clone</td>
+                            </tr>
+                            <tr>
+                                <td><code>bash dev.sh env:pull</code></td>
+                                <td>Pull and apply latest env files</td>
+                            </tr>
+                            <tr>
+                                <td><code>bash dev.sh env:push</code></td>
+                                <td>
+                                    Push local env changes to configuration repo
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="prose">
+                        <p>
+                            Each service has its own <code>.env.local</code> at
+                            its directory root. These are gitignored and never
+                            committed.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Repo -->
+                <div class="section" id="repo">
+                    <div class="section-header">
+                        <span class="section-label">Development</span>
+                        <span class="section-title">Repo</span>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Repo</th>
+                                <th>Visibility</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>github.com/relegate-to/rele</td>
+                                <td>Public</td>
+                                <td>Main monorepo — web + gate</td>
+                            </tr>
+                            <tr>
+                                <td>github.com/relegate-to/relegate.to</td>
+                                <td>Private</td>
+                                <td>Studio site</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Roadmap -->
+                <div class="section" id="roadmap">
+                    <div class="section-header">
+                        <span class="section-label">Roadmap</span>
+                        <span class="section-title">Phases</span>
+                    </div>
+
+                    <!-- Phase 1 -->
+                    <div style="margin-bottom: 40px">
+                        <div
+                            style="
+                                font-family:
+                                    &quot;IBM Plex Mono&quot;, monospace;
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: #f1f5f9;
+                                margin-bottom: 4px;
+                            "
+                        >
+                            Phase 1 — Spike
+                            <span
+                                style="
+                                    color: var(--muted);
+                                    font-weight: 400;
+                                    font-size: 11px;
+                                    margin-left: 8px;
+                                "
+                                >Understand what we're building on</span
+                            >
+                        </div>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Item</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-done"
+                                            >Done</span
+                                        >
+                                    </td>
+                                    <td>Get OpenClaw running locally</td>
+                                    <td>Docker. Validated the concept.</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-done"
+                                            >Done</span
+                                        >
+                                    </td>
+                                    <td>Understand default config</td>
+                                    <td>Gaps identified.</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-done"
+                                            >Done</span
+                                        >
+                                    </td>
+                                    <td>Identify what Rele needs to add</td>
+                                    <td>
+                                        Hosting, networking, proxied UI,
+                                        spending account, MCP server.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Phase 2 -->
+                    <div style="margin-bottom: 40px">
+                        <div
+                            style="
+                                font-family:
+                                    &quot;IBM Plex Mono&quot;, monospace;
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: #f1f5f9;
+                                margin-bottom: 4px;
+                            "
+                        >
+                            Phase 2 — MVP
+                            <span
+                                style="
+                                    color: var(--amber);
+                                    font-weight: 400;
+                                    font-size: 11px;
+                                    margin-left: 8px;
+                                "
+                                >← in progress</span
+                            >
+                            <span
+                                style="
+                                    color: var(--muted);
+                                    font-weight: 400;
+                                    font-size: 11px;
+                                    margin-left: 4px;
+                                "
+                                >One user can sign up, get an agent, and talk to
+                                it</span
+                            >
+                        </div>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Item</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-done"
+                                            >Done</span
+                                        >
+                                    </td>
+                                    <td>Auth</td>
+                                    <td>
+                                        Neon Auth · email + password · Google +
+                                        GitHub OAuth coming soon
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-done"
+                                            >Done</span
+                                        >
+                                    </td>
+                                    <td>Database</td>
+                                    <td>Neon Postgres</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-done"
+                                            >Done</span
+                                        >
+                                    </td>
+                                    <td>Gate API</td>
+                                    <td>Hono · Fly.io · app: gate</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-done"
+                                            >Done</span
+                                        >
+                                    </td>
+                                    <td>Rele Dashboard (web)</td>
+                                    <td>Next.js · Vercel · rele.to</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-next"
+                                            >Next</span
+                                        >
+                                    </td>
+                                    <td>Sandbox provisioning</td>
+                                    <td>
+                                        Docker on Fly.io · Machines API · one
+                                        container per user
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-next"
+                                            >Next</span
+                                        >
+                                    </td>
+                                    <td>OpenClaw pre-configured in sandbox</td>
+                                    <td>Runs out of the box · no user setup</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-next"
+                                            >Next</span
+                                        >
+                                    </td>
+                                    <td>End-to-end: sign up → agent running</td>
+                                    <td>Wire everything together</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Phase 3 -->
+                    <div style="margin-bottom: 40px">
+                        <div
+                            style="
+                                font-family:
+                                    &quot;IBM Plex Mono&quot;, monospace;
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: #f1f5f9;
+                                margin-bottom: 4px;
+                            "
+                        >
+                            Phase 3 — Harden
+                            <span
+                                style="
+                                    color: var(--muted);
+                                    font-weight: 400;
+                                    font-size: 11px;
+                                    margin-left: 8px;
+                                "
+                                >More than one user. More than one agent.</span
+                            >
+                        </div>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Item</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>Orchestrator</td>
+                                    <td>
+                                        BullMQ + Redis · queue between API and
+                                        sandboxes · retry logic
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>Multiple sandboxes per user</td>
+                                    <td>Parallel agents · Fly.io scaling</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>Storage</td>
+                                    <td>
+                                        S3 / Cloudflare R2 · agent file access
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>Billing</td>
+                                    <td>
+                                        Spending account · usage-based · compute
+                                        + token margin
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>MCP server</td>
+                                    <td>
+                                        OpenClaw instances manage their own
+                                        infrastructure through Rele
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>Two-way interface runtime</td>
+                                    <td>
+                                        Agent-generated HTML blobs that feed
+                                        back into the agent via postMessage
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>Watchdog</td>
+                                    <td>
+                                        Lightweight second model · reads logs ·
+                                        one intervention: hard stop
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Phase 4 -->
+                    <div>
+                        <div
+                            style="
+                                font-family:
+                                    &quot;IBM Plex Mono&quot;, monospace;
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: #f1f5f9;
+                                margin-bottom: 4px;
+                            "
+                        >
+                            Phase 4 — Public
+                            <span
+                                style="
+                                    color: var(--muted);
+                                    font-weight: 400;
+                                    font-size: 11px;
+                                    margin-left: 8px;
+                                "
+                                >People outside this room are using it</span
+                            >
+                        </div>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Item</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>relegate.to updated</td>
+                                    <td>Reflects what Rele actually is</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>rele.to landing page</td>
+                                    <td>
+                                        Clean, minimal, honest. Links to
+                                        dashboard.
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>Open source repo</td>
+                                    <td>
+                                        github.com/relegate-to/rele — public
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-later"
+                                            >Later</span
+                                        >
+                                    </td>
+                                    <td>Tokyo</td>
+                                    <td>Ship this. Get hired. Move.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Architecture -->
+                <div class="section" id="architecture">
+                    <div class="section-header">
+                        <span class="section-label">Roadmap</span>
+                        <span class="section-title">Architecture</span>
+                    </div>
+
+                    <p
+                        style="
+                            font-family: &quot;IBM Plex Mono&quot;, monospace;
+                            font-size: 12px;
+                            color: var(--muted);
+                            margin-bottom: 20px;
+                        "
+                    >
+                        MVP — current build target
+                    </p>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #818cf8"
+                            ></div>
+                            Frontend / API
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #6ee7b7"
+                            ></div>
+                            Services
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #fbbf24"
+                            ></div>
+                            Sandbox
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #fb923c"
+                            ></div>
+                            OpenClaw
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #94a3b8"
+                            ></div>
+                            External
+                        </div>
+                    </div>
+                    <svg
+                        id="mvp-diagram"
+                        viewBox="0 0 640 680"
+                        style="
+                            width: 100%;
+                            max-height: 540px;
+                            overflow: visible;
+                            margin-bottom: 48px;
+                        "
+                    ></svg>
+
+                    <p
+                        style="
+                            font-family: &quot;IBM Plex Mono&quot;, monospace;
+                            font-size: 12px;
+                            color: var(--muted);
+                            margin-bottom: 20px;
+                        "
+                    >
+                        Full — Phase 3+
+                    </p>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #818cf8"
+                            ></div>
+                            Frontend / API
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #6ee7b7"
+                            ></div>
+                            Services
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #f9a8d4"
+                            ></div>
+                            Orchestration
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #fbbf24"
+                            ></div>
+                            Sandboxes
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #fb923c"
+                            ></div>
+                            OpenClaw
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-dot"
+                                style="background: #94a3b8"
+                            ></div>
+                            External
+                        </div>
+                    </div>
+                    <svg
+                        id="full-diagram"
+                        viewBox="0 0 860 880"
+                        style="
+                            width: 100%;
+                            max-height: 700px;
+                            overflow: visible;
+                        "
+                    ></svg>
+                </div>
+
+                <!-- Parked -->
+                <div class="section" id="parked">
+                    <div class="section-header">
+                        <span class="section-label">Parked</span>
+                        <span class="section-title">Not now</span>
+                    </div>
+                    <div class="parked-grid">
+                        <div class="parked-card">
+                            <div class="parked-card-title">Skills library</div>
+                            <div class="parked-card-note">
+                                ClawHub has solved this. Use it, don't rebuild
+                                it.
+                            </div>
+                        </div>
+                        <div class="parked-card">
+                            <div class="parked-card-title">
+                                Rele as agent identity
+                            </div>
+                            <div class="parked-card-note">
+                                Linktree for AI agents. Interesting. Revisit
+                                post-MVP.
+                            </div>
+                        </div>
+                        <div class="parked-card">
+                            <div class="parked-card-title">
+                                Browser streaming
+                            </div>
+                            <div class="parked-card-note">
+                                Live CDP stream of agent browsing. Hero feature.
+                                Validate after MVP.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <span>relegate.to</span>
+                    <span
+                        >March 2026 — Mid-MVP. Next: sandbox provisioning.</span
+                    >
+                </div>
+            </main>
+        </div>
+
+        <script>
+            const ns = "http://www.w3.org/2000/svg";
+            const W = 180,
+                H = 56;
+            function cx(n) {
+                return n.x + W / 2;
+            }
+            function cy(n) {
+                return n.y + H / 2;
+            }
+
+            function drawDiagram(svgId, nodes, edges, arrowId) {
+                const svg = document.getElementById(svgId);
+                if (!svg) return;
+                const defs = document.createElementNS(ns, "defs");
+                defs.innerHTML = `<marker id="${arrowId}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#1a2540"/></marker>`;
+                svg.appendChild(defs);
+                const edgeEls = {};
+                edges.forEach(([f, t]) => {
+                    const a = nodes[f],
+                        b = nodes[t];
+                    const line = document.createElementNS(ns, "line");
+                    line.setAttribute("x1", cx(a));
+                    line.setAttribute("y1", cy(a));
+                    line.setAttribute("x2", cx(b));
+                    line.setAttribute("y2", cy(b));
+                    line.setAttribute("stroke", "#1a2540");
+                    line.setAttribute("stroke-width", "1.5");
+                    line.setAttribute("marker-end", `url(#${arrowId})`);
+                    svg.appendChild(line);
+                    edgeEls[`${f}-${t}`] = line;
+                });
+                Object.entries(nodes).forEach(([key, node]) => {
+                    const g = document.createElementNS(ns, "g");
+                    g.setAttribute(
+                        "transform",
+                        `translate(${node.x},${node.y})`,
+                    );
+                    g.classList.add("node");
+                    const rect = document.createElementNS(ns, "rect");
+                    rect.setAttribute("width", W);
+                    rect.setAttribute("height", H);
+                    rect.setAttribute("rx", "4");
+                    rect.setAttribute("fill", "#0d1424");
+                    rect.setAttribute("stroke", node.color);
+                    rect.setAttribute("stroke-width", "1");
+                    const t1 = document.createElementNS(ns, "text");
+                    t1.setAttribute("x", "12");
+                    t1.setAttribute("y", "24");
+                    t1.setAttribute("font-size", "13");
+                    t1.setAttribute("font-weight", "600");
+                    t1.setAttribute("fill", node.color);
+                    t1.setAttribute("font-family", "IBM Plex Mono, monospace");
+                    t1.textContent = node.label;
+                    const t2 = document.createElementNS(ns, "text");
+                    t2.setAttribute("x", "12");
+                    t2.setAttribute("y", "42");
+                    t2.setAttribute("font-size", "10");
+                    t2.setAttribute("fill", "#4a6080");
+                    t2.setAttribute("font-family", "IBM Plex Mono, monospace");
+                    t2.textContent = node.sub;
+                    g.appendChild(rect);
+                    g.appendChild(t1);
+                    g.appendChild(t2);
+                    g.addEventListener("mouseenter", () => {
+                        rect.setAttribute("fill", node.color);
+                        t1.setAttribute("fill", "#080d1a");
+                        t2.setAttribute("fill", "#080d1a");
+                        edges.forEach(([f, t]) => {
+                            const el = edgeEls[`${f}-${t}`];
+                            if (el && (f === key || t === key)) {
+                                el.setAttribute("stroke", "#818cf8");
+                                el.setAttribute("stroke-width", "2");
+                            }
+                        });
+                    });
+                    g.addEventListener("mouseleave", () => {
+                        rect.setAttribute("fill", "#0d1424");
+                        t1.setAttribute("fill", node.color);
+                        t2.setAttribute("fill", "#4a6080");
+                        edges.forEach(([f, t]) => {
+                            const el = edgeEls[`${f}-${t}`];
+                            if (el) {
+                                el.setAttribute("stroke", "#1a2540");
+                                el.setAttribute("stroke-width", "1.5");
+                            }
+                        });
+                    });
+                    svg.appendChild(g);
+                });
+            }
+
+            // MVP diagram
+            const mvpNodes = {
+                user: {
+                    label: "User",
+                    sub: "Browser / Mobile",
+                    color: "#e2e8f0",
+                    x: 230,
+                    y: 20,
+                },
+                web: {
+                    label: "Rele Dashboard",
+                    sub: "Next.js · Vercel",
+                    color: "#818cf8",
+                    x: 230,
+                    y: 120,
+                },
+                auth: {
+                    label: "Neon Auth",
+                    sub: "Email · OAuth soon",
+                    color: "#6ee7b7",
+                    x: 20,
+                    y: 220,
+                },
+                gate: {
+                    label: "Gate API",
+                    sub: "Hono · Fly.io",
+                    color: "#818cf8",
+                    x: 230,
+                    y: 260,
+                },
+                db: {
+                    label: "Database",
+                    sub: "Postgres · Neon",
+                    color: "#6ee7b7",
+                    x: 440,
+                    y: 260,
+                },
+                sandbox: {
+                    label: "Sandbox",
+                    sub: "Docker · Fly.io",
+                    color: "#fbbf24",
+                    x: 230,
+                    y: 400,
+                },
+                openclaw: {
+                    label: "OpenClaw",
+                    sub: "Pre-configured",
+                    color: "#fb923c",
+                    x: 230,
+                    y: 520,
+                },
+                llm: {
+                    label: "LLM APIs",
+                    sub: "OpenAI · Anthropic",
+                    color: "#94a3b8",
+                    x: 20,
+                    y: 600,
+                },
+                clawhub: {
+                    label: "ClawHub",
+                    sub: "Skill registry",
+                    color: "#94a3b8",
+                    x: 440,
+                    y: 600,
+                },
+            };
+            const mvpEdges = [
+                ["user", "web"],
+                ["web", "auth"],
+                ["web", "gate"],
+                ["gate", "db"],
+                ["gate", "sandbox"],
+                ["sandbox", "openclaw"],
+                ["openclaw", "llm"],
+                ["openclaw", "clawhub"],
+            ];
+            drawDiagram("mvp-diagram", mvpNodes, mvpEdges, "arrow-mvp");
+
+            // Full diagram
+            const fullNodes = {
+                user: {
+                    label: "User",
+                    sub: "Browser / Mobile",
+                    color: "#e2e8f0",
+                    x: 340,
+                    y: 20,
+                },
+                web: {
+                    label: "Rele Dashboard",
+                    sub: "Next.js · Vercel",
+                    color: "#818cf8",
+                    x: 340,
+                    y: 120,
+                },
+                auth: {
+                    label: "Neon Auth",
+                    sub: "Email · Google · GitHub",
+                    color: "#6ee7b7",
+                    x: 100,
+                    y: 220,
+                },
+                billing: {
+                    label: "Billing",
+                    sub: "Stripe",
+                    color: "#6ee7b7",
+                    x: 580,
+                    y: 220,
+                },
+                gate: {
+                    label: "Gate API",
+                    sub: "Hono · Fly.io",
+                    color: "#818cf8",
+                    x: 340,
+                    y: 280,
+                },
+                db: {
+                    label: "Database",
+                    sub: "Postgres · Neon",
+                    color: "#6ee7b7",
+                    x: 100,
+                    y: 380,
+                },
+                storage: {
+                    label: "Storage",
+                    sub: "S3 · Cloudflare R2",
+                    color: "#6ee7b7",
+                    x: 580,
+                    y: 380,
+                },
+                orchestrator: {
+                    label: "Orchestrator",
+                    sub: "BullMQ · Redis",
+                    color: "#f9a8d4",
+                    x: 340,
+                    y: 380,
+                },
+                sandbox_a: {
+                    label: "Sandbox A",
+                    sub: "Docker · Fly.io",
+                    color: "#fbbf24",
+                    x: 100,
+                    y: 520,
+                },
+                sandbox_b: {
+                    label: "Sandbox B",
+                    sub: "Docker · Fly.io",
+                    color: "#fbbf24",
+                    x: 340,
+                    y: 520,
+                },
+                sandbox_c: {
+                    label: "Sandbox C",
+                    sub: "Docker · Fly.io",
+                    color: "#fbbf24",
+                    x: 580,
+                    y: 520,
+                },
+                openclaw: {
+                    label: "OpenClaw",
+                    sub: "Inside each sandbox",
+                    color: "#fb923c",
+                    x: 340,
+                    y: 650,
+                },
+                clawhub: {
+                    label: "ClawHub",
+                    sub: "Skill registry",
+                    color: "#94a3b8",
+                    x: 580,
+                    y: 760,
+                },
+                llm: {
+                    label: "LLM APIs",
+                    sub: "OpenAI · Anthropic",
+                    color: "#94a3b8",
+                    x: 100,
+                    y: 760,
+                },
+            };
+            const fullEdges = [
+                ["user", "web"],
+                ["web", "auth"],
+                ["web", "billing"],
+                ["web", "gate"],
+                ["gate", "db"],
+                ["gate", "storage"],
+                ["gate", "orchestrator"],
+                ["orchestrator", "sandbox_a"],
+                ["orchestrator", "sandbox_b"],
+                ["orchestrator", "sandbox_c"],
+                ["sandbox_a", "openclaw"],
+                ["sandbox_b", "openclaw"],
+                ["sandbox_c", "openclaw"],
+                ["openclaw", "clawhub"],
+                ["openclaw", "llm"],
+            ];
+            drawDiagram("full-diagram", fullNodes, fullEdges, "arrow-full");
+
+            // Sidebar active link on scroll
+            const sections = document.querySelectorAll(".section[id]");
+            const navLinks = document.querySelectorAll(".nav-link");
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach((e) => {
+                        if (e.isIntersecting) {
+                            navLinks.forEach((l) =>
+                                l.classList.remove("active"),
+                            );
+                            const active = document.querySelector(
+                                `.nav-link[href="#${e.target.id}"]`,
+                            );
+                            if (active) active.classList.add("active");
+                        }
+                    });
+                },
+                { threshold: 0.3 },
+            );
+            sections.forEach((s) => observer.observe(s));
+        </script>
+    </body>
+</html>
