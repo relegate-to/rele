@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthView } from "@neondatabase/auth/react";
-import { NoiseGrain, Vignette } from "@/components/bg-effects";
+import { NoiseGrain, Vignette } from "@/components/ui/bg-effects";
 
 export default function SignUpPageClient() {
   return (

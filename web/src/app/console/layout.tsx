@@ -1,5 +1,5 @@
 import { SidebarInset, SidebarProvider, SidebarTrigger, SidebarContent, SidebarGroup } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar } from "./_components/app-sidebar";
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
   return (

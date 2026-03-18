@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { HealthPanel } from "./components/health-panel";
+import { HealthPanel } from "./_components/health-panel";
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 

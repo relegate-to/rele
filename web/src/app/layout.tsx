@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Lora, DM_Mono, Crimson_Pro, Geist } from "next/font/google";
 import { NeonAuthUIProvider } from "@neondatabase/auth/react";
 import { authClient } from "@/lib/auth-client";
-import { PageTransitionProvider } from "@/components/page-transition";
+import { PageTransitionProvider } from "@/components/ui/page-transition";
 import { ThemeProvider } from "next-themes";
 
 import "./globals.css";

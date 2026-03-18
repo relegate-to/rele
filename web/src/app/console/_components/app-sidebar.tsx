@@ -15,8 +15,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { AddInstanceItem, Instance, InstanceItem } from "@/components/instance";
-import UserPill from "@/components/user-pill";
+import { AddInstanceItem, Instance, InstanceItem } from "./instance";
+import UserPill from "./user-pill";
 
 const NAV_ITEMS = [
   { label: "Status",    href: "/console",           icon: ActivityIcon },

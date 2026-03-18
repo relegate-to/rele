@@ -3,8 +3,8 @@
 import { motion } from "framer-motion";
 import { authClient } from "@/lib/auth-client";
 import { EASE } from "@/lib/theme";
-import { useNavigate } from "@/components/page-transition";
-import { NoiseGrain, Vignette } from "@/components/bg-effects";
+import { useNavigate } from "@/components/ui/page-transition";
+import { NoiseGrain, Vignette } from "@/components/ui/bg-effects";
 
 const footerLinks: [string, string][] = [
   ["GitHub", "https://github.com/relegate-to/rele"],

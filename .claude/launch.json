@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "web",
+      "port": 3000
+    },
+    {
+      "name": "gate",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "gate",
+      "port": 3001
+    },
+    {
+      "name": "db (drizzle studio)",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "studio"],
+      "cwd": "db",
+      "port": 4983
+    }
+  ]
+}
