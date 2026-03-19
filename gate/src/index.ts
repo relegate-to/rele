@@ -12,7 +12,7 @@ const db = drizzle(client);
 
 const FLY_API_URL = "https://api.machines.dev/v1";
 const FLY_API_TOKEN = process.env.FLY_API_TOKEN!;
-const FLY_INSTANCES_APP = process.env.FLY_INSTANCES_APP!; // Separate app for user machines
+const FLY_ORG = process.env.FLY_ORG!; // Fly.io organization slug
 
 type AppVariables = { userId: string };
 
@@ -59,6 +59,52 @@ async function flyRequest(path: string, options: RequestInit = {}) {
 
   if (res.status === 204) return null;
   return res.json();
+}
+
+// --- Per-user Fly app management ---
+
+function userAppName(userId: string): string {
+  const short = userId.replace(/-/g, "").slice(0, 12);
+  return `rele-u-${short}`;
+}
+
+async function ensureUserApp(userId: string): Promise<string> {
+  const appName = userAppName(userId);
+
+  const res = await fetch(`${FLY_API_URL}/apps`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${FLY_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      app_name: appName,
+      org_slug: FLY_ORG,
+      network: appName, // isolated network per user
+    }),
+  });
+
+  // 422 means app already exists — that's fine
+  if (!res.ok && res.status !== 422) {
+    const body = await res.text();
+    throw new Error(`Failed to create user app: ${res.status}: ${body}`);
+  }
+
+  return appName;
+}
+
+async function deleteUserApp(appName: string): Promise<void> {
+  const res = await fetch(`${FLY_API_URL}/apps/${appName}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${FLY_API_TOKEN}`,
+    },
+  });
+
+  if (!res.ok && res.status !== 404) {
+    const body = await res.text();
+    console.error(`Failed to delete user app ${appName}: ${res.status}: ${body}`);
+  }
 }
 
 app.use("*", logger());
@@ -197,9 +243,17 @@ app.post("/machines", async (c) => {
     metadata: { user_id: userId, fly_process_group: "user" },
   };
 
+  let flyAppName: string;
+  try {
+    flyAppName = await ensureUserApp(userId);
+  } catch (err) {
+    console.error("Failed to ensure user app:", err);
+    return c.json({ error: `Failed to create user app: ${err instanceof Error ? err.message : String(err)}` }, 502);
+  }
+
   let flyMachine: any;
   try {
-    flyMachine = await flyRequest(`/apps/${FLY_INSTANCES_APP}/machines`, {
+    flyMachine = await flyRequest(`/apps/${flyAppName}/machines`, {
       method: "POST",
       body: JSON.stringify({
         region,
@@ -216,7 +270,7 @@ app.post("/machines", async (c) => {
     .values({
       userId,
       flyMachineId: flyMachine.id,
-      flyAppName: FLY_INSTANCES_APP,
+      flyAppName,
       region,
       state: flyMachine.state,
       config: machineConfig,
@@ -351,6 +405,16 @@ app.delete("/machines/:id", async (c) => {
   }
 
   await db.delete(machines).where(eq(machines.id, id));
+
+  // If this was the user's last machine, clean up the per-user app
+  const remaining = await db
+    .select({ id: machines.id })
+    .from(machines)
+    .where(eq(machines.userId, userId));
+
+  if (remaining.length === 0) {
+    await deleteUserApp(machine.flyAppName);
+  }
 
   return c.json({ ok: true });
 });
