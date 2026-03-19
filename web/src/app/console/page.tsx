@@ -1,22 +1,21 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { HealthPanel } from "./_components/health-panel";
-import { EASE } from "@/lib/theme";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useMachinesContext } from "./_context/machines-context";
 
-export default function HomePage() {
-  return (
-    <div className="relative min-h-[calc(100svh-3rem)] bg-[var(--bg)] text-[var(--text)] font-[var(--font-crimson-pro),serif] font-light">
+export default function ConsolePage() {
+  const { machines, loading } = useMachinesContext();
+  const router = useRouter();
 
-      <div className="relative z-10 max-w-[520px] mx-auto px-8 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: EASE }}
-        >
-          <HealthPanel />
-        </motion.div>
-      </div>
-    </div>
-  );
+  useEffect(() => {
+    if (loading) return;
+    if (machines.length === 0) {
+      router.replace("/console/onboarding");
+    } else {
+      router.replace("/console/dashboard");
+    }
+  }, [machines, loading, router]);
+
+  return null;
 }
