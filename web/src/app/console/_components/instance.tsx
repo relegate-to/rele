@@ -39,34 +39,34 @@ const statusConfig: Record<
   }
 > = {
   running: {
-    icon:    "border-[#c8845a]/30 bg-[#fdf6ee] text-[#c8845a] shadow-[0_0_8px_rgba(34,197,94,0.35)]",
-    dot:     "bg-green-500",
-    outline: "border-[#c8845a]/30 hover:border-[#c8845a]/50",
-    pulseColor: "rgba(34,197,94,0.5)",
+    icon:    "border-status-warning/30 bg-status-warning-bg text-status-warning shadow-[0_0_8px_var(--status-success-border)]",
+    dot:     "bg-status-success",
+    outline: "border-status-warning/30 hover:border-status-warning/50",
+    pulseColor: "var(--status-success-border)",
   },
   provisioning: {
-    icon:    "border-indigo-300/30 bg-indigo-50 text-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.3)]",
-    dot:     "bg-indigo-400 animate-pulse",
-    outline: "border-indigo-300/30 hover:border-indigo-300/50",
-    pulseColor: "rgba(99,102,241,0.5)",
+    icon:    "border-status-info/30 bg-status-info-bg text-status-info shadow-[0_0_8px_var(--status-info-border)]",
+    dot:     "bg-status-info animate-pulse",
+    outline: "border-status-info/30 hover:border-status-info/50",
+    pulseColor: "var(--status-info-border)",
   },
   stopping: {
-    icon:    "border-amber-300/30 bg-amber-50 text-amber-400",
-    dot:     "bg-amber-400 animate-pulse",
-    outline: "border-amber-300/30 hover:border-amber-300/50",
+    icon:    "border-status-warning/30 bg-status-warning-bg text-status-warning",
+    dot:     "bg-status-warning animate-pulse",
+    outline: "border-status-warning/30 hover:border-status-warning/50",
     pulseColor: "transparent",
   },
   stopped: {
-    icon:    "border-sidebar-border bg-sidebar text-sidebar-foreground/25",
-    dot:     "bg-sidebar-foreground/30",
-    outline: "border-sidebar-border hover:border-sidebar-border/60",
+    icon:    "border-status-neutral-border bg-status-neutral-bg text-status-neutral",
+    dot:     "bg-status-neutral",
+    outline: "border-status-neutral-border hover:border-status-neutral/50",
     pulseColor: "transparent",
   },
   error: {
-    icon:    "border-destructive/30 bg-destructive/10 text-destructive",
-    dot:     "bg-destructive",
-    outline: "border-destructive/30 hover:border-destructive/50",
-    pulseColor: "rgba(239,68,68,0.5)",
+    icon:    "border-status-error/30 bg-status-error-bg text-status-error",
+    dot:     "bg-status-error",
+    outline: "border-status-error/30 hover:border-status-error/50",
+    pulseColor: "var(--status-error-border)",
   },
 }
 
@@ -174,7 +174,7 @@ function ActionButton({
         if (!disabled) onClick?.()
       }}
       className={cn(
-        "flex size-6 cursor-pointer items-center justify-center rounded-[5px] border opacity-0 transition-opacity group-hover/item:opacity-100",
+        "flex size-6 cursor-pointer items-center justify-center rounded-[5px] border opacity-0 transition-opacity group-hover/item:opacity-100 max-md:opacity-100",
         destructive
           ? "border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20"
           : "border-sidebar-border bg-sidebar text-sidebar-foreground/50 hover:bg-sidebar-accent",
@@ -211,30 +211,30 @@ function InstanceMeta({ instance }: { instance: Instance }) {
 
   if (status === "running") {
     return (
-      <p className="truncate text-xs text-[#c8845a]">
+      <p className="truncate text-xs text-status-warning">
         {uptime ?? "running"}
       </p>
     )
   }
 
   if (status === "provisioning") {
-    return <p className="truncate text-xs text-indigo-400">provisioning…</p>
+    return <p className="truncate text-xs text-status-info">provisioning…</p>
   }
 
   if (status === "stopping") {
-    return <p className="truncate text-xs text-amber-400">stopping…</p>
+    return <p className="truncate text-xs text-status-warning">stopping…</p>
   }
 
   if (status === "stopped") {
     return (
-      <p className="truncate text-xs text-sidebar-foreground/40">
+      <p className="truncate text-xs text-status-neutral">
         {lastActive ?? "stopped"}
       </p>
     )
   }
 
   if (status === "error") {
-    return <p className="truncate text-xs text-destructive">crashed · view logs</p>
+    return <p className="truncate text-xs text-status-error">crashed · view logs</p>
   }
 
   return null
@@ -351,7 +351,7 @@ export function InstanceItem({
             className="pointer-events-none absolute top-0 bottom-0 w-[50%] animate-[shimmer_1.8s_ease-in-out_infinite] skew-x-[-20deg]"
             style={{
               background:
-                "linear-gradient(90deg, transparent 0%, transparent 38%, rgba(99,102,241,0.3) 40%, rgba(99,102,241,0.3) 60%, transparent 62%, transparent 100%)",
+                "linear-gradient(90deg, transparent 0%, transparent 38%, var(--status-info-border) 40%, var(--status-info-border) 60%, transparent 62%, transparent 100%)",
             }}
           />
         )}
