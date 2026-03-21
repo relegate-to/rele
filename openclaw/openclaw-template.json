@@ -1,7 +1,7 @@
 {
   "gateway": {
     "mode": "local",
-    "bind": "lan",
+    "bind": "auto",
     "port": 18789,
     "auth": { "mode": "token" },
     "controlUi": {
