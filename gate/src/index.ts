@@ -231,10 +231,8 @@ app.get(
         const config = machine.config as any;
         const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
 
-        // Use Fly private network on Fly, public endpoint locally
-        const backendUrl = process.env.FLY_APP_NAME
-          ? `ws://${machine.flyAppName}.flycast:18789`
-          : `wss://${machine.flyAppName}.fly.dev`;
+        // Connect via public endpoint (user apps are on isolated networks)
+        const backendUrl = `wss://${machine.flyAppName}.fly.dev`;
         backendWs = new WebSocket(backendUrl);
 
         backendWs.onopen = () => {
