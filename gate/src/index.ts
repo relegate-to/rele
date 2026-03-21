@@ -95,18 +95,16 @@ async function ensureUserApp(userId: string): Promise<string> {
   }
 
   // Allocate IPs so <app>.fly.dev resolves (idempotent — Fly ignores duplicates)
-  if (res.ok) {
-    await Promise.allSettled([
-      flyRequest(`/apps/${appName}/ips`, {
-        method: "POST",
-        body: JSON.stringify({ type: "shared_v4" }),
-      }),
-      flyRequest(`/apps/${appName}/ips`, {
-        method: "POST",
-        body: JSON.stringify({ type: "v6" }),
-      }),
-    ]);
-  }
+  await Promise.allSettled([
+    flyRequest(`/apps/${appName}/ips`, {
+      method: "POST",
+      body: JSON.stringify({ type: "shared_v4" }),
+    }),
+    flyRequest(`/apps/${appName}/ips`, {
+      method: "POST",
+      body: JSON.stringify({ type: "v6" }),
+    }),
+  ]);
 
   return appName;
 }

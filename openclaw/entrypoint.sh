@@ -38,9 +38,6 @@ node -e "
   }
 " || exit 1
 
-echo "Running OpenClaw doctor..."
-node dist/index.js doctor --fix
-
 export OPENCLAW_NO_RESPAWN=1
 
 echo "Launching Gateway..."
