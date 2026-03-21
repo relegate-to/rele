@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 
+# Validation
 if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then
   echo "ERROR: OPENCLAW_GATEWAY_TOKEN is required" >&2
   exit 1
@@ -16,23 +17,29 @@ CONFIG_FILE="$CONFIG_DIR/openclaw.json"
 
 mkdir -p "$CONFIG_DIR/workspace" "$CONFIG_DIR/agents/main/sessions"
 
-# Only copy template if config doesn't already exist (preserve user changes)
 if [ ! -f "$CONFIG_FILE" ]; then
   cp /opt/openclaw/openclaw-template.json "$CONFIG_FILE"
-  echo "Config initialized from template"
 fi
 
-# Patch bind to 0.0.0.0 then run doctor to migrate config properly
-# (OpenClaw rejects raw IPs but doctor normalizes them to 'lan' mode)
+# 1. We use 'lan' instead of '0.0.0.0' because OpenClaw's Zod validator
+#    often rejects the raw IP but accepts the 'lan' alias.
+# 2. We set mode to 'cloud' so it expects external proxy traffic.
 node -e "
   const fs = require('fs');
   const cfg = JSON.parse(fs.readFileSync('$CONFIG_FILE', 'utf8'));
-  cfg.gateway.bind = '0.0.0.0';
+  cfg.gateway = cfg.gateway || {};
+  cfg.gateway.bind = 'lan';
+  cfg.gateway.mode = 'cloud';
   fs.writeFileSync('$CONFIG_FILE', JSON.stringify(cfg, null, 2));
 "
+
+# Run doctor to ensure the DB and folders are ready
 node dist/index.js doctor --fix
 
 export OPENCLAW_NO_RESPAWN=1
 
-echo "Starting OpenClaw gateway..."
-exec node dist/index.js gateway --verbose
+echo "Starting OpenClaw gateway on Fly.io..."
+# Added --allow-insecure-sidecar: Fly terminates SSL (WSS) at their edge,
+# so the traffic hits your container as plain WS. OpenClaw blocks this
+# by default for security; this flag allows the 'insecure' local hop.
+exec node dist/index.js gateway --verbose --allow-insecure-sidecar
