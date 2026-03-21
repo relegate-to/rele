@@ -235,19 +235,50 @@ app.get(
         const backendUrl = `wss://${machine.flyAppName}.fly.dev`;
         backendWs = new WebSocket(backendUrl);
 
-        backendWs.onopen = () => {
-          if (gatewayToken) {
-            backendWs!.send(
-              JSON.stringify({ auth: { token: gatewayToken } })
-            );
-          }
-        };
+        let authenticated = false;
 
         backendWs.onmessage = (event) => {
           try {
+            const data = JSON.parse(typeof event.data === "string" ? event.data : event.data.toString());
+
+            // Handle OpenClaw connect handshake
+            if (!authenticated) {
+              if (data.type === "event" && data.event === "connect.challenge") {
+                // Respond to challenge with connect request
+                backendWs!.send(JSON.stringify({
+                  type: "req",
+                  id: "gate-connect",
+                  method: "connect",
+                  params: {
+                    role: "operator",
+                    scopes: ["read", "write"],
+                    auth: { token: gatewayToken },
+                    protocol: 3,
+                  },
+                }));
+                return;
+              }
+              if (data.type === "res" && data.id === "gate-connect") {
+                if (data.ok) {
+                  authenticated = true;
+                  console.log("OpenClaw gateway authenticated");
+                } else {
+                  console.error("OpenClaw auth failed:", data.error);
+                  ws.close(4401, "Backend auth failed");
+                }
+                return;
+              }
+            }
+
+            // Forward all other messages to browser
             ws.send(typeof event.data === "string" ? event.data : event.data);
           } catch {
-            // Client disconnected
+            // Forward non-JSON as-is
+            try {
+              ws.send(typeof event.data === "string" ? event.data : event.data);
+            } catch {
+              // Client disconnected
+            }
           }
         };
 
