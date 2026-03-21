@@ -22,6 +22,5 @@ if [ ! -f "$CONFIG_FILE" ]; then
   echo "Config initialized from template"
 fi
 
-echo "Starting OpenClaw from $(pwd)..."
-ls -la dist/index.js 2>&1 || echo "WARNING: dist/index.js not found in $(pwd)"
-exec node dist/index.js
+echo "Starting OpenClaw gateway..."
+exec node dist/index.js gateway --port 18789
