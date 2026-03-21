@@ -17,7 +17,7 @@ const REGIONS = [
   { value: "syd", label: "Sydney",    flag: "\u{1F1E6}\u{1F1FA}" },
 ] as const;
 
-const DEFAULT_IMAGE = "alpine/openclaw:main";
+const DEFAULT_IMAGE = "ghcr.io/relegate-to/openclaw-sandbox:latest";
 
 // ─── Stage derivation ─────────────────────────────────────────────────────────
 

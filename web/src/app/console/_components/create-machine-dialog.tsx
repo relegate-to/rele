@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
-const DEFAULT_IMAGE = "alpine/openclaw:main";
+const DEFAULT_IMAGE = "ghcr.io/relegate-to/openclaw-sandbox:latest";
 
 interface CreateMachineDialogProps {
   open: boolean;
