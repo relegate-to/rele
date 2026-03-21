@@ -231,8 +231,8 @@ app.get(
         const config = machine.config as any;
         const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
 
-        // Connect to machine on Fly private network
-        const backendUrl = `ws://${machine.flyAppName}.flycast:18789`;
+        // Connect to machine via Fly public endpoint
+        const backendUrl = `wss://${machine.flyAppName}.fly.dev`;
         backendWs = new WebSocket(backendUrl);
 
         backendWs.onopen = () => {
@@ -372,6 +372,14 @@ app.post("/machines", async (c) => {
     env: { ...body.config.env, ...keyEnv, USER_ID: userId, OPENCLAW_GATEWAY_TOKEN: gatewayToken },
     guest: body.config.guest ?? { cpus: 1, memory_mb: 256, cpu_kind: "shared" },
     metadata: { user_id: userId, fly_process_group: "user" },
+    services: [
+      {
+        ports: [{ port: 443, handlers: ["tls", "http"] }],
+        protocol: "tcp",
+        internal_port: 18789,
+        force_instance_key: null,
+      },
+    ],
   };
 
   let flyAppName: string;
