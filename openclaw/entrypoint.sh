@@ -28,7 +28,7 @@ node -e "
     const data = fs.readFileSync('$CONFIG_FILE', 'utf8');
     const cfg = JSON.parse(data);
     cfg.gateway = cfg.gateway || {};
-    cfg.gateway.bind = 'lan';
+    cfg.gateway.bind = '0.0.0.0';
     cfg.gateway.mode = 'cloud';
     fs.writeFileSync('$CONFIG_FILE', JSON.stringify(cfg, null, 2));
     console.log('Config patched successfully');
