@@ -184,6 +184,108 @@ app.delete("/api-keys/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// --- WebSocket Proxy (must be before GET /machines to avoid prefix match) ---
+
+app.get(
+  "/machines/connect",
+  upgradeWebSocket((c) => {
+    // Extract token from query param — can't rely on middleware context in WS upgrade
+    const token = c.req.query("token");
+    let backendWs: WebSocket | null = null;
+
+    return {
+      async onOpen(_event, ws) {
+        // Verify JWT inline since Hono context doesn't propagate to WS callbacks
+        if (!token) {
+          ws.close(4401, "Unauthorized");
+          return;
+        }
+
+        let userId: string;
+        try {
+          const { payload } = await jose.jwtVerify(token, JWKS, {
+            issuer: new URL(process.env.NEON_AUTH_URL!).origin,
+          });
+          if (!payload.sub) {
+            ws.close(4401, "Invalid token");
+            return;
+          }
+          userId = payload.sub;
+        } catch (err) {
+          console.error("WS token verification failed:", err);
+          ws.close(4401, "Invalid token");
+          return;
+        }
+
+        // Look up user's machine
+        const [machine] = await db
+          .select()
+          .from(machines)
+          .where(eq(machines.userId, userId));
+
+        if (!machine || machine.state === "stopped") {
+          ws.close(4404, "No running machine");
+          return;
+        }
+
+        const config = machine.config as any;
+        const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
+
+        // Connect to machine on Fly private network
+        const backendUrl = `ws://${machine.flyAppName}.flycast:18789`;
+        backendWs = new WebSocket(backendUrl);
+
+        backendWs.onopen = () => {
+          if (gatewayToken) {
+            backendWs!.send(
+              JSON.stringify({ auth: { token: gatewayToken } })
+            );
+          }
+        };
+
+        backendWs.onmessage = (event) => {
+          try {
+            ws.send(typeof event.data === "string" ? event.data : event.data);
+          } catch {
+            // Client disconnected
+          }
+        };
+
+        backendWs.onclose = () => {
+          ws.close(1000, "Backend disconnected");
+        };
+
+        backendWs.onerror = (err) => {
+          console.error("Backend WS error:", err);
+          ws.close(4502, "Backend connection failed");
+        };
+      },
+
+      onMessage(event, _ws) {
+        if (backendWs?.readyState === WebSocket.OPEN) {
+          backendWs.send(
+            typeof event.data === "string" ? event.data : event.data
+          );
+        }
+      },
+
+      onClose() {
+        if (backendWs?.readyState === WebSocket.OPEN) {
+          backendWs.close();
+        }
+        backendWs = null;
+      },
+
+      onError() {
+        if (backendWs?.readyState === WebSocket.OPEN) {
+          backendWs.close();
+        }
+        backendWs = null;
+      },
+    };
+  })
+);
+
 // --- Machines ---
 
 app.get("/machines", async (c) => {
@@ -452,109 +554,6 @@ app.delete("/machines/:id", async (c) => {
 
 // WS connections can't go through the Next.js proxy, so the browser connects
 // directly to Gate. Accept JWT from query param for WS upgrade requests.
-
-app.get(
-  "/machines/connect",
-  upgradeWebSocket((c) => {
-    // Extract token from query param — can't rely on middleware context in WS upgrade
-    const token = c.req.query("token");
-    let backendWs: WebSocket | null = null;
-
-    return {
-      async onOpen(_event, ws) {
-        // Verify JWT inline since Hono context doesn't propagate to WS callbacks
-        if (!token) {
-          ws.close(4401, "Unauthorized");
-          return;
-        }
-
-        let userId: string;
-        try {
-          const { payload } = await jose.jwtVerify(token, JWKS, {
-            issuer: new URL(process.env.NEON_AUTH_URL!).origin,
-          });
-          if (!payload.sub) {
-            ws.close(4401, "Invalid token");
-            return;
-          }
-          userId = payload.sub;
-        } catch (err) {
-          console.error("WS token verification failed:", err);
-          ws.close(4401, "Invalid token");
-          return;
-        }
-
-        // Look up user's machine
-        const [machine] = await db
-          .select()
-          .from(machines)
-          .where(eq(machines.userId, userId));
-
-        if (!machine || machine.state === "stopped") {
-          ws.close(4404, "No running machine");
-          return;
-        }
-
-        const config = machine.config as any;
-        const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
-
-        // Connect to machine on Fly private network
-        const backendUrl = `ws://${machine.flyAppName}.flycast:18789`;
-        backendWs = new WebSocket(backendUrl);
-
-        backendWs.onopen = () => {
-          // Authenticate with the gateway token if available
-          if (gatewayToken) {
-            backendWs!.send(
-              JSON.stringify({ auth: { token: gatewayToken } })
-            );
-          }
-        };
-
-        backendWs.onmessage = (event) => {
-          // Forward machine → browser
-          try {
-            ws.send(typeof event.data === "string" ? event.data : event.data);
-          } catch {
-            // Client disconnected
-          }
-        };
-
-        backendWs.onclose = () => {
-          ws.close(1000, "Backend disconnected");
-        };
-
-        backendWs.onerror = (err) => {
-          console.error("Backend WS error:", err);
-          ws.close(4502, "Backend connection failed");
-        };
-      },
-
-      onMessage(event, _ws) {
-        // Forward browser → machine
-        if (backendWs?.readyState === WebSocket.OPEN) {
-          backendWs.send(
-            typeof event.data === "string" ? event.data : event.data
-          );
-        }
-      },
-
-      onClose() {
-        if (backendWs?.readyState === WebSocket.OPEN) {
-          backendWs.close();
-        }
-        backendWs = null;
-      },
-
-      onError() {
-        if (backendWs?.readyState === WebSocket.OPEN) {
-          backendWs.close();
-        }
-        backendWs = null;
-      },
-    };
-  })
-);
 
 export default {
   port: process.env.PORT ?? 3001,
