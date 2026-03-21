@@ -413,7 +413,7 @@ app.post("/machines", async (c) => {
   const machineConfig = {
     image: body.config.image,
     env: { ...body.config.env, ...keyEnv, USER_ID: userId, OPENCLAW_GATEWAY_TOKEN: gatewayToken },
-    guest: body.config.guest ?? { cpus: 1, memory_mb: 256, cpu_kind: "shared" },
+    guest: body.config.guest ?? { cpus: 1, memory_mb: 1024, cpu_kind: "shared" },
     metadata: { user_id: userId, fly_process_group: "user" },
     services: [
       {
