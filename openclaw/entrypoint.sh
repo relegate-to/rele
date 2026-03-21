@@ -23,4 +23,4 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 echo "Starting OpenClaw gateway..."
-exec node dist/index.js gateway
+exec node dist/index.js gateway --verbose
