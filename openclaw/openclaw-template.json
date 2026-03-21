@@ -1,0 +1,17 @@
+{
+  "gateway": {
+    "bind": "lan",
+    "port": 18789,
+    "auth": { "mode": "token" },
+    "controlUi": {
+      "enabled": true,
+      "allowedOrigins": ["https://rele.to"]
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": { "primary": "anthropic/claude-sonnet-4-5" },
+      "workspace": "/home/node/.openclaw/workspace"
+    }
+  }
+}

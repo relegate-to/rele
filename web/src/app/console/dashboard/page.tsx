@@ -80,11 +80,21 @@ export default function DashboardPage() {
                 Manage your OpenClaw instance.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`size-2 rounded-full ${isRunning ? "bg-[var(--status-success)]" : "bg-[var(--status-neutral)]"}`} />
-              <Mono className={`text-xs ${isRunning ? "text-[var(--status-success)]" : "text-[var(--muted)]"}`}>
-                {isRunning ? "Running" : machine.state}
-              </Mono>
+            <div className="flex items-center gap-3">
+              {isRunning && (
+                <button
+                  onClick={() => router.push("/console/chat")}
+                  className="rounded-lg bg-[var(--copper)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                >
+                  <Mono>Open Chat</Mono>
+                </button>
+              )}
+              <div className="flex items-center gap-2">
+                <span className={`size-2 rounded-full ${isRunning ? "bg-[var(--status-success)]" : "bg-[var(--status-neutral)]"}`} />
+                <Mono className={`text-xs ${isRunning ? "text-[var(--status-success)]" : "text-[var(--muted)]"}`}>
+                  {isRunning ? "Running" : machine.state}
+                </Mono>
+              </div>
             </div>
           </div>
 

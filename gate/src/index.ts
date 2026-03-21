@@ -1,6 +1,8 @@
 import { Hono, type Context, type Next } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
+import { createBunWebSocket } from "hono/bun";
+import type { ServerWebSocket } from "bun";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as jose from "jose";
@@ -15,6 +17,8 @@ const FLY_API_TOKEN = process.env.FLY_API_TOKEN!;
 const FLY_ORG = process.env.FLY_ORG!; // Fly.io organization slug
 
 type AppVariables = { userId: string };
+
+const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>();
 
 const app = new Hono<{ Variables: AppVariables }>();
 
@@ -236,9 +240,30 @@ app.post("/machines", async (c) => {
 
   const region = body.region ?? "sin";
 
+  const gatewayToken = crypto.randomUUID();
+
+  // Fetch user's API keys from the DB and map to env vars
+  const PROVIDER_ENV_MAP: Record<string, string> = {
+    anthropic: "ANTHROPIC_API_KEY",
+    openai: "OPENAI_API_KEY",
+  };
+
+  const userKeys = await db
+    .select({ provider: apiKeys.provider, encryptedKey: apiKeys.encryptedKey })
+    .from(apiKeys)
+    .where(eq(apiKeys.userId, userId));
+
+  const keyEnv: Record<string, string> = {};
+  for (const key of userKeys) {
+    const envVar = PROVIDER_ENV_MAP[key.provider];
+    if (envVar && key.encryptedKey) {
+      keyEnv[envVar] = key.encryptedKey;
+    }
+  }
+
   const machineConfig = {
     image: body.config.image,
-    env: { ...body.config.env, USER_ID: userId },
+    env: { ...body.config.env, ...keyEnv, USER_ID: userId, OPENCLAW_GATEWAY_TOKEN: gatewayToken },
     guest: body.config.guest ?? { cpus: 1, memory_mb: 256, cpu_kind: "shared" },
     metadata: { user_id: userId, fly_process_group: "user" },
   };
@@ -419,7 +444,122 @@ app.delete("/machines/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// --- WebSocket Proxy ---
+
+// WS connections can't go through the Next.js proxy, so the browser connects
+// directly to Gate. Accept JWT from query param for WS upgrade requests.
+const wsAuthMiddleware = async (c: Context<{ Variables: AppVariables }>, next: Next) => {
+  // Try standard auth header first
+  const authHeader = c.req.header("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authMiddleware(c, next);
+  }
+
+  // Fall back to query param (for WebSocket connections)
+  const token = c.req.query("token");
+  if (!token) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  try {
+    const { payload } = await jose.jwtVerify(token, JWKS, {
+      issuer: new URL(process.env.NEON_AUTH_URL!).origin,
+    });
+    if (!payload.sub) return c.json({ error: "Invalid Token" }, 401);
+    c.set("userId", payload.sub);
+    await next();
+  } catch (err) {
+    console.error("WS token verification failed:", err);
+    return c.json({ error: "Invalid Token" }, 401);
+  }
+};
+
+app.get(
+  "/machines/connect",
+  wsAuthMiddleware,
+  upgradeWebSocket(async (c) => {
+    const userId = c.get("userId");
+
+    // Look up user's machine
+    const [machine] = await db
+      .select()
+      .from(machines)
+      .where(eq(machines.userId, userId));
+
+    if (!machine || machine.state === "stopped") {
+      return {
+        onOpen(_event, ws) {
+          ws.close(4404, "No running machine");
+        },
+      };
+    }
+
+    const config = machine.config as any;
+    const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
+    let backendWs: WebSocket | null = null;
+
+    return {
+      onOpen(_event, ws) {
+        // Connect to machine on Fly private network
+        const backendUrl = `ws://${machine.flyAppName}.flycast:18789`;
+        backendWs = new WebSocket(backendUrl);
+
+        backendWs.onopen = () => {
+          // Authenticate with the gateway token if available
+          if (gatewayToken) {
+            backendWs!.send(
+              JSON.stringify({ auth: { token: gatewayToken } })
+            );
+          }
+        };
+
+        backendWs.onmessage = (event) => {
+          // Forward machine → browser
+          try {
+            ws.send(typeof event.data === "string" ? event.data : event.data);
+          } catch {
+            // Client disconnected
+          }
+        };
+
+        backendWs.onclose = () => {
+          ws.close(1000, "Backend disconnected");
+        };
+
+        backendWs.onerror = (err) => {
+          console.error("Backend WS error:", err);
+          ws.close(4502, "Backend connection failed");
+        };
+      },
+
+      onMessage(event, _ws) {
+        // Forward browser → machine
+        if (backendWs?.readyState === WebSocket.OPEN) {
+          backendWs.send(
+            typeof event.data === "string" ? event.data : event.data
+          );
+        }
+      },
+
+      onClose() {
+        if (backendWs?.readyState === WebSocket.OPEN) {
+          backendWs.close();
+        }
+        backendWs = null;
+      },
+
+      onError() {
+        if (backendWs?.readyState === WebSocket.OPEN) {
+          backendWs.close();
+        }
+        backendWs = null;
+      },
+    };
+  })
+);
+
 export default {
   port: process.env.PORT ?? 3001,
   fetch: app.fetch,
+  websocket,
 };
