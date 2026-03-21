@@ -452,41 +452,38 @@ app.delete("/machines/:id", async (c) => {
 
 // WS connections can't go through the Next.js proxy, so the browser connects
 // directly to Gate. Accept JWT from query param for WS upgrade requests.
-const wsAuthMiddleware = async (c: Context<{ Variables: AppVariables }>, next: Next) => {
-  // Try standard auth header first
-  const authHeader = c.req.header("Authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    return authMiddleware(c, next);
-  }
-
-  // Fall back to query param (for WebSocket connections)
-  const token = c.req.query("token");
-  if (!token) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-
-  try {
-    const { payload } = await jose.jwtVerify(token, JWKS, {
-      issuer: new URL(process.env.NEON_AUTH_URL!).origin,
-    });
-    if (!payload.sub) return c.json({ error: "Invalid Token" }, 401);
-    c.set("userId", payload.sub);
-    await next();
-  } catch (err) {
-    console.error("WS token verification failed:", err);
-    return c.json({ error: "Invalid Token" }, 401);
-  }
-};
 
 app.get(
   "/machines/connect",
-  wsAuthMiddleware,
   upgradeWebSocket((c) => {
-    const userId = c.get("userId");
+    // Extract token from query param — can't rely on middleware context in WS upgrade
+    const token = c.req.query("token");
     let backendWs: WebSocket | null = null;
 
     return {
       async onOpen(_event, ws) {
+        // Verify JWT inline since Hono context doesn't propagate to WS callbacks
+        if (!token) {
+          ws.close(4401, "Unauthorized");
+          return;
+        }
+
+        let userId: string;
+        try {
+          const { payload } = await jose.jwtVerify(token, JWKS, {
+            issuer: new URL(process.env.NEON_AUTH_URL!).origin,
+          });
+          if (!payload.sub) {
+            ws.close(4401, "Invalid token");
+            return;
+          }
+          userId = payload.sub;
+        } catch (err) {
+          console.error("WS token verification failed:", err);
+          ws.close(4401, "Invalid token");
+          return;
+        }
+
         // Look up user's machine
         const [machine] = await db
           .select()
