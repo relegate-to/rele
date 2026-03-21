@@ -179,16 +179,45 @@ function StepCard({
 
 // ─── Stage 1: Create Instance ─────────────────────────────────────────────────
 
+function KeyIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+    </svg>
+  );
+}
+
+const GATE_PROXY = "/api/gate";
+
 function CreateContent() {
   const { createMachine } = useMachinesContext();
   const [region, setRegion] = useState("sin");
+  const [apiKey, setApiKey] = useState("");
+  const [provider, setProvider] = useState<"anthropic" | "openai">("anthropic");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleCreate() {
+    if (!apiKey.trim()) {
+      setError("An API key is required to run your instance.");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
+      // Save the API key first
+      const keyRes = await fetch(`${GATE_PROXY}/api-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, name: `${provider} key`, key: apiKey.trim() }),
+      });
+      if (!keyRes.ok) {
+        const err = await keyRes.json().catch(() => ({ error: "Failed to save API key" }));
+        throw new Error(err.error);
+      }
+
+      // Now create the machine — gate will pull the key from DB
       await createMachine({ image: DEFAULT_IMAGE, region });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create instance");
@@ -198,6 +227,55 @@ function CreateContent() {
 
   return (
     <>
+      {/* API Key */}
+      <div className="mb-5 flex flex-col gap-2">
+        <label className="flex items-center gap-1.5 font-[var(--font-dm-mono),monospace] text-xs font-medium text-[var(--text-dim)]">
+          <KeyIcon className="size-3.5" />
+          API Key
+        </label>
+        <div className="flex gap-2">
+          <div className="flex shrink-0 overflow-hidden rounded-lg border border-[var(--border)]">
+            <button
+              type="button"
+              onClick={() => setProvider("anthropic")}
+              className={`cursor-pointer px-3 py-2.5 font-[var(--font-dm-mono),monospace] text-xs transition-colors ${
+                provider === "anthropic"
+                  ? "bg-[var(--copper)]/10 text-[var(--copper)]"
+                  : "text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              Anthropic
+            </button>
+            <button
+              type="button"
+              onClick={() => setProvider("openai")}
+              className={`cursor-pointer border-l border-[var(--border)] px-3 py-2.5 font-[var(--font-dm-mono),monospace] text-xs transition-colors ${
+                provider === "openai"
+                  ? "bg-[var(--copper)]/10 text-[var(--copper)]"
+                  : "text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              OpenAI
+            </button>
+          </div>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={provider === "anthropic" ? "sk-ant-..." : "sk-..."}
+            className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2.5 font-[var(--font-dm-mono),monospace] text-sm text-[var(--text)] placeholder:text-[var(--muted)]/50 focus:border-[var(--copper)]/40 focus:outline-none"
+          />
+        </div>
+        <p className="font-[var(--font-crimson-pro),serif] text-xs leading-relaxed text-[var(--muted)]">
+          Your key is stored securely and injected into your instance at boot.
+        </p>
+      </div>
+
+      {/* Region picker */}
+      <label className="mb-2 flex items-center gap-1.5 font-[var(--font-dm-mono),monospace] text-xs font-medium text-[var(--text-dim)]">
+        <GlobeIcon className="size-3.5" />
+        Region
+      </label>
       <div className="grid grid-cols-3 gap-2.5">
         {REGIONS.map((r) => {
           const selected = region === r.value;

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState, useEffect } from "react";
-import { ActivityIcon, CheckCircle2Icon, LayoutDashboardIcon, SettingsIcon, SparklesIcon } from "lucide-react";
+import { ActivityIcon, CheckCircle2Icon, LayoutDashboardIcon, MessageSquareIcon, SettingsIcon, SparklesIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -25,6 +25,7 @@ import { useMachinesContext, type Machine } from "../_context/machines-context";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/console/dashboard", icon: LayoutDashboardIcon },
+  { label: "Chat",      href: "/console/chat",      icon: MessageSquareIcon },
   { label: "Status",    href: "/console/status",    icon: ActivityIcon },
   { label: "Settings",  href: "/console/settings",  icon: SettingsIcon },
 ] as const;
