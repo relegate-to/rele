@@ -2,11 +2,11 @@ FROM oven/bun:1 AS base
 WORKDIR /app
 
 FROM base AS install
-COPY package.json bun.lock* ./
+COPY package.json ./
 COPY db/package.json ./db/
 COPY gate/package.json ./gate/
 RUN mkdir -p web && echo '{"name":"web","private":true}' > web/package.json
-RUN bun install --production --no-frozen-lockfile
+RUN bun install --production
 
 FROM base AS release
 COPY --from=install /app/node_modules ./node_modules
