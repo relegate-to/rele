@@ -6,7 +6,7 @@ COPY package.json bun.lock* ./
 COPY db/package.json ./db/
 COPY gate/package.json ./gate/
 RUN mkdir -p web && echo '{"name":"web","private":true}' > web/package.json
-RUN bun install --production
+RUN bun install --production --no-frozen-lockfile
 
 FROM base AS release
 COPY --from=install /app/node_modules ./node_modules
