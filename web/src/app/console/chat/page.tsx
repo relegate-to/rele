@@ -13,7 +13,7 @@ function Mono({ children, className = "" }: { children: React.ReactNode; classNa
 
 export default function ChatPage() {
   const { machines, loading } = useMachinesContext();
-  const { messages, connected, connecting, connect, sendMessage } = useSandboxChat();
+  const { messages, connected, connecting, error, connect, sendMessage } = useSandboxChat();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -28,12 +28,12 @@ export default function ChatPage() {
     }
   }, [machine, loading, router]);
 
-  // Auto-connect when machine is running
+  // Auto-connect when machine is running (but not if there's an error)
   useEffect(() => {
-    if (isRunning && !connected && !connecting) {
+    if (isRunning && !connected && !connecting && !error) {
       connect();
     }
-  }, [isRunning, connected, connecting, connect]);
+  }, [isRunning, connected, connecting, error, connect]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -77,13 +77,20 @@ export default function ChatPage() {
         </div>
         {!connected && !connecting && isRunning && (
           <button
-            onClick={connect}
+            onClick={() => { connect(); }}
             className="rounded-md bg-[var(--copper)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
           >
-            <Mono>Connect</Mono>
+            <Mono>{error ? "Retry" : "Connect"}</Mono>
           </button>
         )}
       </motion.div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="border-b border-[var(--border)] bg-[var(--surface)] px-6 py-2.5">
+          <Mono className="text-xs text-[var(--status-error,#e55)]">{error}</Mono>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4">

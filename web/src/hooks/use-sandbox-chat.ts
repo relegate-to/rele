@@ -13,14 +13,17 @@ export function useSandboxChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const retriesRef = useRef(0);
+  const maxRetries = 5;
 
   const connect = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
     setConnecting(true);
+    setError(null);
 
     try {
-      // Get WS auth credentials from the server
       const res = await fetch("/api/gate/ws-auth");
       if (!res.ok) throw new Error("Failed to get WS auth");
       const { url, token } = await res.json();
@@ -31,7 +34,7 @@ export function useSandboxChat() {
       ws.onopen = () => {
         setConnected(true);
         setConnecting(false);
-        // Request chat history
+        retriesRef.current = 0;
         ws.send(JSON.stringify({ type: "chat.history" }));
       };
 
@@ -59,7 +62,6 @@ export function useSandboxChat() {
               },
             ]);
           } else if (data.type === "chat.stream") {
-            // Streaming token — append to last assistant message or create new
             setMessages((prev) => {
               const last = prev[prev.length - 1];
               if (last?.role === "assistant" && last.id === data.id) {
@@ -84,10 +86,24 @@ export function useSandboxChat() {
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         setConnected(false);
         setConnecting(false);
         wsRef.current = null;
+
+        // Don't retry on explicit error codes
+        if (event.code === 4502) {
+          setError("Agent unreachable — it may still be starting up.");
+          return;
+        }
+        if (event.code === 4404) {
+          setError("No running instance found.");
+          return;
+        }
+        if (event.code === 4401) {
+          setError("Authentication failed.");
+          return;
+        }
       };
 
       ws.onerror = () => {
@@ -96,6 +112,7 @@ export function useSandboxChat() {
       };
     } catch {
       setConnecting(false);
+      setError("Failed to connect.");
     }
   }, []);
 
@@ -131,5 +148,5 @@ export function useSandboxChat() {
     };
   }, []);
 
-  return { messages, connected, connecting, connect, disconnect, sendMessage };
+  return { messages, connected, connecting, error, connect, disconnect, sendMessage };
 }
