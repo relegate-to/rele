@@ -122,7 +122,11 @@ app.use("/me", authMiddleware);
 app.use("/api-keys", authMiddleware);
 app.use("/api-keys/*", authMiddleware);
 app.use("/machines", authMiddleware);
-app.use("/machines/*", authMiddleware);
+app.use("/machines/*", async (c, next) => {
+  // Skip standard auth for WebSocket connect — it uses its own auth
+  if (c.req.path === "/machines/connect") return next();
+  return authMiddleware(c, next);
+});
 
 app.get("/me", (c) => {
   return c.json({ userId: c.get("userId") });
