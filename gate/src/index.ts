@@ -481,29 +481,26 @@ const wsAuthMiddleware = async (c: Context<{ Variables: AppVariables }>, next: N
 app.get(
   "/machines/connect",
   wsAuthMiddleware,
-  upgradeWebSocket(async (c) => {
+  upgradeWebSocket((c) => {
     const userId = c.get("userId");
-
-    // Look up user's machine
-    const [machine] = await db
-      .select()
-      .from(machines)
-      .where(eq(machines.userId, userId));
-
-    if (!machine || machine.state === "stopped") {
-      return {
-        onOpen(_event, ws) {
-          ws.close(4404, "No running machine");
-        },
-      };
-    }
-
-    const config = machine.config as any;
-    const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
     let backendWs: WebSocket | null = null;
 
     return {
-      onOpen(_event, ws) {
+      async onOpen(_event, ws) {
+        // Look up user's machine
+        const [machine] = await db
+          .select()
+          .from(machines)
+          .where(eq(machines.userId, userId));
+
+        if (!machine || machine.state === "stopped") {
+          ws.close(4404, "No running machine");
+          return;
+        }
+
+        const config = machine.config as any;
+        const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
+
         // Connect to machine on Fly private network
         const backendUrl = `ws://${machine.flyAppName}.flycast:18789`;
         backendWs = new WebSocket(backendUrl);
