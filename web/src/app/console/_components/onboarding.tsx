@@ -193,7 +193,7 @@ function CreateContent() {
   const { createMachine } = useMachinesContext();
   const [region, setRegion] = useState("sin");
   const [apiKey, setApiKey] = useState("");
-  const [provider, setProvider] = useState<"anthropic" | "openai">("anthropic");
+  const [provider, setProvider] = useState<"anthropic" | "openai" | "openrouter">("anthropic");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -257,12 +257,23 @@ function CreateContent() {
             >
               OpenAI
             </button>
+            <button
+              type="button"
+              onClick={() => setProvider("openrouter")}
+              className={`cursor-pointer border-l border-[var(--border)] px-3 py-2.5 font-[var(--font-dm-mono),monospace] text-xs transition-colors ${
+                provider === "openrouter"
+                  ? "bg-[var(--copper)]/10 text-[var(--copper)]"
+                  : "text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              OpenRouter
+            </button>
           </div>
           <input
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder={provider === "anthropic" ? "sk-ant-..." : "sk-..."}
+            placeholder={provider === "anthropic" ? "sk-ant-..." : provider === "openrouter" ? "sk-or-..." : "sk-..."}
             className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-4 py-2.5 font-[var(--font-dm-mono),monospace] text-sm text-[var(--text)] placeholder:text-[var(--muted)]/50 focus:border-[var(--copper)]/40 focus:outline-none"
           />
         </div>
