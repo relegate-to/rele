@@ -20,8 +20,14 @@
   },
   "gateway": {
     "mode": "local",
-    "bind": "auto",
+    "bind": "lan",
     "port": 18789,
+    "allowUnconfigured": true,
+    "verbose": true,
+    "auth": {
+      "mode": "token",
+      "token": "OPENCLAW_GATEWAY_TOKEN_PLACEHOLDER"
+    },
     "controlUi": {
       "enabled": true,
       "allowedOrigins": ["https://rele.to"],

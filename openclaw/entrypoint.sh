@@ -20,13 +20,10 @@ if [ ! -f "$CONFIG_FILE" ]; then
   echo "Default config created at $CONFIG_FILE"
 fi
 
+# Inject the gateway token into the config file
+sed -i "s|OPENCLAW_GATEWAY_TOKEN_PLACEHOLDER|$OPENCLAW_GATEWAY_TOKEN|" "$CONFIG_FILE"
+
 echo "Config ready at $CONFIG_FILE"
 
 echo "Launching Gateway..."
-exec node dist/index.js gateway run \
-  --allow-unconfigured \
-  --bind lan \
-  --port 18789 \
-  --auth token \
-  --token "$OPENCLAW_GATEWAY_TOKEN" \
-  --verbose
+exec node dist/index.js gateway run
