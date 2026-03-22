@@ -43,4 +43,4 @@ export OPENCLAW_NO_RESPAWN=1
 echo "Launching Gateway..."
 # On Fly.io, you MUST use --allow-insecure-sidecar because Fly's proxy
 # talks to your app over plain HTTP/WS internally.
-exec node dist/index.js gateway --verbose --allow-insecure-sidecar
+exec node dist/index.js gateway --verbose --allow-insecure-sidecar --allow-unconfigured --bind lan --port 18789
