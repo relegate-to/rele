@@ -25,6 +25,6 @@ echo "Config ready at $CONFIG_FILE"
 echo "Launching Gateway..."
 exec node dist/index.js gateway run \
   --allow-unconfigured \
-  --bind auto \
+  --bind lan \
   --port 18789 \
   --verbose
