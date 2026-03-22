@@ -35,51 +35,67 @@ export function useSandboxChat() {
         setConnected(true);
         setConnecting(false);
         retriesRef.current = 0;
-        ws.send(JSON.stringify({ type: "chat.history" }));
+        ws.send(JSON.stringify({ type: "req", id: "hist-" + Date.now(), method: "chat.history", params: {} }));
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log("[OC]", data);
 
-          if (data.type === "chat.history" && Array.isArray(data.messages)) {
-            setMessages(
-              data.messages.map((m: any, i: number) => ({
-                id: m.id ?? `hist-${i}`,
-                role: m.role,
-                content: m.content,
-                timestamp: m.timestamp ?? Date.now(),
-              }))
-            );
-          } else if (data.type === "chat.message") {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: data.id ?? crypto.randomUUID(),
-                role: data.role ?? "assistant",
-                content: data.content,
-                timestamp: data.timestamp ?? Date.now(),
-              },
-            ]);
-          } else if (data.type === "chat.stream") {
-            setMessages((prev) => {
-              const last = prev[prev.length - 1];
-              if (last?.role === "assistant" && last.id === data.id) {
-                return [
-                  ...prev.slice(0, -1),
-                  { ...last, content: last.content + data.delta },
-                ];
-              }
-              return [
+          // OpenClaw response to a request
+          if (data.type === "res") {
+            // Handle chat.send response or chat.history response
+            if (data.ok && data.payload?.messages) {
+              setMessages(
+                data.payload.messages.map((m: any, i: number) => ({
+                  id: m.id ?? `hist-${i}`,
+                  role: m.role,
+                  content: m.content,
+                  timestamp: m.timestamp ?? Date.now(),
+                }))
+              );
+            }
+            return;
+          }
+
+          // OpenClaw server-push events
+          if (data.type === "event") {
+            const evt = data.event;
+            const p = data.payload;
+
+            if (evt === "chat.message" || evt === "agent.message") {
+              setMessages((prev) => [
                 ...prev,
                 {
-                  id: data.id ?? crypto.randomUUID(),
-                  role: "assistant",
-                  content: data.delta ?? "",
-                  timestamp: Date.now(),
+                  id: p.id ?? crypto.randomUUID(),
+                  role: p.role ?? "assistant",
+                  content: p.content ?? p.text ?? "",
+                  timestamp: p.timestamp ?? Date.now(),
                 },
-              ];
-            });
+              ]);
+            } else if (evt === "chat.stream" || evt === "agent.stream") {
+              setMessages((prev) => {
+                const streamId = p.id ?? data.id;
+                const last = prev[prev.length - 1];
+                if (last?.role === "assistant" && last.id === streamId) {
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...last, content: last.content + (p.delta ?? p.text ?? "") },
+                  ];
+                }
+                return [
+                  ...prev,
+                  {
+                    id: streamId ?? crypto.randomUUID(),
+                    role: "assistant",
+                    content: p.delta ?? p.text ?? "",
+                    timestamp: Date.now(),
+                  },
+                ];
+              });
+            }
+            return;
           }
         } catch {
           // Non-JSON message, ignore
@@ -135,7 +151,12 @@ export function useSandboxChat() {
 
       setMessages((prev) => [...prev, msg]);
       wsRef.current.send(
-        JSON.stringify({ type: "chat.send", content })
+        JSON.stringify({
+          type: "req",
+          id: msg.id,
+          method: "chat.send",
+          params: { content },
+        })
       );
     },
     []
