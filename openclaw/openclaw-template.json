@@ -18,12 +18,14 @@
       "anthropic:default": { "mode": "token", "provider": "anthropic" }
     }
   },
+  "logging": {
+    "level": "debug",
+    "consoleLevel": "debug"
+  },
   "gateway": {
     "mode": "local",
     "bind": "lan",
     "port": 18789,
-    "allowUnconfigured": true,
-    "verbose": true,
     "auth": {
       "mode": "token",
       "token": "OPENCLAW_GATEWAY_TOKEN_PLACEHOLDER"
