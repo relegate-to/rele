@@ -288,7 +288,7 @@ app.get(
               if (data.type === "res" && data.id === "gate-connect") {
                 if (data.ok) {
                   authenticated = true;
-                  console.log("OpenClaw gateway authenticated");
+                  console.log("OpenClaw gateway authenticated:", JSON.stringify(data.payload));
                 } else {
                   console.error("OpenClaw auth failed:", data.error);
                   ws.close(4401, "Backend auth failed");
