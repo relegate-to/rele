@@ -267,10 +267,20 @@ app.get(
                   id: "gate-connect",
                   method: "connect",
                   params: {
+                    minProtocol: 3,
+                    maxProtocol: 3,
+                    client: {
+                      id: "rele-gate",
+                      version: "0.1.0",
+                      platform: "linux",
+                      mode: "operator",
+                    },
                     role: "operator",
-                    scopes: ["read", "write"],
+                    scopes: ["operator.read", "operator.write"],
+                    caps: [],
+                    commands: [],
+                    permissions: {},
                     auth: { token: gatewayToken },
-                    protocol: 3,
                   },
                 }));
                 return;
