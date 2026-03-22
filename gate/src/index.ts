@@ -8,6 +8,13 @@ import postgres from "postgres";
 import * as jose from "jose";
 import { apiKeys, machines } from "@rele/db"
 import { eq, and } from "drizzle-orm";
+import crypto from "crypto";
+
+// Generate a stable Ed25519 keypair for device auth with OpenClaw gateway
+const gateKeyPair = crypto.generateKeyPairSync("ed25519");
+const gatePublicKeyDer = gateKeyPair.publicKey.export({ type: "spki", format: "der" });
+const gatePublicKeyB64 = Buffer.from(gatePublicKeyDer).toString("base64");
+const gateDeviceId = crypto.createHash("sha256").update(gatePublicKeyDer).digest("hex").slice(0, 16);
 
 const client = postgres(process.env.DATABASE_URL!);
 const db = drizzle(client);
@@ -261,7 +268,12 @@ app.get(
             // Handle OpenClaw connect handshake
             if (!authenticated) {
               if (data.type === "event" && data.event === "connect.challenge") {
-                // Respond to challenge with connect request
+                const nonce = data.payload?.nonce ?? "";
+                const signedAt = Date.now();
+                // Sign: nonce + signedAt + platform + deviceFamily
+                const signPayload = `${nonce}:${signedAt}:linux:server`;
+                const signature = crypto.sign(null, Buffer.from(signPayload), gateKeyPair.privateKey).toString("base64");
+
                 backendWs!.send(JSON.stringify({
                   type: "req",
                   id: "gate-connect",
@@ -281,6 +293,13 @@ app.get(
                     commands: [],
                     permissions: {},
                     auth: { token: gatewayToken },
+                    device: {
+                      id: gateDeviceId,
+                      publicKey: gatePublicKeyB64,
+                      signature,
+                      signedAt,
+                      nonce,
+                    },
                   },
                 }));
                 return;
