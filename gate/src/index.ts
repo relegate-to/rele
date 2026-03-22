@@ -95,7 +95,7 @@ async function ensureUserApp(userId: string): Promise<string> {
   }
 
   // Allocate IPs so <app>.fly.dev resolves (idempotent — Fly ignores duplicates)
-  await Promise.allSettled([
+  const ipResults = await Promise.allSettled([
     flyRequest(`/apps/${appName}/ips`, {
       method: "POST",
       body: JSON.stringify({ type: "shared_v4" }),
@@ -105,6 +105,11 @@ async function ensureUserApp(userId: string): Promise<string> {
       body: JSON.stringify({ type: "v6" }),
     }),
   ]);
+  for (const r of ipResults) {
+    if (r.status === "rejected") {
+      console.error(`IP allocation for ${appName}:`, r.reason?.message ?? r.reason);
+    }
+  }
 
   return appName;
 }
