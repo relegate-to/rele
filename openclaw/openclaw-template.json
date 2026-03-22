@@ -21,6 +21,10 @@
   "gateway": {
     "mode": "local",
     "bind": "auto",
-    "port": 18789
+    "port": 18789,
+    "controlUi": {
+      "enabled": true,
+      "allowedOrigins": ["https://rele.to"]
+    }
   }
 }
