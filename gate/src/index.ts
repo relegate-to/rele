@@ -298,6 +298,7 @@ app.get(
             }
 
             // Forward all other messages to browser
+            console.log("OC→Client:", typeof event.data === "string" ? event.data.slice(0, 200) : "[binary]");
             ws.send(typeof event.data === "string" ? event.data : event.data);
           } catch {
             // Forward non-JSON as-is
@@ -320,6 +321,7 @@ app.get(
       },
 
       onMessage(event, _ws) {
+        console.log("Client→OC:", typeof event.data === "string" ? (event.data as string).slice(0, 200) : "[binary]");
         if (backendWs?.readyState === WebSocket.OPEN) {
           backendWs.send(
             typeof event.data === "string" ? event.data : event.data
