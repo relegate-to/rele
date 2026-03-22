@@ -257,7 +257,9 @@ app.get(
 
         // Connect via public endpoint (user apps are on isolated networks)
         const backendUrl = `wss://${machine.flyAppName}.fly.dev`;
-        backendWs = new WebSocket(backendUrl);
+        backendWs = new WebSocket(backendUrl, {
+          headers: { Origin: "https://rele.to" },
+        } as any);
 
         let authenticated = false;
 
