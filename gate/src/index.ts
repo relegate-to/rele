@@ -282,10 +282,10 @@ app.get(
                     minProtocol: 3,
                     maxProtocol: 3,
                     client: {
-                      id: "cli",
+                      id: "webchat",
                       version: "0.1.0",
                       platform: "linux",
-                      mode: "operator",
+                      mode: "webchat",
                     },
                     role: "operator",
                     scopes: ["operator.read", "operator.write"],
