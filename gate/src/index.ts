@@ -244,7 +244,7 @@ app.get(
         const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
 
         // Connect via Flycast (private proxy — handles IPv4/IPv6 translation, no public exposure)
-        const backendUrl = `wss://${machine.flyAppName}.flycast`;
+        const backendUrl = `ws://${machine.flyAppName}.flycast`;
         backendWs = new WebSocket(backendUrl, {
           headers: { Origin: "https://rele.to" },
         } as any);
@@ -442,7 +442,7 @@ app.post("/machines", async (c) => {
     metadata: { user_id: userId, fly_process_group: "user" },
     services: [
       {
-        ports: [{ port: 443, handlers: ["tls"] }],
+        ports: [{ port: 80, handlers: ["http"] }],
         protocol: "tcp",
         internal_port: 18789,
         force_instance_key: null,
