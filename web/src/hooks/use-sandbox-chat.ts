@@ -68,40 +68,36 @@ export function useSandboxChat() {
           }
 
           // OpenClaw server-push events
-          if (data.type === "event") {
-            const evt = data.event;
+          // Chat events use: { type: "event", event: "chat", payload: { state, text, runId, sessionKey, ... } }
+          // States: "delta" (streaming fragment), "final" (turn complete), "error", "aborted"
+          if (data.type === "event" && data.event === "chat") {
             const p = data.payload;
+            const runId = p?.runId ?? "stream";
 
-            if (evt === "chat.message" || evt === "agent.message") {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: p.id ?? crypto.randomUUID(),
-                  role: p.role ?? "assistant",
-                  content: extractText(p.content ?? p.text ?? ""),
-                  timestamp: p.timestamp ?? Date.now(),
-                },
-              ]);
-            } else if (evt === "chat.stream" || evt === "agent.stream") {
+            if (p?.state === "delta" && p?.text) {
               setMessages((prev) => {
-                const streamId = p.id ?? data.id;
                 const last = prev[prev.length - 1];
-                if (last?.role === "assistant" && last.id === streamId) {
+                if (last?.role === "assistant" && last.id === runId) {
                   return [
                     ...prev.slice(0, -1),
-                    { ...last, content: last.content + (p.delta ?? p.text ?? "") },
+                    { ...last, content: last.content + p.text },
                   ];
                 }
                 return [
                   ...prev,
-                  {
-                    id: streamId ?? crypto.randomUUID(),
-                    role: "assistant",
-                    content: p.delta ?? p.text ?? "",
-                    timestamp: Date.now(),
-                  },
+                  { id: runId, role: "assistant", content: p.text, timestamp: Date.now() },
                 ];
               });
+            } else if (p?.state === "final") {
+              // Fetch full history to reconcile
+              wsRef.current?.send(
+                JSON.stringify({ type: "req", id: "hist-" + Date.now(), method: "chat.history", params: { sessionKey: "agent:main:main" } })
+              );
+            } else if (p?.state === "error") {
+              setMessages((prev) => [
+                ...prev,
+                { id: crypto.randomUUID(), role: "assistant", content: extractText(p.errorMessage ?? p.text ?? "Agent error"), timestamp: Date.now() },
+              ]);
             }
             return;
           }
