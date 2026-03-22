@@ -275,7 +275,7 @@ app.get(
                     minProtocol: 3,
                     maxProtocol: 3,
                     client: {
-                      id: "webchat",
+                      id: "openclaw-control-ui",
                       version: "0.1.0",
                       platform: "linux",
                       mode: "webchat",
