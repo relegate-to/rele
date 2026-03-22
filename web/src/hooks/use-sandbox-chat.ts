@@ -9,6 +9,14 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+// OpenClaw content can be a string, an object like {type, text}, or an array of such objects
+function extractText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) return content.map(extractText).join("");
+  if (content && typeof content === "object" && "text" in content) return String((content as any).text);
+  return String(content ?? "");
+}
+
 export function useSandboxChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [connected, setConnected] = useState(false);
@@ -51,7 +59,7 @@ export function useSandboxChat() {
                 data.payload.messages.map((m: any, i: number) => ({
                   id: m.id ?? `hist-${i}`,
                   role: m.role,
-                  content: m.content,
+                  content: extractText(m.content),
                   timestamp: m.timestamp ?? Date.now(),
                 }))
               );
@@ -70,7 +78,7 @@ export function useSandboxChat() {
                 {
                   id: p.id ?? crypto.randomUUID(),
                   role: p.role ?? "assistant",
-                  content: p.content ?? p.text ?? "",
+                  content: extractText(p.content ?? p.text ?? ""),
                   timestamp: p.timestamp ?? Date.now(),
                 },
               ]);
