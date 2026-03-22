@@ -2,7 +2,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openai/anthropic/claude-sonnet-4-5"
+        "primary": "openrouter/anthropic/claude-sonnet-4-5"
       },
       "workspace": "/home/node/.openclaw/workspace"
     },
@@ -15,8 +15,7 @@
   },
   "auth": {
     "profiles": {
-      "anthropic:default": { "mode": "token", "provider": "anthropic" },
-      "openai:default": { "mode": "token", "provider": "openai" }
+      "anthropic:default": { "mode": "token", "provider": "anthropic" }
     }
   },
   "gateway": {

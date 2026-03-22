@@ -417,7 +417,7 @@ app.post("/machines", async (c) => {
   const PROVIDER_ENV_MAP: Record<string, string> = {
     anthropic: "ANTHROPIC_API_KEY",
     openai: "OPENAI_API_KEY",
-    openrouter: "OPENAI_API_KEY",
+    openrouter: "OPENROUTER_API_KEY",
   };
 
   const userKeys = await db
@@ -430,9 +430,6 @@ app.post("/machines", async (c) => {
     const envVar = PROVIDER_ENV_MAP[key.provider];
     if (envVar && key.encryptedKey) {
       keyEnv[envVar] = key.encryptedKey;
-      if (key.provider === "openrouter") {
-        keyEnv["OPENAI_BASE_URL"] = "https://openrouter.ai/api/v1";
-      }
     }
   }
 
