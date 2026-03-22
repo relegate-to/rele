@@ -68,35 +68,43 @@ export function useSandboxChat() {
           }
 
           // OpenClaw server-push events
-          // Chat events use: { type: "event", event: "chat", payload: { state, text, runId, sessionKey, ... } }
-          // States: "delta" (streaming fragment), "final" (turn complete), "error", "aborted"
+          // Chat events: { type:"event", event:"chat", payload: { state, runId, message: { role, content: [{type,text}] } } }
+          // States: "delta" (snapshot of message so far), "final" (turn complete), "error", "aborted"
           if (data.type === "event" && data.event === "chat") {
             const p = data.payload;
             const runId = p?.runId ?? "stream";
 
-            if (p?.state === "delta" && p?.text) {
+            if (p?.state === "delta" && p?.message) {
+              const text = extractText(p.message.content);
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
                 if (last?.role === "assistant" && last.id === runId) {
                   return [
                     ...prev.slice(0, -1),
-                    { ...last, content: last.content + p.text },
+                    { ...last, content: text },
                   ];
                 }
                 return [
                   ...prev,
-                  { id: runId, role: "assistant", content: p.text, timestamp: Date.now() },
+                  { id: runId, role: "assistant", content: text, timestamp: Date.now() },
                 ];
               });
             } else if (p?.state === "final") {
-              // Fetch full history to reconcile
-              wsRef.current?.send(
-                JSON.stringify({ type: "req", id: "hist-" + Date.now(), method: "chat.history", params: { sessionKey: "agent:main:main" } })
-              );
+              // Replace streaming message with final content, then reconcile
+              if (p?.message) {
+                const text = extractText(p.message.content);
+                setMessages((prev) => {
+                  const last = prev[prev.length - 1];
+                  if (last?.role === "assistant" && last.id === runId) {
+                    return [...prev.slice(0, -1), { ...last, content: text }];
+                  }
+                  return [...prev, { id: runId, role: "assistant", content: text, timestamp: Date.now() }];
+                });
+              }
             } else if (p?.state === "error") {
               setMessages((prev) => [
                 ...prev,
-                { id: crypto.randomUUID(), role: "assistant", content: extractText(p.errorMessage ?? p.text ?? "Agent error"), timestamp: Date.now() },
+                { id: crypto.randomUUID(), role: "assistant", content: extractText(p.errorMessage ?? p.message?.content ?? "Agent error"), timestamp: Date.now() },
               ]);
             }
             return;
