@@ -10,11 +10,21 @@ import { apiKeys, machines } from "@rele/db"
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 
-// Generate a stable Ed25519 keypair for device auth with OpenClaw gateway
+// Generate Ed25519 keypair for device auth with OpenClaw gateway
 const gateKeyPair = crypto.generateKeyPairSync("ed25519");
-const gatePublicKeyDer = gateKeyPair.publicKey.export({ type: "spki", format: "der" });
-const gatePublicKeyB64 = Buffer.from(gatePublicKeyDer).toString("base64");
-const gateDeviceId = crypto.createHash("sha256").update(gatePublicKeyDer).digest("hex").slice(0, 16);
+const gatePublicKeySpki = gateKeyPair.publicKey.export({ type: "spki", format: "der" }) as Buffer;
+// Strip SPKI prefix to get raw 32-byte Ed25519 key
+const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+const gatePublicKeyRaw = gatePublicKeySpki.subarray(ED25519_SPKI_PREFIX.length);
+// Device ID = sha256 hex of raw public key
+const gateDeviceId = crypto.createHash("sha256").update(gatePublicKeyRaw).digest("hex");
+// Public key sent as base64url-encoded raw bytes
+const gatePublicKeyB64Url = gatePublicKeyRaw.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+
+function signDevicePayload(payload: string): string {
+  const sig = crypto.sign(null, Buffer.from(payload, "utf8"), gateKeyPair.privateKey);
+  return Buffer.from(sig).toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+}
 
 const client = postgres(process.env.DATABASE_URL!);
 const db = drizzle(client);
@@ -271,10 +281,23 @@ app.get(
             if (!authenticated) {
               if (data.type === "event" && data.event === "connect.challenge") {
                 const nonce = data.payload?.nonce ?? "";
-                const signedAt = Date.now();
-                // Sign: nonce + signedAt + platform + deviceFamily
-                const signPayload = `${nonce}:${signedAt}:linux:server`;
-                const signature = crypto.sign(null, Buffer.from(signPayload), gateKeyPair.privateKey).toString("base64");
+                const signedAtMs = Date.now();
+                const scopes = ["operator.read", "operator.write"];
+                // v3 payload: deviceId|clientId|clientMode|role|scopes|signedAtMs|token|nonce|platform|deviceFamily
+                const payload = [
+                  "v3",
+                  gateDeviceId,
+                  "webchat",      // clientId
+                  "webchat",      // clientMode
+                  "operator",     // role
+                  scopes.join(","),
+                  String(signedAtMs),
+                  gatewayToken,   // token
+                  nonce,
+                  "linux",        // platform
+                  "server",       // deviceFamily
+                ].join("|");
+                const signature = signDevicePayload(payload);
 
                 backendWs!.send(JSON.stringify({
                   type: "req",
@@ -290,16 +313,16 @@ app.get(
                       mode: "webchat",
                     },
                     role: "operator",
-                    scopes: ["operator.read", "operator.write"],
+                    scopes,
                     caps: [],
                     commands: [],
                     permissions: {},
                     auth: { token: gatewayToken },
                     device: {
                       id: gateDeviceId,
-                      publicKey: gatePublicKeyB64,
+                      publicKey: gatePublicKeyB64Url,
                       signature,
-                      signedAt,
+                      signedAt: signedAtMs,
                       nonce,
                     },
                   },
