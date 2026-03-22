@@ -430,7 +430,7 @@ app.post("/machines", async (c) => {
     metadata: { user_id: userId, fly_process_group: "user" },
     services: [
       {
-        ports: [{ port: 443, handlers: ["tls", "http"] }],
+        ports: [{ port: 443, handlers: ["tls"] }],
         protocol: "tcp",
         internal_port: 18789,
         force_instance_key: null,
