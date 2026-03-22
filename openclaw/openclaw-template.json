@@ -1,6 +1,6 @@
 {
   "gateway": {
-    "mode": "local",
+    "mode": "remote",
     "bind": "auto",
     "port": 18789,
     "auth": { "mode": "token" },

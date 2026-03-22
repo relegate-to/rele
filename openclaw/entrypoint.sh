@@ -29,7 +29,7 @@ node -e "
     const cfg = JSON.parse(data);
     cfg.gateway = cfg.gateway || {};
     cfg.gateway.bind = 'lan';
-    cfg.gateway.mode = 'cloud';
+    cfg.gateway.mode = 'remote';
     fs.writeFileSync('$CONFIG_FILE', JSON.stringify(cfg, null, 2));
     console.log('Config patched successfully');
   } catch (e) {
