@@ -9,12 +9,13 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-// OpenClaw content can be a string, an object like {type, text}, or an array of such objects
+// OpenClaw content can be a string, an object like {type, text}, or an array of such objects.
+// Non-text blocks (tool_use, tool_result, etc.) are skipped.
 function extractText(content: unknown): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) return content.map(extractText).join("");
   if (content && typeof content === "object" && "text" in content) return String((content as any).text);
-  return String(content ?? "");
+  return "";
 }
 
 export function useSandboxChat() {

@@ -85,7 +85,7 @@ async function ensureUserApp(userId: string): Promise<string> {
     body: JSON.stringify({
       app_name: appName,
       org_slug: FLY_ORG,
-      network: appName, // isolated network per user
+      network: "rele", // shared network with gate for private connectivity
     }),
   });
 
