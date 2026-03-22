@@ -95,6 +95,17 @@ async function ensureUserApp(userId: string): Promise<string> {
     throw new Error(`Failed to create user app: ${res.status}: ${body}`);
   }
 
+  // Allocate a Flycast (private) IP so the app is reachable via <app>.flycast
+  // within the org network, but not from the public internet (idempotent)
+  try {
+    await flyRequest(`/apps/${appName}/ips`, {
+      method: "POST",
+      body: JSON.stringify({ type: "private_v6" }),
+    });
+  } catch (err) {
+    console.error(`Flycast IP allocation for ${appName}:`, err instanceof Error ? err.message : err);
+  }
+
   return appName;
 }
 
@@ -232,8 +243,8 @@ app.get(
         const config = machine.config as any;
         const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
 
-        // Connect via Fly internal network (no public exposure)
-        const backendUrl = `ws://${machine.flyMachineId}.vm.${machine.flyAppName}.internal:18789`;
+        // Connect via Flycast (private proxy — handles IPv4/IPv6 translation, no public exposure)
+        const backendUrl = `wss://${machine.flyAppName}.flycast`;
         backendWs = new WebSocket(backendUrl, {
           headers: { Origin: "https://rele.to" },
         } as any);
@@ -429,6 +440,14 @@ app.post("/machines", async (c) => {
     },
     guest: body.config.guest ?? { cpus: 2, memory_mb: 2048, cpu_kind: "shared" },
     metadata: { user_id: userId, fly_process_group: "user" },
+    services: [
+      {
+        ports: [{ port: 443, handlers: ["tls"] }],
+        protocol: "tcp",
+        internal_port: 18789,
+        force_instance_key: null,
+      },
+    ],
   };
 
   let flyAppName: string;
