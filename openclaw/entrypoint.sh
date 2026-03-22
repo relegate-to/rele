@@ -27,4 +27,6 @@ exec node dist/index.js gateway run \
   --allow-unconfigured \
   --bind lan \
   --port 18789 \
+  --auth token \
+  --token "$OPENCLAW_GATEWAY_TOKEN" \
   --verbose
