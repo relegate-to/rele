@@ -96,12 +96,38 @@ async function ensureUserApp(userId: string): Promise<string> {
   }
 
   // Allocate a Flycast (private) IP so the app is reachable via <app>.flycast
-  // within the org network, but not from the public internet (idempotent)
+  // within the org network, but not from the public internet.
+  // This uses the GraphQL API since the Machines REST API doesn't support IP allocation.
   try {
-    await flyRequest(`/apps/${appName}/ips`, {
+    const gqlRes = await fetch("https://api.fly.io/graphql", {
       method: "POST",
-      body: JSON.stringify({ type: "private_v6" }),
+      headers: {
+        Authorization: `Bearer ${FLY_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: `mutation($input: AllocateIPAddressInput!) {
+          allocateIpAddress(input: $input) {
+            ipAddress { id address type }
+          }
+        }`,
+        variables: {
+          input: {
+            appId: appName,
+            type: "private_v6",
+            region: "",
+          },
+        },
+      }),
     });
+    const gqlBody = await gqlRes.json() as any;
+    if (gqlBody.errors) {
+      // "already allocated" is fine — means this is idempotent
+      const msg = gqlBody.errors[0]?.message ?? JSON.stringify(gqlBody.errors);
+      if (!msg.includes("already")) {
+        console.error(`Flycast IP allocation error for ${appName}:`, msg);
+      }
+    }
   } catch (err) {
     console.error(`Flycast IP allocation for ${appName}:`, err instanceof Error ? err.message : err);
   }
