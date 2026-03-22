@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import Markdown from "react-markdown";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 import { useSandboxChat } from "@/hooks/use-sandbox-chat";
@@ -117,7 +118,13 @@ export default function ChatPage() {
                     : "bg-[var(--surface-hi)] text-[var(--text)]"
                 }`}
               >
-                <Mono className="text-sm whitespace-pre-wrap">{msg.content}</Mono>
+                {msg.role === "user" ? (
+                  <Mono className="text-sm whitespace-pre-wrap">{msg.content}</Mono>
+                ) : (
+                  <div className="prose prose-sm prose-invert max-w-none text-[var(--text)] [&_strong]:text-[var(--text)] [&_li]:text-[var(--text)] [&_p]:text-[var(--text)] [&_a]:text-[var(--copper)]">
+                    <Markdown>{msg.content}</Markdown>
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}
