@@ -283,19 +283,17 @@ app.get(
                 const nonce = data.payload?.nonce ?? "";
                 const signedAtMs = Date.now();
                 const scopes = ["operator.read", "operator.write"];
-                // v3 payload: deviceId|clientId|clientMode|role|scopes|signedAtMs|token|nonce|platform|deviceFamily
+                // v2 payload: deviceId|clientId|clientMode|role|scopes|signedAtMs|token|nonce
                 const payload = [
-                  "v3",
+                  "v2",
                   gateDeviceId,
                   "webchat",      // clientId
                   "webchat",      // clientMode
                   "operator",     // role
                   scopes.join(","),
                   String(signedAtMs),
-                  gatewayToken,   // token
+                  gatewayToken,   // token (must match auth.token sent to server)
                   nonce,
-                  "linux",        // platform
-                  "server",       // deviceFamily
                 ].join("|");
                 const signature = signDevicePayload(payload);
 
