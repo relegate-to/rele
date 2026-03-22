@@ -270,7 +270,7 @@ app.get(
                     minProtocol: 3,
                     maxProtocol: 3,
                     client: {
-                      id: "webchat",
+                      id: "cli",
                       version: "0.1.0",
                       platform: "linux",
                       mode: "operator",
