@@ -13,6 +13,7 @@ export OPENCLAW_STATE_DIR="/home/node/.openclaw"
 mkdir -p "$OPENCLAW_STATE_DIR"
 
 export OPENCLAW_NO_RESPAWN=1
+export NODE_OPTIONS="--max-old-space-size=1536"
 
 echo "Launching Gateway..."
 exec node dist/index.js gateway \
