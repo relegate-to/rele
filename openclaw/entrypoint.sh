@@ -18,7 +18,7 @@ export NODE_OPTIONS="--max-old-space-size=1536"
 echo "Launching Gateway..."
 exec node dist/index.js gateway \
   --allow-unconfigured \
-  --bind lan \
+  --bind 0.0.0.0 \
   --port 18789 \
   --auth token \
   --token "$OPENCLAW_GATEWAY_TOKEN" \
