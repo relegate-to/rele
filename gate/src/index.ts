@@ -417,7 +417,15 @@ app.post("/machines", async (c) => {
 
   const machineConfig = {
     image: body.config.image,
-    env: { ...body.config.env, ...keyEnv, USER_ID: userId, OPENCLAW_GATEWAY_TOKEN: gatewayToken },
+    env: {
+      ...body.config.env,
+      ...keyEnv,
+      USER_ID: userId,
+      OPENCLAW_GATEWAY_TOKEN: gatewayToken,
+      OPENCLAW_STATE_DIR: "/home/node/.openclaw",
+      NODE_OPTIONS: "--max-old-space-size=1536",
+      NODE_ENV: "production",
+    },
     guest: body.config.guest ?? { cpus: 2, memory_mb: 2048, cpu_kind: "shared" },
     metadata: { user_id: userId, fly_process_group: "user" },
     services: [

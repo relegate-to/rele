@@ -1,18 +1,26 @@
 {
-  "gateway": {
-    "mode": "remote",
-    "bind": "auto",
-    "port": 18789,
-    "auth": { "mode": "token" },
-    "controlUi": {
-      "enabled": true,
-      "allowedOrigins": ["https://rele.to"]
-    }
-  },
   "agents": {
     "defaults": {
-      "model": { "primary": "anthropic/claude-sonnet-4-5" },
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-5"
+      },
       "workspace": "/home/node/.openclaw/workspace"
+    },
+    "list": [
+      {
+        "id": "main",
+        "default": true
+      }
+    ]
+  },
+  "auth": {
+    "profiles": {
+      "anthropic:default": { "mode": "token", "provider": "anthropic" }
     }
+  },
+  "gateway": {
+    "mode": "local",
+    "bind": "auto",
+    "port": 18789
   }
 }
