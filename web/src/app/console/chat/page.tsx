@@ -1,15 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Markdown from "react-markdown";
+import { ArrowUpIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 import { useSandboxChat } from "@/hooks/use-sandbox-chat";
 
-function Mono({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <span className={`font-[var(--font-dm-mono),monospace] ${className}`}>{children}</span>;
+function TypingIndicator() {
+  return (
+    <div className="flex items-center gap-1 px-1 py-2">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="size-1.5 rounded-full bg-[var(--muted)]"
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{
+            duration: 1.2,
+            repeat: Infinity,
+            delay: i * 0.2,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
 export default function ChatPage() {
@@ -17,10 +34,14 @@ export default function ChatPage() {
   const { messages, connected, connecting, error, connect, sendMessage } = useSandboxChat();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
 
   const machine = machines[0] ?? null;
   const isRunning = machine?.state === "started" || machine?.state === "running";
+
+  const lastMessage = messages[messages.length - 1];
+  const isWaitingForReply = lastMessage?.role === "user";
 
   // Redirect if no machine
   useEffect(() => {
@@ -41,117 +62,228 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = () => {
+  // Auto-resize textarea
+  const resizeTextarea = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  }, []);
+
+  useEffect(() => {
+    resizeTextarea();
+  }, [input, resizeTextarea]);
+
+  const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed) return;
     sendMessage(trimmed);
     setInput("");
-  };
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  }, [input, sendMessage]);
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    },
+    [handleSend]
+  );
 
   if (loading || !machine) return null;
 
   return (
     <div className="flex h-[calc(100svh-3rem)] flex-col bg-[var(--bg)] text-[var(--text)]">
-      {/* Header */}
+      {/* Minimal status bar */}
       <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: EASE }}
-        className="flex items-center justify-between border-b border-[var(--border)] px-6 py-3"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, ease: EASE }}
+        className="flex items-center justify-center gap-2 px-6 py-2.5"
       >
-        <div className="flex items-center gap-3">
-          <h1 className="font-['Lora',Georgia,serif] text-lg italic">Agent</h1>
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`size-1.5 rounded-full ${
-                connected
-                  ? "bg-[var(--status-success)]"
-                  : connecting
-                    ? "bg-[var(--status-warning)] animate-pulse"
-                    : "bg-[var(--status-neutral)]"
-              }`}
-            />
-            <Mono className="text-[11px] text-[var(--muted)]">
-              {connected ? "Connected" : connecting ? "Connecting..." : "Disconnected"}
-            </Mono>
-          </div>
-        </div>
+        <span
+          className={`size-1.5 rounded-full transition-colors duration-300 ${
+            connected
+              ? "bg-[var(--status-success)]"
+              : connecting
+                ? "bg-[var(--status-warning)] animate-pulse"
+                : "bg-[var(--status-neutral)]"
+          }`}
+        />
+        <span className="font-[var(--font-dm-mono),monospace] text-[11px] tracking-wide text-[var(--muted)]">
+          {connected ? "Connected" : connecting ? "Connecting..." : "Disconnected"}
+        </span>
         {!connected && !connecting && isRunning && (
           <button
-            onClick={() => { connect(); }}
-            className="rounded-md bg-[var(--copper)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+            onClick={() => connect()}
+            className="ml-1 font-[var(--font-dm-mono),monospace] text-[11px] text-[var(--copper)] hover:underline"
           >
-            <Mono>{error ? "Retry" : "Connect"}</Mono>
+            {error ? "Retry" : "Connect"}
           </button>
         )}
       </motion.div>
 
       {/* Error banner */}
-      {error && (
-        <div className="border-b border-[var(--border)] bg-[var(--surface)] px-6 py-2.5">
-          <Mono className="text-xs text-[var(--status-error,#e55)]">{error}</Mono>
-        </div>
-      )}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mx-auto w-full max-w-2xl overflow-hidden"
+          >
+            <div className="mx-6 mb-2 rounded-lg bg-[var(--status-error-bg)] border border-[var(--status-error-border)] px-4 py-2.5">
+              <span className="font-[var(--font-dm-mono),monospace] text-xs text-[var(--status-error-text)]">
+                {error}
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="mx-auto max-w-[680px] flex flex-col gap-4">
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-2xl px-6 py-6">
+          {/* Empty state */}
           {messages.length === 0 && connected && (
-            <div className="flex items-center justify-center py-20">
-              <p className="font-[var(--font-crimson-pro),serif] text-[var(--muted)]">
-                Send a message to start chatting with your agent.
-              </p>
-            </div>
-          )}
-          {messages.map((msg) => (
             <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, ease: EASE }}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              transition={{ duration: 0.5, ease: EASE, delay: 0.1 }}
+              className="flex flex-col items-center justify-center pt-[20vh]"
             >
-              <div
-                className={`max-w-[80%] rounded-xl px-4 py-2.5 ${
-                  msg.role === "user"
-                    ? "bg-[var(--copper)] text-white"
-                    : "bg-[var(--surface-hi)] text-[var(--text)]"
-                }`}
+              <h2 className="font-['Lora',Georgia,serif] text-2xl italic text-[var(--text)]">
+                What can I help with?
+              </h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                Send a message to start a conversation with your agent.
+              </p>
+            </motion.div>
+          )}
+
+          {/* Message list */}
+          <div className="flex flex-col gap-5">
+            {messages.map((msg) => (
+              <motion.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: EASE }}
               >
                 {msg.role === "user" ? (
-                  <Mono className="text-sm whitespace-pre-wrap">{msg.content}</Mono>
+                  /* User message — right-aligned pill */
+                  <div className="flex justify-end">
+                    <div className="max-w-[80%] rounded-2xl rounded-br-md bg-[var(--copper)] px-4 py-2.5 shadow-sm">
+                      <p className="font-[var(--font-dm-mono),monospace] text-sm leading-relaxed text-white whitespace-pre-wrap">
+                        {msg.content}
+                      </p>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="max-w-none text-sm text-[var(--text)] [&_strong]:font-semibold [&_em]:italic [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-2 [&_li]:mb-1 [&_a]:text-[var(--copper)] [&_a]:underline [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:font-semibold [&_h3]:mb-1 [&_code]:bg-[var(--surface)] [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_pre]:bg-[var(--surface)] [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:mb-2 [&_pre]:overflow-x-auto [&_hr]:border-[var(--border)] [&_hr]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--border)] [&_blockquote]:pl-3 [&_blockquote]:text-[var(--muted)]">
-                    <Markdown>{msg.content}</Markdown>
+                  /* Assistant message — left-aligned, clean */
+                  <div className="max-w-[90%]">
+                    <div
+                      className="
+                        prose-chat text-sm leading-relaxed text-[var(--text)]
+                        [&_strong]:font-semibold [&_em]:italic
+                        [&_p]:mb-3 [&_p:last-child]:mb-0
+                        [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3
+                        [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3
+                        [&_li]:mb-1.5 [&_li]:leading-relaxed
+                        [&_a]:text-[var(--copper)] [&_a]:underline [&_a]:underline-offset-2
+                        [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mb-3 [&_h1]:mt-4 [&_h1:first-child]:mt-0
+                        [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2:first-child]:mt-0
+                        [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-2
+                        [&_code]:bg-[var(--surface-hi)] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:text-xs [&_code]:font-[var(--font-dm-mono),monospace]
+                        [&_pre]:bg-[var(--surface)] [&_pre]:border [&_pre]:border-[var(--border)] [&_pre]:p-4 [&_pre]:rounded-xl [&_pre]:mb-3 [&_pre]:overflow-x-auto
+                        [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs
+                        [&_hr]:border-[var(--border)] [&_hr]:my-4
+                        [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--copper)]/30 [&_blockquote]:pl-4 [&_blockquote]:text-[var(--text-dim)] [&_blockquote]:italic
+                      "
+                    >
+                      <Markdown>{msg.content}</Markdown>
+                    </div>
                   </div>
                 )}
-              </div>
-            </motion.div>
-          ))}
-          <div ref={messagesEndRef} />
+              </motion.div>
+            ))}
+
+            {/* Typing indicator */}
+            <AnimatePresence>
+              {isWaitingForReply && connected && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <TypingIndicator />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div ref={messagesEndRef} />
+          </div>
         </div>
       </div>
 
-      {/* Input */}
-      <div className="border-t border-[var(--border)] px-6 py-4">
-        <div className="mx-auto max-w-[680px] flex gap-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            placeholder={connected ? "Type a message..." : "Waiting for connection..."}
-            disabled={!connected}
-            className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 font-[var(--font-dm-mono),monospace] text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--copper)] focus:outline-none disabled:opacity-50"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!connected || !input.trim()}
-            className="rounded-lg bg-[var(--copper)] px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+      {/* Composer */}
+      <div className="px-6 pb-5 pt-2">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: EASE, delay: 0.05 }}
+          className="mx-auto max-w-2xl"
+        >
+          <div
+            className={`
+              relative flex items-end gap-2 rounded-2xl border bg-[var(--surface)] p-2 pl-4
+              shadow-[0_2px_12px_rgba(0,0,0,0.04),0_0_0_1px_var(--border)]
+              transition-shadow duration-200
+              focus-within:shadow-[0_2px_20px_rgba(200,132,90,0.08),0_0_0_1px_var(--copper)]
+              ${!connected ? "opacity-60" : ""}
+            `}
           >
-            <Mono>Send</Mono>
-          </button>
-        </div>
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={connected ? "Message your agent..." : "Waiting for connection..."}
+              disabled={!connected}
+              rows={1}
+              className="
+                max-h-[200px] min-h-[28px] flex-1 resize-none bg-transparent py-1
+                font-[var(--font-dm-mono),monospace] text-sm leading-relaxed text-[var(--text)]
+                placeholder:text-[var(--muted)]
+                focus:outline-none
+                disabled:cursor-not-allowed
+              "
+            />
+            <button
+              onClick={handleSend}
+              disabled={!connected || !input.trim()}
+              className="
+                flex size-8 shrink-0 items-center justify-center rounded-xl
+                bg-[var(--copper)] text-white
+                transition-all duration-150
+                hover:bg-[var(--copper-dim)]
+                disabled:opacity-30 disabled:hover:bg-[var(--copper)]
+                active:scale-95
+              "
+            >
+              <ArrowUpIcon className="size-4" strokeWidth={2.5} />
+            </button>
+          </div>
+          <p className="mt-2 text-center font-[var(--font-dm-mono),monospace] text-[10px] tracking-wide text-[var(--muted)]">
+            Press Enter to send, Shift+Enter for a new line
+          </p>
+        </motion.div>
       </div>
     </div>
   );
