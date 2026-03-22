@@ -10,22 +10,6 @@ import { apiKeys, machines } from "@rele/db"
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 
-// Generate Ed25519 keypair for device auth with OpenClaw gateway
-const gateKeyPair = crypto.generateKeyPairSync("ed25519");
-const gatePublicKeySpki = gateKeyPair.publicKey.export({ type: "spki", format: "der" }) as Buffer;
-// Strip SPKI prefix to get raw 32-byte Ed25519 key
-const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
-const gatePublicKeyRaw = gatePublicKeySpki.subarray(ED25519_SPKI_PREFIX.length);
-// Device ID = sha256 hex of raw public key
-const gateDeviceId = crypto.createHash("sha256").update(gatePublicKeyRaw).digest("hex");
-// Public key sent as base64url-encoded raw bytes
-const gatePublicKeyB64Url = gatePublicKeyRaw.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
-
-function signDevicePayload(payload: string): string {
-  const sig = crypto.sign(null, Buffer.from(payload, "utf8"), gateKeyPair.privateKey);
-  return Buffer.from(sig).toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
-}
-
 const client = postgres(process.env.DATABASE_URL!);
 const db = drizzle(client);
 
@@ -280,23 +264,9 @@ app.get(
             // Handle OpenClaw connect handshake
             if (!authenticated) {
               if (data.type === "event" && data.event === "connect.challenge") {
-                const nonce = data.payload?.nonce ?? "";
-                const signedAtMs = Date.now();
-                const scopes = ["operator.read", "operator.write"];
-                // v2 payload: deviceId|clientId|clientMode|role|scopes|signedAtMs|token|nonce
-                const payload = [
-                  "v2",
-                  gateDeviceId,
-                  "webchat",      // clientId
-                  "webchat",      // clientMode
-                  "operator",     // role
-                  scopes.join(","),
-                  String(signedAtMs),
-                  gatewayToken,   // token (must match auth.token sent to server)
-                  nonce,
-                ].join("|");
-                const signature = signDevicePayload(payload);
-
+                // Skip device auth — gate is a server-side proxy, token auth is sufficient.
+                // Sending a device object triggers pairing flow (PAIRING_REQUIRED) since
+                // the gate generates a fresh keypair on every restart.
                 backendWs!.send(JSON.stringify({
                   type: "req",
                   id: "gate-connect",
@@ -311,18 +281,11 @@ app.get(
                       mode: "webchat",
                     },
                     role: "operator",
-                    scopes,
+                    scopes: ["operator.read", "operator.write"],
                     caps: [],
                     commands: [],
                     permissions: {},
                     auth: { token: gatewayToken },
-                    device: {
-                      id: gateDeviceId,
-                      publicKey: gatePublicKeyB64Url,
-                      signature,
-                      signedAt: signedAtMs,
-                      nonce,
-                    },
                   },
                 }));
                 return;
