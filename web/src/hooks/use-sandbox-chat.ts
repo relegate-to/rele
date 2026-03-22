@@ -35,7 +35,7 @@ export function useSandboxChat() {
         setConnected(true);
         setConnecting(false);
         retriesRef.current = 0;
-        ws.send(JSON.stringify({ type: "req", id: "hist-" + Date.now(), method: "chat.history", params: {} }));
+        ws.send(JSON.stringify({ type: "req", id: "hist-" + Date.now(), method: "chat.history", params: { sessionKey: "agent:main:main" } }));
       };
 
       ws.onmessage = (event) => {
@@ -155,7 +155,11 @@ export function useSandboxChat() {
           type: "req",
           id: msg.id,
           method: "chat.send",
-          params: { content },
+          params: {
+            sessionKey: "agent:main:main",
+            message: content,
+            idempotencyKey: msg.id,
+          },
         })
       );
     },
