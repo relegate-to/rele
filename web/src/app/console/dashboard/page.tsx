@@ -10,41 +10,6 @@ function Mono({ children, className = "" }: { children: React.ReactNode; classNa
   return <span className={`font-[var(--font-dm-mono),monospace] ${className}`}>{children}</span>;
 }
 
-function PlaceholderCard({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
-      <div className="border-b border-[var(--border)] bg-[var(--surface-hi)] px-6 py-4">
-        <Mono className="text-sm font-medium text-[var(--text)]">{title}</Mono>
-        <p className="mt-0.5 font-[var(--font-crimson-pro),serif] text-sm text-[var(--muted)]">
-          {description}
-        </p>
-      </div>
-      <div className="px-6 py-5">{children}</div>
-    </div>
-  );
-}
-
-function BarPlaceholder({ widths }: { widths: string[] }) {
-  return (
-    <div className="flex flex-col gap-2.5">
-      {widths.map((w, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <span className="h-2 rounded-full bg-[var(--copper)]/15 animate-pulse" style={{ width: w }} />
-          <span className="h-2 w-8 rounded-full bg-[var(--surface-hi)]" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function DashboardPage() {
   const { machines, loading } = useMachinesContext();
   const router = useRouter();
@@ -100,7 +65,7 @@ export default function DashboardPage() {
 
           {/* Instance info */}
           <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
-            <div className="grid grid-cols-4 divide-x divide-[var(--border)] bg-[var(--surface-hi)]">
+            <div className="grid grid-cols-3 divide-x divide-[var(--border)] bg-[var(--surface-hi)]">
               <div className="px-5 py-3.5">
                 <Mono className="text-[11px] uppercase tracking-wider text-[var(--muted)]">Region</Mono>
                 <p className="mt-0.5"><Mono className="text-sm text-[var(--text)]">{machine.region}</Mono></p>
@@ -113,47 +78,12 @@ export default function DashboardPage() {
                 <Mono className="text-[11px] uppercase tracking-wider text-[var(--muted)]">App</Mono>
                 <p className="mt-0.5"><Mono className="text-sm text-[var(--text)]">{machine.flyAppName}</Mono></p>
               </div>
-              <div className="px-5 py-3.5">
-                <Mono className="text-[11px] uppercase tracking-wider text-[var(--muted)]">URL</Mono>
-                <p className="mt-0.5">
-                  <Mono className="text-sm text-[var(--copper)]">
-                    {machine.flyAppName}.fly.dev
-                  </Mono>
-                </p>
-              </div>
             </div>
           </div>
 
-          {/* Placeholder cards */}
-          <div className="grid grid-cols-3 gap-4">
-            <PlaceholderCard title="Requests" description="Last 24h">
-              <BarPlaceholder widths={["70%", "45%", "85%", "30%", "60%"]} />
-            </PlaceholderCard>
-            <PlaceholderCard title="Latency" description="p50 / p99">
-              <BarPlaceholder widths={["50%", "80%", "35%", "65%", "45%"]} />
-            </PlaceholderCard>
-            <PlaceholderCard title="Uptime" description="Last 30 days">
-              <div className="flex flex-col items-center gap-2 py-2">
-                <Mono className="text-2xl font-medium text-[var(--status-success)]">99.9%</Mono>
-                <Mono className="text-xs text-[var(--muted)]">All systems normal</Mono>
-              </div>
-            </PlaceholderCard>
-          </div>
-
-          <PlaceholderCard title="Logs" description="Recent activity from your instance">
-            <div className="flex flex-col gap-2">
-              {[
-                { time: "now", msg: "Instance is healthy" },
-                { time: "2m ago", msg: "Health check passed" },
-                { time: "5m ago", msg: "Connection established" },
-              ].map((log, i) => (
-                <div key={i} className="flex items-baseline gap-3">
-                  <Mono className="shrink-0 text-xs text-[var(--muted)]">{log.time}</Mono>
-                  <Mono className="text-xs text-[var(--text-dim)]">{log.msg}</Mono>
-                </div>
-              ))}
-            </div>
-          </PlaceholderCard>
+          <p className="text-center font-[var(--font-crimson-pro),serif] text-sm italic text-[var(--muted)]">
+            More here soon.
+          </p>
         </motion.div>
       </div>
     </div>

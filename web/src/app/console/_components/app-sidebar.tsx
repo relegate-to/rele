@@ -26,8 +26,11 @@ import { useMachinesContext, type Machine } from "../_context/machines-context";
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/console/dashboard", icon: LayoutDashboardIcon },
   { label: "Chat",      href: "/console/chat",      icon: MessageSquareIcon },
-  { label: "Status",    href: "/console/status",    icon: ActivityIcon },
   { label: "Settings",  href: "/console/settings",  icon: SettingsIcon },
+] as const;
+
+const DEBUG_NAV_ITEMS = [
+  { label: "Status",    href: "/console/status",    icon: ActivityIcon },
 ] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -176,6 +179,16 @@ export function AppSidebar() {
   const { machines, loading, startMachine, stopMachine, deleteMachine } = useMachinesContext();
   const hasInstances = !loading && machines.length > 0;
 
+  const [showDebug, setShowDebug] = useState(false);
+  useEffect(() => {
+    const toggle = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "d") setShowDebug((v) => !v);
+    };
+    window.addEventListener("keydown", toggle);
+    return () => window.removeEventListener("keydown", toggle);
+  }, []);
+
   return (
     <Sidebar variant="floating">
 
@@ -258,6 +271,18 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })}
+              {showDebug && DEBUG_NAV_ITEMS.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      isActive={pathname === item.href}
+                      tooltip={item.label}
+                      render={<Link href={item.href} />}
+                    >
+                      <item.icon className="size-4 opacity-70" />
+                      <span className="text-sm">{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
