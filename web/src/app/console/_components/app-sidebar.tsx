@@ -26,10 +26,10 @@ import { useMachinesContext, type Machine } from "../_context/machines-context";
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/console/dashboard", icon: LayoutDashboardIcon },
   { label: "Chat",      href: "/console/chat",      icon: MessageSquareIcon },
-  { label: "Settings",  href: "/console/settings",  icon: SettingsIcon },
 ] as const;
 
 const DEBUG_NAV_ITEMS = [
+  { label: "Settings",  href: "/console/settings",  icon: SettingsIcon },
   { label: "Status",    href: "/console/status",    icon: ActivityIcon },
 ] as const;
 

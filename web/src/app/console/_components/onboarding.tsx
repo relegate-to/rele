@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 
@@ -42,6 +42,8 @@ export function Onboarding() {
   const [apiKey, setApiKey] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [lockedHeight, setLockedHeight] = useState<number | undefined>(undefined);
 
   const phase = loading ? null : derivePhase(machines);
 
@@ -50,7 +52,7 @@ export function Onboarding() {
   useEffect(() => {
     if (phase === "ready" && !hasRedirected.current) {
       hasRedirected.current = true;
-      router.push("/console/dashboard");
+      router.push("/console/chat");
     }
   }, [phase, router]);
 
@@ -80,45 +82,56 @@ export function Onboarding() {
     }
   }
 
-  // Show provisioning state
-  if (phase === "provisioning" || (submitting && phase !== "setup")) {
-    return (
-      <div className="flex min-h-[calc(100svh-3rem)] items-center justify-center bg-[var(--bg)]">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: EASE }}
-          className="flex flex-col items-center gap-8 px-8"
-        >
-          <div className="flex size-12 items-center justify-center rounded-full border border-[var(--border-hi)] bg-[var(--surface)]">
-            <svg viewBox="0 0 24 24" className="size-5 animate-spin text-[var(--copper)]" style={{ animationDuration: "1.5s" }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M12 2a10 10 0 0 1 10 10" />
-            </svg>
-          </div>
+  const isProvisioning = phase === "provisioning" || (submitting && phase !== "setup");
 
-          <div className="text-center">
-            <p className="font-[var(--font-dm-mono),monospace] text-sm font-medium text-[var(--text)]">
-              Spinning up your instance
-            </p>
-            <p className="mt-1.5 font-[var(--font-crimson-pro),serif] text-sm text-[var(--muted)]">
-              This usually takes 20&ndash;40 seconds.
-            </p>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
+  // Lock the panel height when transitioning to provisioning
+  useEffect(() => {
+    if (isProvisioning && panelRef.current && !lockedHeight) {
+      setLockedHeight(panelRef.current.offsetHeight);
+    }
+    if (!isProvisioning) setLockedHeight(undefined);
+  }, [isProvisioning, lockedHeight]);
 
   return (
-    <div className="flex min-h-[calc(100svh-3rem)] items-start justify-center bg-[var(--bg)] pt-[5vh] text-[var(--text)]">
+    <div className="flex min-h-[calc(100svh-3rem)] items-center justify-center bg-[var(--bg)] p-6 text-[var(--text)]">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: EASE }}
-        className="w-full max-w-md px-6"
+        className="grid w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--border-hi)] bg-[var(--surface)] shadow-[0_4px_32px_rgba(0,0,0,0.12)] lg:grid-cols-2"
       >
-        <div className="rounded-2xl border border-[var(--border-hi)] bg-[var(--surface)] p-8 shadow-[0_4px_32px_rgba(0,0,0,0.12)]">
-          {/* Header */}
+        {/* Left — form or provisioning */}
+        <div ref={panelRef} className="relative flex flex-col justify-center px-10 py-12" style={lockedHeight ? { height: lockedHeight } : undefined}>
+          <AnimatePresence mode="wait">
+          {isProvisioning ? (
+            <motion.div
+              key="provisioning"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3, ease: EASE }}
+              className="flex flex-col items-center gap-5 py-8"
+            >
+              <svg viewBox="0 0 24 24" className="size-6 animate-spin text-[var(--copper)]" style={{ animationDuration: "1.5s" }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M12 2a10 10 0 0 1 10 10" />
+              </svg>
+              <div className="text-center">
+                <p className="font-[var(--font-dm-mono),monospace] text-sm font-medium text-[var(--text)]">
+                  Spinning up your instance
+                </p>
+                <p className="mt-1.5 font-[var(--font-crimson-pro),serif] text-sm text-[var(--muted)]">
+                  This usually takes 20&ndash;40 seconds.
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="form"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3, ease: EASE }}
+            >
           <h1 className="font-['Lora',Georgia,serif] text-2xl italic tracking-[-0.01em]">
             Set up your instance
           </h1>
@@ -195,6 +208,32 @@ export function Onboarding() {
               "Deploy instance"
             )}
           </button>
+            </motion.div>
+          )}
+          </AnimatePresence>
+        </div>
+
+        {/* Right — decorative panel */}
+        <div className="relative hidden overflow-hidden lg:block">
+          <div className="absolute inset-0 bg-gradient-to-br from-[var(--copper)]/20 via-[var(--surface-hi)] to-[var(--copper)]/10" />
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)", backgroundSize: "24px 24px" }} />
+          <div className="relative flex h-full flex-col items-center justify-center gap-6 px-10">
+            <div className="flex size-20 items-center justify-center rounded-2xl border border-[var(--copper)]/20 bg-[var(--copper)]/10">
+              <svg viewBox="0 0 24 24" className="size-10 text-[var(--copper)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="font-[var(--font-dm-mono),monospace] text-sm font-medium text-[var(--text)]">
+                Your own AI sandbox
+              </p>
+              <p className="mt-1.5 max-w-[200px] font-[var(--font-crimson-pro),serif] text-sm leading-relaxed text-[var(--muted)]">
+                A dedicated instance with your models, your config, your rules.
+              </p>
+            </div>
+          </div>
         </div>
       </motion.div>
     </div>
