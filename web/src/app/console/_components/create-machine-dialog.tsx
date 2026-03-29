@@ -53,7 +53,7 @@ export function CreateMachineDialog({ open, onOpenChange, onCreate }: CreateMach
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[420px] bg-[var(--surface)] border-[var(--border)] text-[var(--text)]">
         <DialogHeader>
-          <DialogTitle className="font-['Lora',Georgia,serif] italic text-lg">
+          <DialogTitle className="font-semibold text-lg">
             New Instance
           </DialogTitle>
         </DialogHeader>
@@ -93,7 +93,7 @@ export function CreateMachineDialog({ open, onOpenChange, onCreate }: CreateMach
             <Button
               type="submit"
               disabled={submitting}
-              className="bg-[#c8845a] text-white hover:bg-[#b5744d]"
+              className="bg-[var(--accent)] text-white hover:bg-[var(--accent-dim)]"
             >
               {submitting ? "Creating…" : "Create"}
             </Button>

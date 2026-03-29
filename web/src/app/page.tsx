@@ -18,7 +18,7 @@ export default function RelePage() {
   const isSignedIn = !!data?.user;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg)] text-[var(--text)] font-[var(--font-crimson-pro),serif] font-light">
+    <div className="min-h-screen flex flex-col bg-[var(--bg)] text-[var(--text)]">
       <NoiseGrain />
       <Vignette />
 
@@ -28,7 +28,7 @@ export default function RelePage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: EASE, delay: 0.1 }}
-          className="font-[var(--font-dm-mono),monospace] text-[0.65rem] text-[var(--copper)] tracking-[0.2em] uppercase mb-7"
+          className="font-[var(--font-dm-mono),monospace] text-[0.65rem] text-[var(--accent)] tracking-[0.2em] uppercase mb-7"
         >
           By Relegate
         </motion.p>
@@ -37,7 +37,7 @@ export default function RelePage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: EASE, delay: 0.22 }}
-          className="font-[var(--font-lora),serif] font-normal text-[clamp(2.8rem,6vw,5.5rem)] leading-[1.08] tracking-[-0.02em] text-[var(--text)] mb-5 max-w-[700px]"
+          className="font-semibold text-[clamp(2.8rem,6vw,5.5rem)] leading-[1.08] tracking-[-0.03em] text-[var(--text)] mb-5 max-w-[700px]"
         >
           rele
         </motion.h1>
@@ -46,7 +46,7 @@ export default function RelePage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: EASE, delay: 0.34 }}
-          className="text-[1.15rem] font-light text-[var(--text-dim)] leading-[1.7] max-w-[420px] mx-auto mb-11"
+          className="text-[1.15rem] text-[var(--text-dim)] leading-[1.7] max-w-[420px] mx-auto mb-11"
         >
           An AI agent that works out of the box.
         </motion.p>
@@ -60,7 +60,7 @@ export default function RelePage() {
           {isSignedIn ? (
             <button
               onClick={() => navigate("/console")}
-              className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase bg-[var(--copper)] text-[var(--bg)] px-6 py-[0.65rem] rounded-[4px] border-none cursor-pointer"
+              className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase bg-[var(--accent)] text-white px-6 py-[0.65rem] rounded-lg border-none cursor-pointer hover:bg-[var(--accent-dim)] transition-colors"
             >
               Go to dashboard
             </button>
@@ -68,13 +68,13 @@ export default function RelePage() {
             <>
               <button
                 onClick={() => navigate("/sign-in")}
-                className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase bg-[var(--copper)] text-[var(--bg)] px-6 py-[0.65rem] rounded-[4px] border-none cursor-pointer"
+                className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase bg-[var(--accent)] text-white px-6 py-[0.65rem] rounded-lg border-none cursor-pointer hover:bg-[var(--accent-dim)] transition-colors"
               >
                 Sign in
               </button>
               <button
                 onClick={() => navigate("/sign-up")}
-                className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase border border-[var(--border)] text-[var(--text-dim)] px-6 py-[0.65rem] rounded-[4px] bg-transparent cursor-pointer"
+                className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase border border-[var(--border)] text-[var(--text-dim)] px-6 py-[0.65rem] rounded-lg bg-transparent cursor-pointer hover:border-[var(--border-hi)] hover:text-[var(--text)] transition-colors"
               >
                 Sign up
               </button>
@@ -87,7 +87,7 @@ export default function RelePage() {
       <footer className="relative z-10 border-t border-[var(--border)] px-12 py-6 flex items-center justify-between flex-wrap gap-4">
         <span className="font-[var(--font-dm-mono),monospace] text-[0.62rem] text-[var(--muted)] tracking-[0.06em]">
           {"rele — "}
-          <a href="https://relegate.to" className="text-[var(--copper-dim)] no-underline hover:text-[var(--copper)] transition-colors">
+          <a href="https://relegate.to" className="text-[var(--accent)] no-underline hover:text-[var(--accent-dim)] transition-colors">
             relegate.to
           </a>
         </span>

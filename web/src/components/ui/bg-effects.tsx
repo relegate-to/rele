@@ -22,7 +22,7 @@ export function Vignette() {
       className="fixed inset-0 pointer-events-none z-0"
       style={{
         background: `
-          radial-gradient(ellipse at 50% 0%, rgba(200,132,90,0.07) 0%, transparent 60%),
+          radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.06) 0%, transparent 60%),
           radial-gradient(ellipse at 50% 100%, var(--bg) 0%, transparent 70%)
         `,
       }}

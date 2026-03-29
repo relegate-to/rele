@@ -112,14 +112,14 @@ export function Onboarding() {
               transition={{ duration: 0.3, ease: EASE }}
               className="flex flex-col items-center gap-5 py-8"
             >
-              <svg viewBox="0 0 24 24" className="size-6 animate-spin text-[var(--copper)]" style={{ animationDuration: "1.5s" }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <svg viewBox="0 0 24 24" className="size-6 animate-spin text-[var(--accent)]" style={{ animationDuration: "1.5s" }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M12 2a10 10 0 0 1 10 10" />
               </svg>
               <div className="text-center">
                 <p className="font-[var(--font-dm-mono),monospace] text-sm font-medium text-[var(--text)]">
                   Spinning up your instance
                 </p>
-                <p className="mt-1.5 font-[var(--font-crimson-pro),serif] text-sm text-[var(--muted)]">
+                <p className="mt-1.5 text-sm text-[var(--muted)]">
                   This usually takes 20&ndash;40 seconds.
                 </p>
               </div>
@@ -132,10 +132,10 @@ export function Onboarding() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3, ease: EASE }}
             >
-          <h1 className="font-['Lora',Georgia,serif] text-2xl italic tracking-[-0.01em]">
+          <h1 className="text-2xl font-semibold tracking-[-0.01em]">
             Set up your instance
           </h1>
-          <p className="mt-1.5 mb-8 font-[var(--font-crimson-pro),serif] text-[15px] leading-relaxed text-[var(--muted)]">
+          <p className="mt-1.5 mb-8 text-[15px] leading-relaxed text-[var(--muted)]">
             Enter your OpenRouter key and pick a region.
           </p>
 
@@ -149,9 +149,9 @@ export function Onboarding() {
               value={apiKey}
               onChange={(e) => { setApiKey(e.target.value); setError(null); }}
               placeholder="sk-or-..."
-              className="rounded-lg border border-[var(--border)] bg-[var(--bg)]/60 px-3.5 py-2.5 font-[var(--font-dm-mono),monospace] text-sm text-[var(--text)] placeholder:text-[var(--muted)]/40 focus:border-[var(--copper)]/40 focus:outline-none transition-colors"
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg)]/60 px-3.5 py-2.5 font-[var(--font-dm-mono),monospace] text-sm text-[var(--text)] placeholder:text-[var(--muted)]/40 focus:border-[var(--accent)]/40 focus:outline-none transition-colors"
             />
-            <p className="font-[var(--font-crimson-pro),serif] text-xs text-[var(--muted)]">
+            <p className="text-xs text-[var(--muted)]">
               Stored securely and injected at boot.
             </p>
           </div>
@@ -171,7 +171,7 @@ export function Onboarding() {
                     onClick={() => setRegion(r.value)}
                     className={`flex cursor-pointer flex-col items-center gap-1 rounded-lg border py-2.5 transition-all ${
                       selected
-                        ? "border-[var(--copper)]/40 bg-[var(--copper)]/8 text-[var(--text)]"
+                        ? "border-[var(--accent)]/40 bg-[var(--accent)]/8 text-[var(--text)]"
                         : "border-[var(--border)] text-[var(--text-dim)] hover:border-[var(--border-hi)] hover:text-[var(--text)]"
                     }`}
                   >
@@ -195,7 +195,7 @@ export function Onboarding() {
             type="button"
             disabled={submitting}
             onClick={handleCreate}
-            className="mt-8 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[var(--copper)] px-5 py-2.5 font-[var(--font-dm-mono),monospace] text-sm font-medium text-white transition-all hover:bg-[#b5744d] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-8 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-5 py-2.5 font-[var(--font-dm-mono),monospace] text-sm font-medium text-white transition-all hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? (
               <>
@@ -215,11 +215,11 @@ export function Onboarding() {
 
         {/* Right — decorative panel */}
         <div className="relative hidden overflow-hidden lg:block">
-          <div className="absolute inset-0 bg-gradient-to-br from-[var(--copper)]/20 via-[var(--surface-hi)] to-[var(--copper)]/10" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/15 via-[var(--surface-hi)] to-[var(--accent)]/8" />
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)", backgroundSize: "24px 24px" }} />
           <div className="relative flex h-full flex-col items-center justify-center gap-6 px-10">
-            <div className="flex size-20 items-center justify-center rounded-2xl border border-[var(--copper)]/20 bg-[var(--copper)]/10">
-              <svg viewBox="0 0 24 24" className="size-10 text-[var(--copper)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <div className="flex size-20 items-center justify-center rounded-2xl border border-[var(--accent)]/20 bg-[var(--accent)]/10">
+              <svg viewBox="0 0 24 24" className="size-10 text-[var(--accent)]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2L2 7l10 5 10-5-10-5z" />
                 <path d="M2 17l10 5 10-5" />
                 <path d="M2 12l10 5 10-5" />
@@ -229,7 +229,7 @@ export function Onboarding() {
               <p className="font-[var(--font-dm-mono),monospace] text-sm font-medium text-[var(--text)]">
                 Your own AI sandbox
               </p>
-              <p className="mt-1.5 max-w-[200px] font-[var(--font-crimson-pro),serif] text-sm leading-relaxed text-[var(--muted)]">
+              <p className="mt-1.5 max-w-[200px] text-sm leading-relaxed text-[var(--muted)]">
                 A dedicated instance with your models, your config, your rules.
               </p>
             </div>

@@ -142,7 +142,7 @@ function OnboardingSection({
                 className={`h-auto gap-2.5 rounded-lg border px-2.5 py-2 transition-all duration-500 ${
                   phase === "completing"
                     ? "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success)]"
-                    : "border-[var(--copper)]/20 bg-[var(--copper)]/5 text-[var(--copper)] hover:border-[var(--copper)]/40 hover:bg-[var(--copper)]/10"
+                    : "border-[var(--accent)]/20 bg-[var(--accent)]/5 text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/10"
                 }`}
               >
                 {phase === "completing" ? (
@@ -195,10 +195,10 @@ export function AppSidebar() {
       {/* Wordmark */}
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-6 shrink-0 items-center justify-center rounded-[5px] border border-[#c8845a]/30 bg-[#fdf6ee] font-['Lora',Georgia,serif] text-xs italic text-[#c8845a]">
+          <div className="flex size-6 shrink-0 items-center justify-center rounded-[5px] border border-[var(--accent)]/30 bg-[var(--accent-subtle)] text-xs font-semibold text-[var(--accent)]">
             r
           </div>
-          <span className="font-['Lora',Georgia,serif] text-base italic tracking-[-0.01em] text-sidebar-foreground">
+          <span className="text-base font-semibold tracking-[-0.01em] text-sidebar-foreground">
             rele
           </span>
           <span className="ml-auto text-xs text-sidebar-foreground/30">
@@ -220,7 +220,7 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <div className="flex h-auto items-center gap-2.5 rounded-lg border border-sidebar-border px-2.5 py-2">
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent/50 animate-pulse">
-                      <span className="font-['Lora',Georgia,serif] text-sm italic text-sidebar-foreground/30">r</span>
+                      <span className="text-sm font-semibold text-sidebar-foreground/30">r</span>
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                       <span className="h-3.5 w-20 rounded bg-sidebar-accent/60 animate-pulse" />
