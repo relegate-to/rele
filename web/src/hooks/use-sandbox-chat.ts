@@ -35,16 +35,17 @@ export function useSandboxChat() {
     try {
       const res = await fetch("/api/gate/ws-auth");
       if (!res.ok) throw new Error("Failed to get WS auth");
-      const { url, token } = await res.json();
+      const { url, token, gatewayToken } = await res.json();
 
+      // Connect directly to the instance (Nginx validates the JWT)
       const ws = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
       wsRef.current = ws;
 
+      let authenticated = false;
+
       ws.onopen = () => {
-        setConnected(true);
-        setConnecting(false);
+        // Wait for connect.challenge from OpenClaw before doing anything
         retriesRef.current = 0;
-        ws.send(JSON.stringify({ type: "req", id: "hist-" + Date.now(), method: "chat.history", params: { sessionKey: "agent:main:main" } }));
       };
 
       ws.onmessage = (event) => {
@@ -52,9 +53,56 @@ export function useSandboxChat() {
           const data = JSON.parse(event.data);
           console.log("[OC]", data);
 
+          // --- OpenClaw connect handshake ---
+          if (!authenticated) {
+            if (data.type === "event" && data.event === "connect.challenge") {
+              ws.send(JSON.stringify({
+                type: "req",
+                id: "rele-connect",
+                method: "connect",
+                params: {
+                  minProtocol: 3,
+                  maxProtocol: 3,
+                  client: {
+                    id: "rele-web",
+                    version: "0.1.0",
+                    platform: "web",
+                    mode: "webchat",
+                  },
+                  role: "operator",
+                  scopes: ["operator.read", "operator.write"],
+                  caps: [],
+                  commands: [],
+                  permissions: {},
+                  auth: { token: gatewayToken },
+                },
+              }));
+              return;
+            }
+            if (data.type === "res" && data.id === "rele-connect") {
+              if (data.ok) {
+                authenticated = true;
+                setConnected(true);
+                setConnecting(false);
+                // Now that we're authenticated, fetch chat history
+                ws.send(JSON.stringify({
+                  type: "req",
+                  id: "hist-" + Date.now(),
+                  method: "chat.history",
+                  params: { sessionKey: "agent:main:main" },
+                }));
+              } else {
+                console.error("OpenClaw auth failed:", data.error);
+                ws.close(4401, "Backend auth failed");
+              }
+              return;
+            }
+          }
+
+          // --- Normal message handling ---
+
           // OpenClaw response to a request
           if (data.type === "res") {
-            // Handle chat.send response or chat.history response
             if (data.ok && data.payload?.messages) {
               setMessages(
                 data.payload.messages.map((m: any, i: number) => ({
@@ -69,8 +117,6 @@ export function useSandboxChat() {
           }
 
           // OpenClaw server-push events
-          // Chat events: { type:"event", event:"chat", payload: { state, runId, message: { role, content: [{type,text}] } } }
-          // States: "delta" (snapshot of message so far), "final" (turn complete), "error", "aborted"
           if (data.type === "event" && data.event === "chat") {
             const p = data.payload;
             const runId = p?.runId ?? "stream";
@@ -91,7 +137,6 @@ export function useSandboxChat() {
                 ];
               });
             } else if (p?.state === "final") {
-              // Replace streaming message with final content, then reconcile
               if (p?.message) {
                 const text = extractText(p.message.content);
                 setMessages((prev) => {
@@ -120,17 +165,13 @@ export function useSandboxChat() {
         setConnecting(false);
         wsRef.current = null;
 
-        // Don't retry on explicit error codes
-        if (event.code === 4502) {
-          setError("Agent unreachable — it may still be starting up.");
-          return;
-        }
-        if (event.code === 4404) {
-          setError("No running instance found.");
-          return;
-        }
         if (event.code === 4401) {
           setError("Authentication failed.");
+          return;
+        }
+        // Nginx returns 403 when the JWT user doesn't match the instance owner
+        if (event.code === 1006) {
+          setError("Connection failed — instance may still be starting up.");
           return;
         }
       };

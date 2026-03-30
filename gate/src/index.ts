@@ -1,8 +1,6 @@
 import { Hono, type Context, type Next } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
-import { createBunWebSocket } from "hono/bun";
-import type { ServerWebSocket } from "bun";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as jose from "jose";
@@ -13,13 +11,14 @@ import crypto from "crypto";
 const client = postgres(process.env.DATABASE_URL!);
 const db = drizzle(client);
 
+const USE_DOCKER = process.env.USE_DOCKER === "true";
+const DOCKER_IMAGE = process.env.DOCKER_IMAGE ?? "rele-openclaw:latest";
+
 const FLY_API_URL = "https://api.machines.dev/v1";
 const FLY_API_TOKEN = process.env.FLY_API_TOKEN!;
-const FLY_ORG = process.env.FLY_ORG!; // Fly.io organization slug
+const FLY_ORG = process.env.FLY_ORG!;
 
 type AppVariables = { userId: string };
-
-const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>();
 
 const app = new Hono<{ Variables: AppVariables }>();
 
@@ -47,6 +46,8 @@ const authMiddleware = async (c: Context<{ Variables: AppVariables }>, next: Nex
   }
 };
 
+// --- Fly.io helpers ---
+
 async function flyRequest(path: string, options: RequestInit = {}) {
   const res = await fetch(`${FLY_API_URL}${path}`, {
     ...options,
@@ -66,38 +67,12 @@ async function flyRequest(path: string, options: RequestInit = {}) {
   return res.json();
 }
 
-// --- Per-user Fly app management ---
-
 function userAppName(userId: string): string {
   const short = userId.replace(/-/g, "").slice(0, 12);
   return `rele-u-${short}`;
 }
 
-async function ensureUserApp(userId: string): Promise<string> {
-  const appName = userAppName(userId);
-
-  const res = await fetch(`${FLY_API_URL}/apps`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${FLY_API_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      app_name: appName,
-      org_slug: FLY_ORG,
-      // No custom network — use default org network so gate can reach instances via .internal
-    }),
-  });
-
-  // 422 means app already exists — that's fine
-  if (!res.ok && res.status !== 422) {
-    const body = await res.text();
-    throw new Error(`Failed to create user app: ${res.status}: ${body}`);
-  }
-
-  // Allocate a Flycast (private) IP so the app is reachable via <app>.flycast
-  // within the org network, but not from the public internet.
-  // This uses the GraphQL API since the Machines REST API doesn't support IP allocation.
+async function allocateIp(appName: string, type: string): Promise<void> {
   try {
     const gqlRes = await fetch("https://api.fly.io/graphql", {
       method: "POST",
@@ -112,25 +87,48 @@ async function ensureUserApp(userId: string): Promise<string> {
           }
         }`,
         variables: {
-          input: {
-            appId: appName,
-            type: "private_v6",
-            region: "",
-          },
+          input: { appId: appName, type, region: "" },
         },
       }),
     });
     const gqlBody = await gqlRes.json() as any;
     if (gqlBody.errors) {
-      // "already allocated" is fine — means this is idempotent
       const msg = gqlBody.errors[0]?.message ?? JSON.stringify(gqlBody.errors);
       if (!msg.includes("already")) {
-        console.error(`Flycast IP allocation error for ${appName}:`, msg);
+        console.error(`IP allocation (${type}) error for ${appName}:`, msg);
       }
     }
   } catch (err) {
-    console.error(`Flycast IP allocation for ${appName}:`, err instanceof Error ? err.message : err);
+    console.error(`IP allocation (${type}) for ${appName}:`, err instanceof Error ? err.message : err);
   }
+}
+
+async function ensureUserApp(userId: string): Promise<string> {
+  const appName = userAppName(userId);
+
+  const res = await fetch(`${FLY_API_URL}/apps`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${FLY_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      app_name: appName,
+      org_slug: FLY_ORG,
+    }),
+  });
+
+  if (!res.ok && res.status !== 422) {
+    const body = await res.text();
+    throw new Error(`Failed to create user app: ${res.status}: ${body}`);
+  }
+
+  // Allocate both a shared public IPv4 (for {app}.fly.dev access)
+  // and a private IPv6 (Flycast, for internal org access).
+  await Promise.all([
+    allocateIp(appName, "shared_v4"),
+    allocateIp(appName, "private_v6"),
+  ]);
 
   return appName;
 }
@@ -149,6 +147,112 @@ async function deleteUserApp(appName: string): Promise<void> {
   }
 }
 
+// --- Docker helpers (local development) ---
+
+async function runDocker(args: string[]): Promise<string> {
+  const proc = Bun.spawn(["docker", ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (exitCode !== 0) {
+    throw new Error(`docker ${args[0]} failed: ${stderr}`);
+  }
+  return stdout.trim();
+}
+
+async function dockerRun(name: string, image: string, env: Record<string, string>): Promise<{ id: string; port: number }> {
+  const envArgs = Object.entries(env).flatMap(([k, v]) => ["-e", `${k}=${v}`]);
+  const id = await runDocker(["run", "-d", "--name", name, "-P", ...envArgs, image]);
+  const port = await dockerPort(name);
+  return { id, port };
+}
+
+async function dockerPort(name: string): Promise<number> {
+  // Small retry — port mapping may not be immediately available after `docker run`
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const output = await runDocker(["port", name, "80"]);
+      // Output: "0.0.0.0:12345" or ":::12345" (one per line, take first)
+      const firstLine = output.split("\n")[0];
+      const port = parseInt(firstLine.split(":").pop()!);
+      if (!isNaN(port)) return port;
+    } catch {
+      if (attempt < 2) await Bun.sleep(500);
+    }
+  }
+  throw new Error(`No published port 80 for container ${name}`);
+}
+
+async function dockerInspectState(name: string): Promise<string> {
+  try {
+    const status = await runDocker(["inspect", "--format", "{{.State.Status}}", name]);
+    // Map Docker states to our states
+    if (status === "running") return "started";
+    if (status === "exited" || status === "dead") return "stopped";
+    return status; // created, paused, restarting, etc.
+  } catch {
+    return "stopped";
+  }
+}
+
+async function dockerStart(name: string): Promise<void> {
+  await runDocker(["start", name]);
+}
+
+async function dockerStop(name: string): Promise<void> {
+  await runDocker(["stop", name]);
+}
+
+async function dockerRm(name: string): Promise<void> {
+  await runDocker(["rm", "-f", name]);
+}
+
+// --- Shared helpers ---
+
+const PROVIDER_ENV_MAP: Record<string, string> = {
+  anthropic: "ANTHROPIC_API_KEY",
+  openai: "OPENAI_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
+};
+
+async function buildMachineEnv(userId: string, extra?: Record<string, string>): Promise<{ env: Record<string, string>; gatewayToken: string }> {
+  const gatewayToken = crypto.randomUUID();
+
+  const userKeys = await db
+    .select({ provider: apiKeys.provider, encryptedKey: apiKeys.encryptedKey })
+    .from(apiKeys)
+    .where(eq(apiKeys.userId, userId));
+
+  const keyEnv: Record<string, string> = {};
+  for (const key of userKeys) {
+    const envVar = PROVIDER_ENV_MAP[key.provider];
+    if (envVar && key.encryptedKey) {
+      keyEnv[envVar] = key.encryptedKey;
+    }
+  }
+
+  return {
+    gatewayToken,
+    env: {
+      ...extra,
+      ...keyEnv,
+      USER_ID: userId,
+      OPENCLAW_GATEWAY_TOKEN: gatewayToken,
+      NEON_AUTH_URL: process.env.NEON_AUTH_URL!,
+      OPENCLAW_STATE_DIR: "/home/node/.openclaw",
+      NODE_OPTIONS: "--max-old-space-size=1536",
+      NODE_ENV: "production",
+    },
+  };
+}
+
+// --- Middleware ---
+
 app.use("*", logger());
 app.use("*", cors());
 
@@ -160,11 +264,7 @@ app.use("/me", authMiddleware);
 app.use("/api-keys", authMiddleware);
 app.use("/api-keys/*", authMiddleware);
 app.use("/machines", authMiddleware);
-app.use("/machines/*", async (c, next) => {
-  // Skip standard auth for WebSocket connect — it uses its own auth
-  if (c.req.path === "/machines/connect") return next();
-  return authMiddleware(c, next);
-});
+app.use("/machines/*", authMiddleware);
 
 app.get("/me", (c) => {
   return c.json({ userId: c.get("userId") });
@@ -222,154 +322,34 @@ app.delete("/api-keys/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-// --- WebSocket Proxy (must be before GET /machines to avoid prefix match) ---
+// --- Connection info (replaces the old WebSocket proxy) ---
 
-app.get(
-  "/machines/connect",
-  upgradeWebSocket((c) => {
-    // Extract token from query param — can't rely on middleware context in WS upgrade
-    const token = c.req.query("token");
-    let backendWs: WebSocket | null = null;
+app.get("/machines/connect-info", async (c) => {
+  const userId = c.get("userId");
 
-    return {
-      async onOpen(_event, ws) {
-        // Verify JWT inline since Hono context doesn't propagate to WS callbacks
-        if (!token) {
-          ws.close(4401, "Unauthorized");
-          return;
-        }
+  const [machine] = await db
+    .select()
+    .from(machines)
+    .where(eq(machines.userId, userId));
 
-        let userId: string;
-        try {
-          const { payload } = await jose.jwtVerify(token, JWKS, {
-            issuer: new URL(process.env.NEON_AUTH_URL!).origin,
-          });
-          if (!payload.sub) {
-            ws.close(4401, "Invalid token");
-            return;
-          }
-          userId = payload.sub;
-        } catch (err) {
-          console.error("WS token verification failed:", err);
-          ws.close(4401, "Invalid token");
-          return;
-        }
+  if (!machine || machine.state === "stopped") {
+    return c.json({ error: "No running machine" }, 404);
+  }
 
-        // Look up user's machine
-        const [machine] = await db
-          .select()
-          .from(machines)
-          .where(eq(machines.userId, userId));
+  const config = machine.config as any;
+  const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
 
-        if (!machine || machine.state === "stopped") {
-          ws.close(4404, "No running machine");
-          return;
-        }
+  let url: string;
+  if (USE_DOCKER) {
+    const dockerPort = config?.dockerPort;
+    if (!dockerPort) return c.json({ error: "Docker port not found" }, 500);
+    url = `ws://localhost:${dockerPort}`;
+  } else {
+    url = `wss://${machine.flyAppName}.fly.dev`;
+  }
 
-        const config = machine.config as any;
-        const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
-
-        // Connect via Flycast (private proxy — handles IPv4/IPv6 translation, no public exposure)
-        const backendUrl = `ws://${machine.flyAppName}.flycast`;
-        backendWs = new WebSocket(backendUrl, {
-          headers: { Origin: "https://rele.to" },
-        } as any);
-
-        let authenticated = false;
-
-        backendWs.onmessage = (event) => {
-          try {
-            const data = JSON.parse(typeof event.data === "string" ? event.data : event.data.toString());
-
-            // Handle OpenClaw connect handshake
-            if (!authenticated) {
-              if (data.type === "event" && data.event === "connect.challenge") {
-                // Skip device auth — gate is a server-side proxy, token auth is sufficient.
-                // Sending a device object triggers pairing flow (PAIRING_REQUIRED) since
-                // the gate generates a fresh keypair on every restart.
-                backendWs!.send(JSON.stringify({
-                  type: "req",
-                  id: "gate-connect",
-                  method: "connect",
-                  params: {
-                    minProtocol: 3,
-                    maxProtocol: 3,
-                    client: {
-                      id: "openclaw-control-ui",
-                      version: "0.1.0",
-                      platform: "linux",
-                      mode: "webchat",
-                    },
-                    role: "operator",
-                    scopes: ["operator.read", "operator.write"],
-                    caps: [],
-                    commands: [],
-                    permissions: {},
-                    auth: { token: gatewayToken },
-                  },
-                }));
-                return;
-              }
-              if (data.type === "res" && data.id === "gate-connect") {
-                if (data.ok) {
-                  authenticated = true;
-                  console.log("OpenClaw gateway authenticated:", JSON.stringify(data.payload));
-                } else {
-                  console.error("OpenClaw auth failed:", data.error);
-                  ws.close(4401, "Backend auth failed");
-                }
-                return;
-              }
-            }
-
-            // Forward all other messages to browser
-            console.log("OC→Client:", typeof event.data === "string" ? event.data.slice(0, 200) : "[binary]");
-            ws.send(typeof event.data === "string" ? event.data : event.data);
-          } catch {
-            // Forward non-JSON as-is
-            try {
-              ws.send(typeof event.data === "string" ? event.data : event.data);
-            } catch {
-              // Client disconnected
-            }
-          }
-        };
-
-        backendWs.onclose = () => {
-          ws.close(1000, "Backend disconnected");
-        };
-
-        backendWs.onerror = (err) => {
-          console.error("Backend WS error:", err);
-          ws.close(4502, "Backend connection failed");
-        };
-      },
-
-      onMessage(event, _ws) {
-        console.log("Client→OC:", typeof event.data === "string" ? (event.data as string).slice(0, 200) : "[binary]");
-        if (backendWs?.readyState === WebSocket.OPEN) {
-          backendWs.send(
-            typeof event.data === "string" ? event.data : event.data
-          );
-        }
-      },
-
-      onClose() {
-        if (backendWs?.readyState === WebSocket.OPEN) {
-          backendWs.close();
-        }
-        backendWs = null;
-      },
-
-      onError() {
-        if (backendWs?.readyState === WebSocket.OPEN) {
-          backendWs.close();
-        }
-        backendWs = null;
-      },
-    };
-  })
-);
+  return c.json({ url, gatewayToken });
+});
 
 // --- Machines ---
 
@@ -380,20 +360,25 @@ app.get("/machines", async (c) => {
     .from(machines)
     .where(eq(machines.userId, userId));
 
-  // Refresh state from Fly for each machine
   const updated = await Promise.all(
     rows.map(async (row) => {
       try {
-        const fly = await flyRequest(
-          `/apps/${row.flyAppName}/machines/${row.flyMachineId}`
-        );
-        if (fly.state !== row.state) {
+        let state: string;
+        if (USE_DOCKER) {
+          state = await dockerInspectState(row.flyAppName);
+        } else {
+          const fly = await flyRequest(
+            `/apps/${row.flyAppName}/machines/${row.flyMachineId}`
+          );
+          state = fly.state;
+        }
+        if (state !== row.state) {
           await db
             .update(machines)
-            .set({ state: fly.state, updatedAt: new Date() })
+            .set({ state, updatedAt: new Date() })
             .where(eq(machines.id, row.id));
         }
-        return { ...row, state: fly.state };
+        return { ...row, state };
       } catch {
         return row;
       }
@@ -429,48 +414,55 @@ app.post("/machines", async (c) => {
     return c.json({ error: "config.image is required" }, 400);
   }
 
-  const region = body.region ?? "sin";
+  const { env, gatewayToken } = await buildMachineEnv(userId, body.config.env);
 
-  const gatewayToken = crypto.randomUUID();
+  if (USE_DOCKER) {
+    const containerName = userAppName(userId);
+    // In Docker mode, always use the local image — the frontend may send a
+    // remote registry reference (e.g. ghcr.io/...) that doesn't exist locally.
+    const image = DOCKER_IMAGE;
 
-  // Fetch user's API keys from the DB and map to env vars
-  const PROVIDER_ENV_MAP: Record<string, string> = {
-    anthropic: "ANTHROPIC_API_KEY",
-    openai: "OPENAI_API_KEY",
-    openrouter: "OPENROUTER_API_KEY",
-  };
-
-  const userKeys = await db
-    .select({ provider: apiKeys.provider, encryptedKey: apiKeys.encryptedKey })
-    .from(apiKeys)
-    .where(eq(apiKeys.userId, userId));
-
-  const keyEnv: Record<string, string> = {};
-  for (const key of userKeys) {
-    const envVar = PROVIDER_ENV_MAP[key.provider];
-    if (envVar && key.encryptedKey) {
-      keyEnv[envVar] = key.encryptedKey;
+    let result: { id: string; port: number };
+    try {
+      result = await dockerRun(containerName, image, env);
+    } catch (err) {
+      console.error("Docker run failed:", err);
+      return c.json({ error: `Docker error: ${err instanceof Error ? err.message : String(err)}` }, 502);
     }
+
+    const machineConfig = { image, env, dockerPort: result.port };
+
+    const [row] = await db
+      .insert(machines)
+      .values({
+        userId,
+        flyMachineId: result.id,
+        flyAppName: containerName,
+        region: "local",
+        state: "started",
+        config: machineConfig,
+      })
+      .returning();
+
+    return c.json(row, 201);
   }
+
+  // --- Fly.io path ---
+  const region = body.region ?? "sin";
 
   const machineConfig = {
     image: body.config.image,
-    env: {
-      ...body.config.env,
-      ...keyEnv,
-      USER_ID: userId,
-      OPENCLAW_GATEWAY_TOKEN: gatewayToken,
-      OPENCLAW_STATE_DIR: "/home/node/.openclaw",
-      NODE_OPTIONS: "--max-old-space-size=1536",
-      NODE_ENV: "production",
-    },
+    env,
     guest: body.config.guest ?? { cpus: 2, memory_mb: 2048, cpu_kind: "shared" },
     metadata: { user_id: userId, fly_process_group: "user" },
     services: [
       {
-        ports: [{ port: 80, handlers: ["http"] }],
+        ports: [
+          { port: 80, handlers: ["http"] },
+          { port: 443, handlers: ["tls", "http"] },
+        ],
         protocol: "tcp",
-        internal_port: 18789,
+        internal_port: 80,
         force_instance_key: null,
       },
     ],
@@ -524,26 +516,29 @@ app.get("/machines/:id", async (c) => {
 
   if (!machine) return c.json({ error: "Not found" }, 404);
 
-  // Fetch live state from Fly
-  let flyMachine: any;
-  try {
-    flyMachine = await flyRequest(
-      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}`
-    );
-  } catch (err) {
-    console.error("Fly API get machine failed:", err);
-    return c.json({ ...machine, flyDetails: null });
+  let state: string;
+  if (USE_DOCKER) {
+    state = await dockerInspectState(machine.flyAppName);
+  } else {
+    try {
+      const fly = await flyRequest(
+        `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}`
+      );
+      state = fly.state;
+    } catch (err) {
+      console.error("Fly API get machine failed:", err);
+      return c.json({ ...machine, flyDetails: null });
+    }
   }
 
-  // Update local state if changed
-  if (flyMachine.state !== machine.state) {
+  if (state !== machine.state) {
     await db
       .update(machines)
-      .set({ state: flyMachine.state, updatedAt: new Date() })
+      .set({ state, updatedAt: new Date() })
       .where(eq(machines.id, id));
   }
 
-  return c.json({ ...machine, state: flyMachine.state, flyDetails: flyMachine });
+  return c.json({ ...machine, state });
 });
 
 app.post("/machines/:id/start", async (c) => {
@@ -558,6 +553,18 @@ app.post("/machines/:id/start", async (c) => {
   if (!machine) return c.json({ error: "Not found" }, 404);
 
   try {
+    if (USE_DOCKER) {
+      await dockerStart(machine.flyAppName);
+      // Port may change after restart — re-read it
+      const port = await dockerPort(machine.flyAppName);
+      const config = { ...(machine.config as any), dockerPort: port };
+      await db
+        .update(machines)
+        .set({ state: "started", config, updatedAt: new Date() })
+        .where(eq(machines.id, id));
+      return c.json({ ...machine, state: "started", config });
+    }
+
     await flyRequest(
       `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/start`,
       { method: "POST" }
@@ -568,8 +575,9 @@ app.post("/machines/:id/start", async (c) => {
       .set({ state: "started", updatedAt: new Date() })
       .where(eq(machines.id, id));
   } catch (err) {
-    console.error("Fly API start machine failed:", err);
-    return c.json({ error: `Fly API error: ${err instanceof Error ? err.message : String(err)}` }, 502);
+    const prefix = USE_DOCKER ? "Docker" : "Fly API";
+    console.error(`${prefix} start machine failed:`, err);
+    return c.json({ error: `${prefix} error: ${err instanceof Error ? err.message : String(err)}` }, 502);
   }
 
   return c.json({ ...machine, state: "started" });
@@ -587,18 +595,23 @@ app.post("/machines/:id/stop", async (c) => {
   if (!machine) return c.json({ error: "Not found" }, 404);
 
   try {
-    await flyRequest(
-      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/stop`,
-      { method: "POST" }
-    );
+    if (USE_DOCKER) {
+      await dockerStop(machine.flyAppName);
+    } else {
+      await flyRequest(
+        `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/stop`,
+        { method: "POST" }
+      );
+    }
 
     await db
       .update(machines)
       .set({ state: "stopping", updatedAt: new Date() })
       .where(eq(machines.id, id));
   } catch (err) {
-    console.error("Fly API stop machine failed:", err);
-    return c.json({ error: `Fly API error: ${err instanceof Error ? err.message : String(err)}` }, 502);
+    const prefix = USE_DOCKER ? "Docker" : "Fly API";
+    console.error(`${prefix} stop machine failed:`, err);
+    return c.json({ error: `${prefix} error: ${err instanceof Error ? err.message : String(err)}` }, 502);
   }
 
   return c.json({ ...machine, state: "stopping" });
@@ -615,50 +628,46 @@ app.delete("/machines/:id", async (c) => {
 
   if (!machine) return c.json({ error: "Not found" }, 404);
 
-  // Stop the machine, wait for it to reach "stopped", then destroy it
   try {
-    await flyRequest(
-      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/stop`,
-      { method: "POST" }
-    );
-
-    // Wait for the machine to actually stop (up to 30s)
-    await flyRequest(
-      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/wait?state=stopped&timeout=30`,
-      { method: "GET" }
-    );
-
-    await flyRequest(
-      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}`,
-      { method: "DELETE" }
-    );
+    if (USE_DOCKER) {
+      await dockerRm(machine.flyAppName);
+    } else {
+      await flyRequest(
+        `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/stop`,
+        { method: "POST" }
+      );
+      await flyRequest(
+        `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/wait?state=stopped&timeout=30`,
+        { method: "GET" }
+      );
+      await flyRequest(
+        `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}`,
+        { method: "DELETE" }
+      );
+    }
   } catch (err) {
-    console.error("Fly API delete machine failed:", err);
-    return c.json({ error: `Fly API error: ${err instanceof Error ? err.message : String(err)}` }, 502);
+    const prefix = USE_DOCKER ? "Docker" : "Fly API";
+    console.error(`${prefix} delete machine failed:`, err);
+    return c.json({ error: `${prefix} error: ${err instanceof Error ? err.message : String(err)}` }, 502);
   }
 
   await db.delete(machines).where(eq(machines.id, id));
 
-  // If this was the user's last machine, clean up the per-user app
-  const remaining = await db
-    .select({ id: machines.id })
-    .from(machines)
-    .where(eq(machines.userId, userId));
+  if (!USE_DOCKER) {
+    const remaining = await db
+      .select({ id: machines.id })
+      .from(machines)
+      .where(eq(machines.userId, userId));
 
-  if (remaining.length === 0) {
-    await deleteUserApp(machine.flyAppName);
+    if (remaining.length === 0) {
+      await deleteUserApp(machine.flyAppName);
+    }
   }
 
   return c.json({ ok: true });
 });
 
-// --- WebSocket Proxy ---
-
-// WS connections can't go through the Next.js proxy, so the browser connects
-// directly to Gate. Accept JWT from query param for WS upgrade requests.
-
 export default {
   port: process.env.PORT ?? 3001,
   fetch: app.fetch,
-  websocket,
 };
