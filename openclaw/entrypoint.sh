@@ -8,6 +8,11 @@ if [ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]; then
   exit 1
 fi
 
+if [ -z "${NEON_AUTH_URL:-}" ]; then
+  echo "ERROR: NEON_AUTH_URL is missing" >&2
+  exit 1
+fi
+
 CONFIG_DIR="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}"
 CONFIG_FILE="$CONFIG_DIR/openclaw.json"
 
@@ -24,6 +29,10 @@ fi
 sed -i "s|OPENCLAW_GATEWAY_TOKEN_PLACEHOLDER|$OPENCLAW_GATEWAY_TOKEN|" "$CONFIG_FILE"
 
 echo "Config ready at $CONFIG_FILE"
+
+# Start auth proxy (port 80 → OpenClaw on 18789, validates JWT)
+echo "Starting auth proxy..."
+node /opt/openclaw/auth-server.mjs &
 
 echo "Launching Gateway..."
 exec node dist/index.js gateway run

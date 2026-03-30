@@ -32,7 +32,7 @@
     },
     "controlUi": {
       "enabled": true,
-      "allowedOrigins": ["https://rele.to"],
+      "allowedOrigins": ["https://rele.to", "http://localhost:3000"],
       "allowInsecureAuth": true,
       "dangerouslyDisableDeviceAuth": true
     }

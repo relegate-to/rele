@@ -13,17 +13,27 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Get a fresh JWT for the WebSocket connection
+  // Get a fresh JWT for the direct instance connection
   const { data: tokenData, error: tokenError } = await auth.token();
   if (tokenError || !tokenData?.token) {
     return NextResponse.json({ error: "Failed to obtain token" }, { status: 502 });
   }
 
-  // Convert HTTP Gate URL to WebSocket URL
-  const wsUrl = GATE_URL.replace(/^http/, "ws").replace(/\/$/, "");
+  // Fetch connection info from Gate (instance URL + gateway token)
+  const res = await fetch(`${GATE_URL}/machines/connect-info`, {
+    headers: { Authorization: `Bearer ${tokenData.token}` },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Failed to get connection info" }));
+    return NextResponse.json(err, { status: res.status });
+  }
+
+  const { url, gatewayToken } = await res.json();
 
   return NextResponse.json({
-    url: `${wsUrl}/machines/connect`,
+    url,
     token: tokenData.token,
+    gatewayToken,
   });
 }

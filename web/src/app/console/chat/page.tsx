@@ -121,7 +121,7 @@ export default function ChatPage() {
         {!connected && !connecting && isRunning && (
           <button
             onClick={() => connect()}
-            className="ml-1 font-[var(--font-dm-mono),monospace] text-[11px] text-[var(--copper)] hover:underline"
+            className="ml-1 font-[var(--font-dm-mono),monospace] text-[11px] text-[var(--accent)] hover:underline"
           >
             {error ? "Retry" : "Connect"}
           </button>
@@ -157,7 +157,7 @@ export default function ChatPage() {
               transition={{ duration: 0.5, ease: EASE, delay: 0.1 }}
               className="flex flex-col items-center justify-center pt-[20vh]"
             >
-              <h2 className="font-['Lora',Georgia,serif] text-2xl italic text-[var(--text)]">
+              <h2 className="text-2xl font-semibold text-[var(--text)]">
                 What can I help with?
               </h2>
               <p className="mt-2 text-sm text-[var(--muted)]">
@@ -178,7 +178,7 @@ export default function ChatPage() {
                 {msg.role === "user" ? (
                   /* User message — right-aligned pill */
                   <div className="flex justify-end">
-                    <div className="max-w-[80%] rounded-2xl rounded-br-md bg-[var(--copper)] px-4 py-2.5 shadow-sm">
+                    <div className="max-w-[80%] rounded-2xl rounded-br-md bg-[var(--accent)] px-4 py-2.5 shadow-sm">
                       <p className="font-[var(--font-dm-mono),monospace] text-sm leading-relaxed text-white whitespace-pre-wrap">
                         {msg.content}
                       </p>
@@ -195,7 +195,7 @@ export default function ChatPage() {
                         [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3
                         [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3
                         [&_li]:mb-1.5 [&_li]:leading-relaxed
-                        [&_a]:text-[var(--copper)] [&_a]:underline [&_a]:underline-offset-2
+                        [&_a]:text-[var(--accent)] [&_a]:underline [&_a]:underline-offset-2
                         [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mb-3 [&_h1]:mt-4 [&_h1:first-child]:mt-0
                         [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2:first-child]:mt-0
                         [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-2
@@ -203,7 +203,7 @@ export default function ChatPage() {
                         [&_pre]:bg-[var(--surface)] [&_pre]:border [&_pre]:border-[var(--border)] [&_pre]:p-4 [&_pre]:rounded-xl [&_pre]:mb-3 [&_pre]:overflow-x-auto
                         [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs
                         [&_hr]:border-[var(--border)] [&_hr]:my-4
-                        [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--copper)]/30 [&_blockquote]:pl-4 [&_blockquote]:text-[var(--text-dim)] [&_blockquote]:italic
+                        [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--accent)]/30 [&_blockquote]:pl-4 [&_blockquote]:text-[var(--text-dim)] [&_blockquote]:italic
                       "
                     >
                       <Markdown>{msg.content}</Markdown>
@@ -245,7 +245,7 @@ export default function ChatPage() {
               relative flex items-end gap-2 rounded-2xl border bg-[var(--surface)] p-2 pl-4
               shadow-[0_2px_12px_rgba(0,0,0,0.04),0_0_0_1px_var(--border)]
               transition-shadow duration-200
-              focus-within:shadow-[0_2px_20px_rgba(200,132,90,0.08),0_0_0_1px_var(--copper)]
+              focus-within:shadow-[0_2px_20px_rgba(99,102,241,0.1),0_0_0_1px_var(--accent)]
               ${!connected ? "opacity-60" : ""}
             `}
           >
@@ -270,10 +270,10 @@ export default function ChatPage() {
               disabled={!connected || !input.trim()}
               className="
                 flex size-8 shrink-0 items-center justify-center rounded-xl
-                bg-[var(--copper)] text-white
+                bg-[var(--accent)] text-white
                 transition-all duration-150
-                hover:bg-[var(--copper-dim)]
-                disabled:opacity-30 disabled:hover:bg-[var(--copper)]
+                hover:bg-[var(--accent-dim)]
+                disabled:opacity-30 disabled:hover:bg-[var(--accent)]
                 active:scale-95
               "
             >

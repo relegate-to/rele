@@ -38,10 +38,10 @@ export default function DashboardPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-['Lora',Georgia,serif] text-2xl italic tracking-[-0.01em]">
+              <h1 className="text-2xl font-semibold tracking-[-0.01em]">
                 Dashboard
               </h1>
-              <p className="mt-1 font-[var(--font-crimson-pro),serif] text-base text-[var(--text-dim)]">
+              <p className="mt-1 text-base text-[var(--text-dim)]">
                 Manage your OpenClaw instance.
               </p>
             </div>
@@ -49,7 +49,7 @@ export default function DashboardPage() {
               {isRunning && (
                 <button
                   onClick={() => router.push("/console/chat")}
-                  className="rounded-lg bg-[var(--copper)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
                 >
                   <Mono>Open Chat</Mono>
                 </button>
@@ -81,7 +81,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <p className="text-center font-[var(--font-crimson-pro),serif] text-sm italic text-[var(--muted)]">
+          <p className="text-center text-sm text-[var(--muted)]">
             More here soon.
           </p>
         </motion.div>

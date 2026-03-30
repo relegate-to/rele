@@ -21,7 +21,7 @@ export default function StatusPage() {
   if (loading || machines.length === 0) return null;
 
   return (
-    <div className="relative min-h-[calc(100svh-3rem)] bg-[var(--bg)] text-[var(--text)] font-[var(--font-crimson-pro),serif] font-light">
+    <div className="relative min-h-[calc(100svh-3rem)] bg-[var(--bg)] text-[var(--text)]">
       <div className="relative z-10 max-w-[820px] mx-auto px-8 py-16">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
