@@ -15,10 +15,10 @@ if (!USER_ID) {
   process.exit(1);
 }
 
-const UPSTREAM = "http://127.0.0.1:18789";
+const UPSTREAM = "http://localhost:18789";
 
 const JWKS = createRemoteJWKSet(
-  new URL(`${NEON_AUTH_URL}/.well-known/jwks.json`)
+  new URL(`${NEON_AUTH_URL}/.well-known/jwks.json`),
 );
 const issuer = new URL(NEON_AUTH_URL).origin;
 
@@ -68,7 +68,7 @@ const server = createServer(async (req, res) => {
     (upstreamRes) => {
       res.writeHead(upstreamRes.statusCode, upstreamRes.headers);
       upstreamRes.pipe(res);
-    }
+    },
   );
 
   upstreamReq.on("error", (err) => {
@@ -97,7 +97,7 @@ server.on("upgrade", async (req, socket, head) => {
   const upstreamPath = url.pathname + url.search;
 
   // Connect to upstream WebSocket
-  const upstream = netConnect(18789, "127.0.0.1", () => {
+  const upstream = netConnect(18789, "localhost", () => {
     // Forward the upgrade request
     let reqLine = `${req.method} ${upstreamPath} HTTP/1.1\r\n`;
     for (let i = 0; i < req.rawHeaders.length; i += 2) {
