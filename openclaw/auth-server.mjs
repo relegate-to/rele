@@ -87,15 +87,13 @@ const server = createServer(async (req, res) => {
     `${UPSTREAM}${upstreamPath}`,
     {
       method: req.method,
-      headers: {
-        ...req.headers,
-        host: "localhost:18789",
-        "x-auth-user": userId,
-        "x-forwarded-for": undefined,
-        "x-forwarded-proto": undefined,
-        "x-forwarded-host": undefined,
-        "x-forwarded-user": undefined,
-      },
+      headers: Object.fromEntries(
+        Object.entries({
+          ...req.headers,
+          host: "localhost:18789",
+          "x-auth-user": userId,
+        }).filter(([k]) => !["x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-forwarded-user"].includes(k))
+      ),
     },
     (upstreamRes) => {
       const headers = { ...upstreamRes.headers };
