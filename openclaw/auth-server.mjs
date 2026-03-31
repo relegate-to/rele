@@ -162,9 +162,6 @@ server.on("upgrade", async (req, socket, head) => {
       const keyLower = key.toLowerCase();
       if (keyLower === "host") {
         reqLine += `Host: localhost:18789\r\n`;
-      } else if (keyLower === "origin") {
-        // Rewrite to trusted origin so OpenClaw accepts the WS upgrade
-        reqLine += `Origin: http://localhost:18789\r\n`;
       } else if (!WS_STRIP_HEADERS.has(keyLower)) {
         reqLine += `${key}: ${req.rawHeaders[i + 1]}\r\n`;
       }
