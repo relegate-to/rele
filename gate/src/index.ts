@@ -415,6 +415,12 @@ app.post("/machines", async (c) => {
 
   const { env, gatewayToken } = await buildMachineEnv(userId, body.config.env);
 
+  if (!USE_DOCKER) {
+    // Route agent tool calls through auth proxy (port 80) instead of directly
+    // to gateway (18789) so they get the required x-auth-user header.
+    env.OPENCLAW_GATEWAY_URL = "ws://127.0.0.1:80";
+  }
+
   if (USE_DOCKER) {
     const containerName = userAppName(userId);
     // In Docker mode, always use the local image — the frontend may send a
