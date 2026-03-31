@@ -7,7 +7,8 @@
     "web"
   ],
   "scripts": {
-    "dev": "concurrently \"bun run --silent --filter web dev\" \"bun run --silent --filter gate dev\"",
+    "build:openclaw": "docker build -t rele-openclaw:latest ./openclaw",
+    "dev": "bun run build:openclaw && concurrently \"bun run --silent --filter web dev\" \"bun run --silent --filter gate dev\"",
     "dev:gate": "bun run --filter gate dev",
     "build:gate": "bun run --filter gate build",
     "start:gate": "bun run --filter gate start"

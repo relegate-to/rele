@@ -26,13 +26,16 @@
     "mode": "local",
     "bind": "loopback",
     "port": 18789,
+    "trustedProxies": ["127.0.0.1", "::1"],
     "auth": {
-      "mode": "token",
-      "token": "OPENCLAW_GATEWAY_TOKEN_PLACEHOLDER"
+      "mode": "trusted-proxy",
+      "trustedProxy": {
+        "userHeader": "x-auth-user"
+      }
     },
     "controlUi": {
       "enabled": true,
-      "allowedOrigins": ["https://rele.to", "http://localhost:3000"],
+      "allowedOrigins": ["https://rele.to", "http://localhost:3000", "http://localhost:18790"],
       "allowInsecureAuth": true,
       "dangerouslyDisableDeviceAuth": true
     }

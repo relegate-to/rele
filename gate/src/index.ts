@@ -167,9 +167,8 @@ async function runDocker(args: string[]): Promise<string> {
 
 async function dockerRun(name: string, image: string, env: Record<string, string>): Promise<{ id: string; port: number }> {
   const envArgs = Object.entries(env).flatMap(([k, v]) => ["-e", `${k}=${v}`]);
-  const id = await runDocker(["run", "-d", "--name", name, "-P", ...envArgs, image]);
-  const port = await dockerPort(name);
-  return { id, port };
+  const id = await runDocker(["run", "-d", "--name", name, "-p", "18790:80", ...envArgs, image]);
+  return { id, port: 18790 };
 }
 
 async function dockerPort(name: string): Promise<number> {
