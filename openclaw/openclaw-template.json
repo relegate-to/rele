@@ -63,6 +63,7 @@
     },
     "auth": {
       "mode": "trusted-proxy",
+      "token": "OPENCLAW_GATEWAY_TOKEN_PLACEHOLDER",
       "trustedProxy": {
         "userHeader": "x-auth-user"
       }
