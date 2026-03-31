@@ -86,7 +86,7 @@ const server = createServer(async (req, res) => {
   // Rewrite Origin to a value OpenClaw trusts (the proxy already handles auth),
   // then fix up the CORS response to match the real origin the browser sent.
   const realOrigin = req.headers["origin"];
-  const STRIP_HEADERS = ["x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-forwarded-user"];
+  const STRIP_HEADERS = ["x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-forwarded-user", "referer"];
 
   const upstreamReq = httpRequest(
     `${UPSTREAM}${upstreamPath}`,
@@ -162,6 +162,8 @@ server.on("upgrade", async (req, socket, head) => {
       const keyLower = key.toLowerCase();
       if (keyLower === "host") {
         reqLine += `Host: localhost:18789\r\n`;
+      } else if (keyLower === "origin") {
+        reqLine += `Origin: https://rele.to\r\n`;
       } else if (!WS_STRIP_HEADERS.has(keyLower)) {
         reqLine += `${key}: ${req.rawHeaders[i + 1]}\r\n`;
       }
