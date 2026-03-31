@@ -83,6 +83,11 @@ const server = createServer(async (req, res) => {
   url.searchParams.delete("token");
   const upstreamPath = url.pathname + url.search;
 
+  // Rewrite Origin to a value OpenClaw trusts (the proxy already handles auth),
+  // then fix up the CORS response to match the real origin the browser sent.
+  const realOrigin = req.headers["origin"];
+  const STRIP_HEADERS = ["x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-forwarded-user"];
+
   const upstreamReq = httpRequest(
     `${UPSTREAM}${upstreamPath}`,
     {
@@ -92,11 +97,17 @@ const server = createServer(async (req, res) => {
           ...req.headers,
           host: "localhost:18789",
           "x-auth-user": userId,
-        }).filter(([k]) => !["x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-forwarded-user"].includes(k))
+          ...(realOrigin ? { origin: "http://localhost:18789" } : {}),
+        }).filter(([k]) => !STRIP_HEADERS.includes(k))
       ),
     },
     (upstreamRes) => {
       const headers = { ...upstreamRes.headers };
+
+      // Swap CORS origin back to the real one so the browser accepts it
+      if (realOrigin && headers["access-control-allow-origin"]) {
+        headers["access-control-allow-origin"] = realOrigin;
+      }
 
       // Set session cookie when auth came from ?token= so subsequent
       // asset requests (which have no token) are also authenticated
@@ -151,6 +162,9 @@ server.on("upgrade", async (req, socket, head) => {
       const keyLower = key.toLowerCase();
       if (keyLower === "host") {
         reqLine += `Host: localhost:18789\r\n`;
+      } else if (keyLower === "origin") {
+        // Rewrite to trusted origin so OpenClaw accepts the WS upgrade
+        reqLine += `Origin: http://localhost:18789\r\n`;
       } else if (!WS_STRIP_HEADERS.has(keyLower)) {
         reqLine += `${key}: ${req.rawHeaders[i + 1]}\r\n`;
       }
