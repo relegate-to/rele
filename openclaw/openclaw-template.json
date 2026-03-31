@@ -1,4 +1,20 @@
 {
+  "meta": {
+    "lastTouchedVersion": "2026.3.13",
+    "lastTouchedAt": "2026-03-31T05:07:40.823Z"
+  },
+  "logging": {
+    "level": "debug",
+    "consoleLevel": "debug"
+  },
+  "auth": {
+    "profiles": {
+      "anthropic:default": {
+        "provider": "anthropic",
+        "mode": "token"
+      }
+    }
+  },
   "agents": {
     "defaults": {
       "model": {
@@ -9,35 +25,48 @@
     "list": [
       {
         "id": "main",
-        "default": true
+        "default": true,
+        "identity": {
+          "emoji": "🦊"
+        }
       }
     ]
   },
-  "auth": {
-    "profiles": {
-      "anthropic:default": { "mode": "token", "provider": "anthropic" }
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true,
+    "ownerDisplay": "raw"
+  },
+  "channels": {
+    "whatsapp": {
+      "enabled": true,
+      "dmPolicy": "pairing",
+      "groupPolicy": "disabled",
+      "debounceMs": 0,
+      "mediaMaxMb": 50
     }
   },
-  "logging": {
-    "level": "debug",
-    "consoleLevel": "debug"
-  },
   "gateway": {
+    "port": 18789,
     "mode": "local",
     "bind": "loopback",
-    "port": 18789,
-    "trustedProxies": ["127.0.0.1", "::1"],
+    "controlUi": {
+      "enabled": true,
+      "allowedOrigins": [
+        "https://rele.to",
+        "http://localhost:3000",
+        "http://localhost:18790"
+      ],
+      "allowInsecureAuth": true,
+      "dangerouslyDisableDeviceAuth": true
+    },
     "auth": {
       "mode": "trusted-proxy",
       "trustedProxy": {
         "userHeader": "x-auth-user"
       }
     },
-    "controlUi": {
-      "enabled": true,
-      "allowedOrigins": ["https://rele.to", "http://localhost:3000", "http://localhost:18790"],
-      "allowInsecureAuth": true,
-      "dangerouslyDisableDeviceAuth": true
-    }
+    "trustedProxies": ["127.0.0.1", "::1"]
   }
 }

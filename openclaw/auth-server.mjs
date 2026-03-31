@@ -91,6 +91,10 @@ const server = createServer(async (req, res) => {
         ...req.headers,
         host: "localhost:18789",
         "x-auth-user": userId,
+        "x-forwarded-for": undefined,
+        "x-forwarded-proto": undefined,
+        "x-forwarded-host": undefined,
+        "x-forwarded-user": undefined,
       },
     },
     (upstreamRes) => {
@@ -134,13 +138,22 @@ server.on("upgrade", async (req, socket, head) => {
   url.searchParams.delete("token");
   const upstreamPath = url.pathname + url.search;
 
+  const WS_STRIP_HEADERS = new Set([
+    "x-auth-user",
+    "x-forwarded-for",
+    "x-forwarded-proto",
+    "x-forwarded-host",
+    "x-forwarded-user",
+  ]);
+
   const upstream = netConnect(18789, "127.0.0.1", () => {
     let reqLine = `${req.method} ${upstreamPath} HTTP/1.1\r\n`;
     for (let i = 0; i < req.rawHeaders.length; i += 2) {
       const key = req.rawHeaders[i];
-      if (key.toLowerCase() === "host") {
+      const keyLower = key.toLowerCase();
+      if (keyLower === "host") {
         reqLine += `Host: localhost:18789\r\n`;
-      } else {
+      } else if (!WS_STRIP_HEADERS.has(keyLower)) {
         reqLine += `${key}: ${req.rawHeaders[i + 1]}\r\n`;
       }
     }
