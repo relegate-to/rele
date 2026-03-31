@@ -42,7 +42,18 @@ async function verifyJwt(raw) {
   }
 }
 
+function isLoopback(req) {
+  const addr = req.socket?.remoteAddress;
+  return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1";
+}
+
 async function authenticate(req) {
+  // Trust loopback connections (internal agent tool calls) — they have no JWT
+  // but are already on the same machine and inherently trusted.
+  if (isLoopback(req) && !req.headers["origin"]) {
+    return { userId: USER_ID, sessionToken: null };
+  }
+
   const url = new URL(req.url, "http://localhost");
 
   // 1. Authorization header
