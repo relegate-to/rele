@@ -53,6 +53,7 @@
     "bind": "loopback",
     "controlUi": {
       "enabled": true,
+      "basePath": "/__openclaw__",
       "allowedOrigins": [
         "https://rele.to",
         "http://localhost:3000",
