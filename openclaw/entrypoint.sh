@@ -25,20 +25,24 @@ if [ ! -f "$CONFIG_FILE" ]; then
   echo "Default config created at $CONFIG_FILE"
 fi
 
-# Inject the gateway token into the config file
-sed -i "s|OPENCLAW_GATEWAY_TOKEN_PLACEHOLDER|$OPENCLAW_GATEWAY_TOKEN|" "$CONFIG_FILE"
+# Inject runtime values into config (always, so existing configs stay up to date)
+node -e "
+  const fs = require('fs');
+  const cfg = JSON.parse(fs.readFileSync('$CONFIG_FILE', 'utf8'));
 
-# Inject the public URL so OpenClaw generates correct webhook URLs
-if [ -n "${FLY_APP_NAME:-}" ]; then
-  PUBLIC_URL="https://${FLY_APP_NAME}.fly.dev"
-  echo "Setting gateway.remote.url to $PUBLIC_URL"
-  node -e "
-    const fs = require('fs');
-    const cfg = JSON.parse(fs.readFileSync('$CONFIG_FILE', 'utf8'));
-    cfg.gateway.remote = { url: '$PUBLIC_URL' };
-    fs.writeFileSync('$CONFIG_FILE', JSON.stringify(cfg, null, 2) + '\n');
-  "
-fi
+  // Gateway auth token for internal agent calls
+  cfg.gateway.auth = cfg.gateway.auth || {};
+  cfg.gateway.auth.token = '$OPENCLAW_GATEWAY_TOKEN';
+
+  // Public URL so OpenClaw generates correct webhook/callback URLs
+  const appName = '${FLY_APP_NAME:-}';
+  if (appName) {
+    cfg.gateway.remote = { url: 'https://' + appName + '.fly.dev' };
+  }
+
+  fs.writeFileSync('$CONFIG_FILE', JSON.stringify(cfg, null, 2) + '\n');
+"
+echo "Runtime config values injected"
 
 echo "Config ready at $CONFIG_FILE"
 

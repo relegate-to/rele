@@ -18,7 +18,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/anthropic/claude-sonnet-4-5"
+        "primary": "openrouter/anthropic/claude-haiku-4-5"
       },
       "workspace": "/home/node/.openclaw/workspace"
     },
@@ -64,7 +64,7 @@
     },
     "auth": {
       "mode": "trusted-proxy",
-      "token": "OPENCLAW_GATEWAY_TOKEN_PLACEHOLDER",
+      "token": "",
       "trustedProxy": {
         "userHeader": "x-auth-user"
       }
