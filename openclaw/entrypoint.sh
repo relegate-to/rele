@@ -30,7 +30,7 @@ node -e "
   const fs = require('fs');
   const cfg = JSON.parse(fs.readFileSync('$CONFIG_FILE', 'utf8'));
 
-  // Gateway auth token for internal agent calls
+  // Gateway auth token — used by the internal agent as fallback in trusted-proxy mode
   cfg.gateway.auth = cfg.gateway.auth || {};
   cfg.gateway.auth.token = '$OPENCLAW_GATEWAY_TOKEN';
 
