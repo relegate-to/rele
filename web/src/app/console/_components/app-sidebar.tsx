@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState, useEffect } from "react";
-import { ActivityIcon, CheckCircle2Icon, LayoutGridIcon, MessageSquareIcon, MonitorIcon, SettingsIcon, SparklesIcon } from "lucide-react";
+import { ActivityIcon, CheckCircle2Icon, ExternalLinkIcon, LayoutGridIcon, MessageSquareIcon, MonitorIcon, SettingsIcon, SparklesIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -246,8 +246,9 @@ export function AppSidebar() {
               {NAV_ITEMS.map((item) => {
                 const active = pathname === item.href;
                 const disabled = !hasInstances;
+                const isControlUi = item.href === "/console/control-ui";
                 return (
-                  <SidebarMenuItem key={item.href}>
+                  <SidebarMenuItem key={item.href} className={isControlUi ? "group/control-ui" : undefined}>
                     <SidebarMenuButton
                       isActive={active}
                       tooltip={disabled ? "Create an instance first" : item.label}
@@ -257,12 +258,39 @@ export function AppSidebar() {
                         "h-9 gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
                         "data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary data-[active]:ring-sidebar-primary/40 data-[active]:shadow-[0_1px_6px_rgba(0,0,0,0.18)]",
                         !active && "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                        disabled && "pointer-events-none opacity-35"
+                        disabled && "pointer-events-none opacity-35",
+                        isControlUi && "pr-8"
                       )}
                     >
                       <item.icon className="size-4 shrink-0" />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
+                    {isControlUi && (
+                      <button
+                        className={cn(
+                          "absolute right-1.5 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-md",
+                          "text-sidebar-foreground/35 transition-colors",
+                          "hover:text-sidebar-foreground",
+                          disabled && "pointer-events-none"
+                        )}
+                        title="Open in new tab"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try {
+                            const r = await fetch("/api/gate/ws-auth");
+                            const data = await r.json() as { url?: string; token?: string; gatewayToken?: string; error?: string };
+                            if (!r.ok || !data.url || !data.token || !data.gatewayToken) throw new Error(data.error ?? "Failed");
+                            const httpBase = data.url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+                            window.open(`${httpBase}/__openclaw__/?jwt=${encodeURIComponent(data.token)}&token=${encodeURIComponent(data.gatewayToken)}`, "_blank");
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                      >
+                        <ExternalLinkIcon className="size-3.5" />
+                      </button>
+                    )}
                   </SidebarMenuItem>
                 );
               })}

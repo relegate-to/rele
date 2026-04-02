@@ -130,24 +130,6 @@ export default function ChatPage() {
         </div>
       </motion.div>
 
-      {/* Error banner */}
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mx-auto w-full max-w-4xl overflow-hidden"
-          >
-            <div className="mx-6 mb-2 rounded-lg bg-[var(--status-error-bg)] border border-[var(--status-error-border)] px-4 py-2.5">
-              <span className="font-[var(--font-dm-mono),monospace] text-xs text-[var(--status-error-text)]">
-                {error}
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-4xl px-6 py-6">
@@ -236,6 +218,23 @@ export default function ChatPage() {
 
       {/* Composer */}
       <div className="px-6 pb-5 pt-2">
+        {/* Error banner */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mx-auto w-full max-w-4xl overflow-hidden"
+            >
+              <div className="mb-2 rounded-lg bg-[var(--status-error-bg)] border border-[var(--status-error-border)] px-4 py-2.5">
+                <span className="font-[var(--font-dm-mono),monospace] text-xs text-[var(--status-error-text)]">
+                  {error}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
