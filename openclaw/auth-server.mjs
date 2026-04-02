@@ -75,8 +75,19 @@ async function authenticate(req) {
   return null;
 }
 
+function isPairingPath(url) {
+  const path = new URL(url, "http://localhost").pathname;
+  return (
+    path === "/devices/pair" ||
+    path === "/devices/list" ||
+    path === "/qr" ||
+    path.startsWith("/api/devices/")
+  );
+}
+
 const server = createServer(async (req, res) => {
-  const result = await authenticate(req);
+  const pairing = isPairingPath(req.url);
+  const result = pairing ? { sessionToken: null } : await authenticate(req);
   if (!result) {
     res.writeHead(401, { "Content-Type": "text/plain" });
     return res.end("Unauthorized");
@@ -138,7 +149,7 @@ const server = createServer(async (req, res) => {
 
 // Handle WebSocket upgrades
 server.on("upgrade", async (req, socket, head) => {
-  const result = await authenticate(req);
+  const result = isPairingPath(req.url) ? {} : await authenticate(req);
   if (!result) {
     socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
     socket.destroy();
