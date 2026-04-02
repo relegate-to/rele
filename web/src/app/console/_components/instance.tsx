@@ -41,7 +41,7 @@ const statusConfig: Record<
   running: {
     icon:    "border-status-warning/30 bg-status-warning-bg text-status-warning shadow-[0_0_8px_var(--status-success-border)]",
     dot:     "bg-status-success",
-    outline: "border-status-warning/30 hover:border-status-warning/50",
+    outline: "border-sidebar-border hover:border-sidebar-border/80",
     pulseColor: "var(--status-success-border)",
   },
   provisioning: {
@@ -191,7 +191,7 @@ function InstanceIcon({ status }: { status: InstanceStatus }) {
   return (
     <div
       className={cn(
-        "relative flex size-8 shrink-0 items-center justify-center rounded-lg border font-sans text-sm italic transition-shadow duration-500",
+        "relative flex size-9 shrink-0 items-center justify-center rounded-lg border font-sans text-sm italic transition-shadow duration-500",
         icon
       )}
     >
@@ -211,7 +211,7 @@ function InstanceMeta({ instance }: { instance: Instance }) {
 
   if (status === "running") {
     return (
-      <p className="truncate text-xs text-status-warning">
+      <p className="truncate text-xs text-sidebar-foreground/45">
         {uptime ?? "running"}
       </p>
     )
@@ -341,7 +341,8 @@ export function InstanceItem({
         isActive={isActive}
         onClick={onClick}
         className={cn(
-          "group/item relative h-auto items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-colors overflow-hidden",
+          "group/item relative h-auto items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors overflow-hidden",
+          "data-[active]:bg-sidebar-foreground/[0.03] data-[active]:ring-0 data-[active]:shadow-none",
           outline
         )}
       >

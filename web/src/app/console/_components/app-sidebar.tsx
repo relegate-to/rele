@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState, useEffect } from "react";
-import { ActivityIcon, CheckCircle2Icon, LayoutDashboardIcon, MessageSquareIcon, MonitorIcon, SettingsIcon, SparklesIcon } from "lucide-react";
+import { ActivityIcon, CheckCircle2Icon, LayoutGridIcon, MessageSquareIcon, MonitorIcon, SettingsIcon, SparklesIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { label: "Dashboard",  href: "/console/dashboard",   icon: LayoutDashboardIcon },
+  { label: "Dashboard",  href: "/console/dashboard",   icon: LayoutGridIcon },
   { label: "Chat",       href: "/console/chat",        icon: MessageSquareIcon },
   { label: "Control UI", href: "/console/control-ui",  icon: MonitorIcon },
 ] as const;
@@ -183,7 +183,7 @@ export function AppSidebar() {
     <Sidebar variant="floating">
 
       {/* Wordmark */}
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-[9px]">
         <div className="flex items-center gap-2">
           <div className="flex size-6 shrink-0 items-center justify-center rounded-[5px] border border-[var(--accent)]/30 bg-[var(--accent-subtle)] text-xs font-semibold text-[var(--accent)]">
             r
@@ -191,6 +191,7 @@ export function AppSidebar() {
           <span className="text-base font-semibold tracking-[-0.01em] text-sidebar-foreground">
             rele
           </span>
+          <span className="text-xs text-sidebar-foreground/25">·</span>
           <span className="text-xs text-sidebar-foreground/30">
             console
           </span>
@@ -254,13 +255,12 @@ export function AppSidebar() {
                       aria-disabled={disabled}
                       className={cn(
                         "h-9 gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
-                        active
-                          ? "bg-[var(--accent)]/8 text-[var(--accent)]"
-                          : "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                        "data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary data-[active]:ring-sidebar-primary/40 data-[active]:shadow-[0_1px_6px_rgba(0,0,0,0.18)]",
+                        !active && "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                         disabled && "pointer-events-none opacity-35"
                       )}
                     >
-                      <item.icon className={cn("size-4 shrink-0", active ? "opacity-100" : "opacity-60")} />
+                      <item.icon className="size-4 shrink-0" />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -276,12 +276,11 @@ export function AppSidebar() {
                       render={<Link href={item.href} />}
                       className={cn(
                         "h-9 gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
-                        active
-                          ? "bg-[var(--accent)]/8 text-[var(--accent)]"
-                          : "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                        "data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary data-[active]:ring-sidebar-primary/40 data-[active]:shadow-[0_1px_6px_rgba(0,0,0,0.18)]",
+                        !active && "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                       )}
                     >
-                      <item.icon className={cn("size-4 shrink-0", active ? "opacity-100" : "opacity-60")} />
+                      <item.icon className="size-4 shrink-0" />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

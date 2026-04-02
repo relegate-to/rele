@@ -98,34 +98,36 @@ export default function ChatPage() {
   if (loading || !machine) return null;
 
   return (
-    <div className="flex h-[100svh] flex-col bg-[var(--bg)] text-[var(--text)]">
-      {/* Minimal status bar */}
+    <div className="relative flex h-[100svh] flex-col bg-[var(--bg)] text-[var(--text)]">
+      {/* Floating status pill */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: EASE }}
-        className="flex items-center justify-center gap-2 px-6 py-2.5"
+        className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2"
       >
-        <span
-          className={`size-1.5 rounded-full transition-colors duration-300 ${
-            connected
-              ? "bg-[var(--status-success)]"
-              : connecting
-                ? "bg-[var(--status-warning)] animate-pulse"
-                : "bg-[var(--status-neutral)]"
-          }`}
-        />
-        <span className="font-[var(--font-dm-mono),monospace] text-[11px] tracking-wide text-[var(--muted)]">
-          {connected ? "Connected" : connecting ? "Connecting..." : "Disconnected"}
-        </span>
-        {!connected && !connecting && isRunning && (
-          <button
-            onClick={() => connect()}
-            className="ml-1 font-[var(--font-dm-mono),monospace] text-[11px] text-[var(--accent)] hover:underline"
-          >
-            {error ? "Retry" : "Connect"}
-          </button>
-        )}
+        <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)]/80 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+          <span
+            className={`size-1.5 rounded-full transition-colors duration-300 ${
+              connected
+                ? "bg-[var(--status-success)]"
+                : connecting
+                  ? "bg-[var(--status-warning)] animate-pulse"
+                  : "bg-[var(--status-neutral)]"
+            }`}
+          />
+          <span className="font-[var(--font-dm-mono),monospace] text-[11px] tracking-wide text-[var(--muted)]">
+            {connected ? "Connected" : connecting ? "Connecting..." : "Disconnected"}
+          </span>
+          {!connected && !connecting && isRunning && (
+            <button
+              onClick={() => connect()}
+              className="ml-0.5 font-[var(--font-dm-mono),monospace] text-[11px] text-[var(--accent)] hover:underline"
+            >
+              {error ? "Retry" : "Connect"}
+            </button>
+          )}
+        </div>
       </motion.div>
 
       {/* Error banner */}

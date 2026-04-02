@@ -7,6 +7,7 @@ export default function ControlUiPage() {
   const { machines, loading } = useMachinesContext();
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [iframeReady, setIframeReady] = useState(false);
   const router = useRouter();
   const fetched = useRef(false);
 
@@ -37,19 +38,17 @@ export default function ControlUiPage() {
     );
   }
 
-  if (!src) {
-    return (
-      <div className="flex h-[100svh] items-center justify-center">
-        <p className="font-mono text-sm text-[var(--muted)]">Loading control UI…</p>
-      </div>
-    );
-  }
-
   return (
-    <iframe
-      src={src}
-      className="w-full h-[100svh] border-0"
-      allow="clipboard-read; clipboard-write"
-    />
+    <div className="h-[100svh] w-full">
+      {src && (
+        <iframe
+          src={src}
+          className="h-full w-full border-0 transition-opacity duration-500"
+          style={{ opacity: iframeReady ? 1 : 0 }}
+          allow="clipboard-read; clipboard-write"
+          onLoad={() => setIframeReady(true)}
+        />
+      )}
+    </div>
   );
 }
