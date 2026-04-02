@@ -39,6 +39,11 @@ node -e "
   const appName = '${FLY_APP_NAME:-}';
   if (appName) {
     cfg.gateway.remote = { url: 'https://' + appName + '.fly.dev' };
+
+    // In production, restrict allowed origins to the production domain only
+    if (cfg.gateway.controlUi) {
+      cfg.gateway.controlUi.allowedOrigins = ['https://rele.to'];
+    }
   }
 
   fs.writeFileSync('$CONFIG_FILE', JSON.stringify(cfg, null, 2) + '\n');
