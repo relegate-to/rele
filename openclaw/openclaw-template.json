@@ -34,10 +34,7 @@
   },
   "tools": {
     "elevated": {
-      "enabled": true,
-      "allowFrom": {
-        "webchat": true
-      }
+      "enabled": true
     }
   },
   "commands": {
