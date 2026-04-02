@@ -38,7 +38,20 @@
     "restart": true,
     "ownerDisplay": "raw"
   },
-  "channels": {},
+  "channels": {
+    "telegram": {
+      "enabled": true
+    },
+    "discord": {
+      "enabled": true
+    },
+    "slack": {
+      "enabled": true
+    },
+    "signal": {
+      "enabled": true
+    }
+  },
   "gateway": {
     "port": 18789,
     "mode": "local",
