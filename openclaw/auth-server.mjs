@@ -24,7 +24,7 @@ if (!GATEWAY_TOKEN) {
 const UPSTREAM = "http://127.0.0.1:18789";
 
 const JWKS = createRemoteJWKSet(
-  new URL(`${NEON_AUTH_URL}/.well-known/jwks.json`)
+  new URL(`${NEON_AUTH_URL}/.well-known/jwks.json`),
 );
 const issuer = new URL(NEON_AUTH_URL).origin;
 
@@ -34,7 +34,7 @@ function parseCookies(cookieHeader) {
     cookieHeader.split(";").map((c) => {
       const [k, ...v] = c.trim().split("=");
       return [k, decodeURIComponent(v.join("="))];
-    })
+    }),
   );
 }
 
@@ -59,7 +59,8 @@ async function authenticate(req) {
   }
 
   // 2. ?token= or ?jwt= query param (?jwt= is used when ?token= carries the gateway token)
-  const queryToken = url.searchParams.get("jwt") ?? url.searchParams.get("token");
+  const queryToken =
+    url.searchParams.get("jwt") ?? url.searchParams.get("token");
   if (queryToken) {
     const userId = await verifyJwt(queryToken);
     if (userId) return { userId, sessionToken: queryToken };
@@ -91,7 +92,15 @@ const server = createServer(async (req, res) => {
   const upstreamPath = url.pathname + url.search;
 
   const realOrigin = req.headers["origin"];
-  const STRIP_HEADERS = ["authorization", "x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-forwarded-user", "x-auth-user", "referer"];
+  const STRIP_HEADERS = [
+    "authorization",
+    "x-forwarded-for",
+    "x-forwarded-proto",
+    "x-forwarded-host",
+    "x-forwarded-user",
+    "x-auth-user",
+    "referer",
+  ];
 
   const upstreamReq = httpRequest(
     `${UPSTREAM}${upstreamPath}`,
@@ -103,7 +112,7 @@ const server = createServer(async (req, res) => {
           host: "localhost:18789",
           authorization: `Bearer ${GATEWAY_TOKEN}`,
           ...(realOrigin ? { origin: "http://localhost:18789" } : {}),
-        }).filter(([k]) => !STRIP_HEADERS.includes(k))
+        }).filter(([k]) => !STRIP_HEADERS.includes(k)),
       ),
     },
     (upstreamRes) => {
@@ -121,12 +130,13 @@ const server = createServer(async (req, res) => {
       // Set session cookie when auth came from ?token= so subsequent
       // asset requests (which have no token) are also authenticated
       if (sessionToken) {
-        headers["set-cookie"] = `session=${encodeURIComponent(sessionToken)}; HttpOnly; SameSite=Strict; Path=/`;
+        headers["set-cookie"] =
+          `session=${encodeURIComponent(sessionToken)}; HttpOnly; SameSite=None; Secure; Path=/`;
       }
 
       res.writeHead(upstreamRes.statusCode, headers);
       upstreamRes.pipe(res);
-    }
+    },
   );
 
   upstreamReq.on("error", (err) => {
