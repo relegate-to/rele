@@ -109,6 +109,10 @@ const server = createServer(async (req, res) => {
     (upstreamRes) => {
       const headers = { ...upstreamRes.headers };
 
+      // Allow the control UI to be embedded in an iframe
+      delete headers["x-frame-options"];
+      delete headers["content-security-policy"];
+
       // Swap CORS origin back to the real one so the browser accepts it
       if (realOrigin && headers["access-control-allow-origin"]) {
         headers["access-control-allow-origin"] = realOrigin;

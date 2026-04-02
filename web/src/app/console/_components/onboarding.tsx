@@ -93,7 +93,7 @@ export function Onboarding() {
   }, [isProvisioning, lockedHeight]);
 
   return (
-    <div className="flex min-h-[calc(100svh-3rem)] items-center justify-center bg-[var(--bg)] p-6 text-[var(--text)]">
+    <div className="flex min-h-[100svh] items-center justify-center bg-[var(--bg)] p-6 text-[var(--text)]">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

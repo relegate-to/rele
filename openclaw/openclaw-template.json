@@ -32,11 +32,20 @@
       }
     ]
   },
+  "tools": {
+    "elevated": {
+      "enabled": true,
+      "allowFrom": {
+        "webchat": true
+      }
+    }
+  },
   "commands": {
     "native": "auto",
     "nativeSkills": "auto",
     "restart": true,
-    "ownerDisplay": "raw"
+    "ownerDisplay": "raw",
+    "bash": true
   },
   "channels": {
     "telegram": {

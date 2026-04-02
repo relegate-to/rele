@@ -98,7 +98,7 @@ export default function ChatPage() {
   if (loading || !machine) return null;
 
   return (
-    <div className="flex h-[calc(100svh-3rem)] flex-col bg-[var(--bg)] text-[var(--text)]">
+    <div className="flex h-[100svh] flex-col bg-[var(--bg)] text-[var(--text)]">
       {/* Minimal status bar */}
       <motion.div
         initial={{ opacity: 0 }}

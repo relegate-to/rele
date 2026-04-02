@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const isRunning = machine.state === "started" || machine.state === "running";
 
   return (
-    <div className="relative min-h-[calc(100svh-3rem)] bg-[var(--bg)] text-[var(--text)]">
+    <div className="relative min-h-svh bg-[var(--bg)] text-[var(--text)]">
       <div className="relative z-10 mx-auto max-w-[820px] px-8 py-16">
         <motion.div
           initial={{ opacity: 0, y: 16 }}

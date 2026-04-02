@@ -10,16 +10,17 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { AddInstanceItem, InstanceItem } from "./instance";
 import type { Instance, InstanceStatus } from "./instance";
 import UserPill from "./user-pill";
 import { useMachinesContext, type Machine } from "../_context/machines-context";
+import { cn } from "@/lib/utils";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
@@ -92,9 +93,7 @@ function OnboardingSection({
   const [measuredHeight, setMeasuredHeight] = useState<number | undefined>(undefined);
 
   useEffect(() => {
-    // Trigger exit animation when show goes from true → false
     if (prevShow.current && !show) {
-      // Measure current height before animating
       if (containerRef.current) {
         setMeasuredHeight(containerRef.current.scrollHeight);
       }
@@ -103,7 +102,6 @@ function OnboardingSection({
       const t2 = setTimeout(() => setPhase("gone"), 1200);
       return () => { clearTimeout(t1); clearTimeout(t2); };
     }
-    // Reset when show goes back to true
     if (!prevShow.current && show) {
       setPhase("visible");
       setMeasuredHeight(undefined);
@@ -122,17 +120,7 @@ function OnboardingSection({
         opacity: phase === "collapsing" ? 0 : 1,
       }}
     >
-      <SidebarGroup>
-        <SidebarGroupLabel className="text-xs">
-          {phase === "completing" ? (
-            <span className="flex items-center gap-1.5 text-[var(--status-success)] transition-colors duration-300">
-              <CheckCircle2Icon className="size-3" />
-              Setup complete
-            </span>
-          ) : (
-            "Get started"
-          )}
-        </SidebarGroupLabel>
+      <SidebarGroup className="px-2 pt-0 pb-1">
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -140,11 +128,12 @@ function OnboardingSection({
                 isActive={pathname === "/console/onboarding"}
                 tooltip="Set up your instance"
                 render={<Link href="/console/onboarding" />}
-                className={`h-auto gap-2.5 rounded-lg border px-2.5 py-2 transition-all duration-500 ${
+                className={cn(
+                  "h-auto gap-2.5 rounded-lg border px-2.5 py-2 transition-all duration-500",
                   phase === "completing"
                     ? "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success)]"
                     : "border-[var(--accent)]/20 bg-[var(--accent)]/5 text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/10"
-                }`}
+                )}
               >
                 {phase === "completing" ? (
                   <CheckCircle2Icon className="size-4 shrink-0" />
@@ -202,7 +191,7 @@ export function AppSidebar() {
           <span className="text-base font-semibold tracking-[-0.01em] text-sidebar-foreground">
             rele
           </span>
-          <span className="ml-auto text-xs text-sidebar-foreground/30">
+          <span className="text-xs text-sidebar-foreground/30">
             console
           </span>
         </div>
@@ -210,18 +199,15 @@ export function AppSidebar() {
 
       <SidebarContent>
 
-        {/* Instances — add button when empty, instance when exists (max 1) */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs">
-            {loading ? "Instances" : `Instances (${machines.length})`}
-          </SidebarGroupLabel>
+        {/* Instance */}
+        <SidebarGroup className="px-2.5 py-2.5">
           <SidebarGroupContent>
             <SidebarMenu>
               {loading && machines.length === 0 && (
                 <SidebarMenuItem>
-                  <div className="flex h-auto items-center gap-2.5 rounded-lg border border-sidebar-border px-2.5 py-2">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent/50 animate-pulse">
-                      <span className="text-sm font-semibold text-sidebar-foreground/30">r</span>
+                  <div className="flex h-auto items-center gap-3 rounded-lg border border-sidebar-border px-3 py-2">
+                    <div className="flex size-6 shrink-0 items-center justify-center rounded-md border border-sidebar-border bg-sidebar-accent/50 animate-pulse">
+                      <span className="text-xs italic text-sidebar-foreground/30">r</span>
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                       <span className="h-3.5 w-20 rounded bg-sidebar-accent/60 animate-pulse" />
@@ -250,47 +236,64 @@ export function AppSidebar() {
         {/* Onboarding — animated exit when user has instance and navigates away */}
         <OnboardingSection show={!hasInstances || pathname === "/console/onboarding"} hasInstances={hasInstances} pathname={pathname} />
 
-        {/* Navigation — instance-required items disabled until ready */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs">Navigation</SidebarGroupLabel>
+
+
+        {/* Navigation */}
+        <SidebarGroup className="px-2 py-1">
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_ITEMS.map((item) => {
+                const active = pathname === item.href;
                 const disabled = !hasInstances;
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
-                      isActive={pathname === item.href}
+                      isActive={active}
                       tooltip={disabled ? "Create an instance first" : item.label}
                       render={disabled ? <span /> : <Link href={item.href} />}
-                      className={disabled ? "pointer-events-none opacity-35" : undefined}
                       aria-disabled={disabled}
+                      className={cn(
+                        "h-9 gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
+                        active
+                          ? "bg-[var(--accent)]/8 text-[var(--accent)]"
+                          : "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                        disabled && "pointer-events-none opacity-35"
+                      )}
                     >
-                      <item.icon className="size-4 opacity-70" />
-                      <span className="text-sm">{item.label}</span>
+                      <item.icon className={cn("size-4 shrink-0", active ? "opacity-100" : "opacity-60")} />
+                      <span>{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
-              {showDebug && DEBUG_NAV_ITEMS.map((item) => (
+              {showDebug && DEBUG_NAV_ITEMS.map((item) => {
+                const active = pathname === item.href;
+                return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
-                      isActive={pathname === item.href}
+                      isActive={active}
                       tooltip={item.label}
                       render={<Link href={item.href} />}
+                      className={cn(
+                        "h-9 gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
+                        active
+                          ? "bg-[var(--accent)]/8 text-[var(--accent)]"
+                          : "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      )}
                     >
-                      <item.icon className="size-4 opacity-70" />
-                      <span className="text-sm">{item.label}</span>
+                      <item.icon className={cn("size-4 shrink-0", active ? "opacity-100" : "opacity-60")} />
+                      <span>{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-              ))}
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border px-2 py-2">
+      <SidebarFooter className="px-3 py-3">
         <UserPill />
       </SidebarFooter>
 
