@@ -38,15 +38,7 @@
     "restart": true,
     "ownerDisplay": "raw"
   },
-  "channels": {
-    "whatsapp": {
-      "enabled": true,
-      "dmPolicy": "pairing",
-      "groupPolicy": "disabled",
-      "debounceMs": 0,
-      "mediaMaxMb": 50
-    }
-  },
+  "channels": {},
   "gateway": {
     "port": 18789,
     "mode": "local",
