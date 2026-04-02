@@ -18,9 +18,9 @@ export default function ControlUiPage() {
 
     fetch("/api/gate/ws-auth")
       .then((r) => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e.error ?? "Failed")))
-      .then(({ url, token }: { url: string; token: string }) => {
+      .then(({ url, token, gatewayToken }: { url: string; token: string; gatewayToken: string }) => {
         const httpBase = url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
-        window.location.href = `${httpBase}/__openclaw__/?token=${encodeURIComponent(token)}`;
+        window.location.href = `${httpBase}/__openclaw__/?jwt=${encodeURIComponent(token)}&token=${encodeURIComponent(gatewayToken)}`;
       })
       .catch((e: unknown) => setError(typeof e === "string" ? e : "Failed to get connection info."));
   }, [loading, machine, isRunning, router]);

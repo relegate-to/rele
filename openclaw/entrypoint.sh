@@ -3,13 +3,13 @@ set -eu
 
 echo "--- Entrypoint Starting ---"
 
-if [ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]; then
-  echo "ERROR: OPENCLAW_GATEWAY_TOKEN is missing" >&2
+if [ -z "${NEON_AUTH_URL:-}" ]; then
+  echo "ERROR: NEON_AUTH_URL is missing" >&2
   exit 1
 fi
 
-if [ -z "${NEON_AUTH_URL:-}" ]; then
-  echo "ERROR: NEON_AUTH_URL is missing" >&2
+if [ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]; then
+  echo "ERROR: OPENCLAW_GATEWAY_TOKEN is missing" >&2
   exit 1
 fi
 
@@ -30,8 +30,9 @@ node -e "
   const fs = require('fs');
   const cfg = JSON.parse(fs.readFileSync('$CONFIG_FILE', 'utf8'));
 
-  // Gateway auth token — used by the internal agent as fallback in trusted-proxy mode
+  // Gateway token
   cfg.gateway.auth = cfg.gateway.auth || {};
+  cfg.gateway.auth.mode = 'token';
   cfg.gateway.auth.token = '$OPENCLAW_GATEWAY_TOKEN';
 
   // Public URL so OpenClaw generates correct webhook/callback URLs

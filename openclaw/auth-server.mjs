@@ -15,6 +15,12 @@ if (!USER_ID) {
   process.exit(1);
 }
 
+const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+if (!GATEWAY_TOKEN) {
+  console.error("ERROR: OPENCLAW_GATEWAY_TOKEN is not set");
+  process.exit(1);
+}
+
 const UPSTREAM = "http://127.0.0.1:18789";
 
 const JWKS = createRemoteJWKSet(
@@ -52,8 +58,8 @@ async function authenticate(req) {
     if (userId) return { userId, sessionToken: null };
   }
 
-  // 2. ?token= query param
-  const queryToken = url.searchParams.get("token");
+  // 2. ?token= or ?jwt= query param (?jwt= is used when ?token= carries the gateway token)
+  const queryToken = url.searchParams.get("jwt") ?? url.searchParams.get("token");
   if (queryToken) {
     const userId = await verifyJwt(queryToken);
     if (userId) return { userId, sessionToken: queryToken };
@@ -76,17 +82,16 @@ const server = createServer(async (req, res) => {
     return res.end("Unauthorized");
   }
 
-  const { userId, sessionToken } = result;
+  const { sessionToken } = result;
 
-  // Strip the token query param before forwarding
+  // Strip auth params before forwarding
   const url = new URL(req.url, "http://localhost");
   url.searchParams.delete("token");
+  url.searchParams.delete("jwt");
   const upstreamPath = url.pathname + url.search;
 
-  // Rewrite Origin to a value OpenClaw trusts (the proxy already handles auth),
-  // then fix up the CORS response to match the real origin the browser sent.
   const realOrigin = req.headers["origin"];
-  const STRIP_HEADERS = ["x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-forwarded-user", "referer"];
+  const STRIP_HEADERS = ["authorization", "x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-forwarded-user", "x-auth-user", "referer"];
 
   const upstreamReq = httpRequest(
     `${UPSTREAM}${upstreamPath}`,
@@ -96,7 +101,7 @@ const server = createServer(async (req, res) => {
         Object.entries({
           ...req.headers,
           host: "localhost:18789",
-          "x-auth-user": userId,
+          authorization: `Bearer ${GATEWAY_TOKEN}`,
           ...(realOrigin ? { origin: "http://localhost:18789" } : {}),
         }).filter(([k]) => !STRIP_HEADERS.includes(k))
       ),
@@ -140,14 +145,14 @@ server.on("upgrade", async (req, socket, head) => {
     return;
   }
 
-  const { userId } = result;
-
-  // Strip token from URL before forwarding
+  // Strip auth params from URL before forwarding
   const url = new URL(req.url, "http://localhost");
   url.searchParams.delete("token");
+  url.searchParams.delete("jwt");
   const upstreamPath = url.pathname + url.search;
 
   const WS_STRIP_HEADERS = new Set([
+    "authorization",
     "x-auth-user",
     "x-forwarded-for",
     "x-forwarded-proto",
@@ -168,7 +173,7 @@ server.on("upgrade", async (req, socket, head) => {
         reqLine += `${key}: ${req.rawHeaders[i + 1]}\r\n`;
       }
     }
-    reqLine += `x-auth-user: ${userId}\r\n`;
+    reqLine += `Authorization: Bearer ${GATEWAY_TOKEN}\r\n`;
     reqLine += "\r\n";
 
     upstream.write(reqLine);

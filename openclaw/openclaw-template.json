@@ -63,12 +63,8 @@
       "dangerouslyDisableDeviceAuth": true
     },
     "auth": {
-      "mode": "trusted-proxy",
-      "token": "",
-      "trustedProxy": {
-        "userHeader": "x-auth-user"
-      }
-    },
-    "trustedProxies": ["127.0.0.1", "::1"]
+      "mode": "token",
+      "token": ""
+    }
   }
 }
