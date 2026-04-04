@@ -59,6 +59,9 @@
     },
     "signal": {
       "enabled": true
+    },
+    "whatsapp": {
+      "enabled": true
     }
   },
   "gateway": {
