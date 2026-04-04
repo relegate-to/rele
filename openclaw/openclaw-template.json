@@ -1,4 +1,7 @@
 {
+  "update": {
+    "checkOnStart": false
+  },
   "meta": {
     "lastTouchedVersion": "2026.3.13",
     "lastTouchedAt": "2026-03-31T05:07:40.823Z"
