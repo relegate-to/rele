@@ -64,8 +64,13 @@ while true; do
   node dist/index.js gateway run
   exit_code=$?
   if [ $exit_code -eq 0 ]; then
-    echo "Gateway exited cleanly (restart requested), restarting..."
     sleep 1
+    if node -e "require('net').connect(18789,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))" 2>/dev/null; then
+      echo "Gateway self-restarted (pid spawned before exit), supervisor yielding..."
+      wait
+    else
+      echo "Gateway exited cleanly (restart requested), restarting..."
+    fi
   else
     echo "Gateway exited with error code $exit_code, shutting down"
     exit $exit_code
