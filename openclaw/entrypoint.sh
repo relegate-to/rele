@@ -25,8 +25,35 @@ if [ ! -f "$CONFIG_FILE" ]; then
   echo "Default config created at $CONFIG_FILE"
 fi
 
-# Map our env var name to the one OpenClaw reads for the remote URL
-export OPENCLAW_GATEWAY_URL="${GATEWAY_REMOTE_URL:-}"
+# Inject runtime values into config (always, so existing configs stay up to date)
+node -e "
+  const fs = require('fs');
+  const cfg = JSON.parse(fs.readFileSync('$CONFIG_FILE', 'utf8'));
+
+  // Gateway token
+  cfg.gateway.auth = cfg.gateway.auth || {};
+  cfg.gateway.auth.mode = 'token';
+  cfg.gateway.auth.token = '$OPENCLAW_GATEWAY_TOKEN';
+
+  // Public URL so OpenClaw generates correct webhook/callback URLs
+  const remoteUrl = '${GATEWAY_REMOTE_URL:-}';
+  if (remoteUrl) {
+    cfg.gateway.remote = { url: remoteUrl };
+  }
+
+  // In production, restrict allowed origins to the production domain only
+  const appName = '${FLY_APP_NAME:-}';
+  if (appName) {
+    if (cfg.gateway.controlUi) {
+      cfg.gateway.controlUi.allowedOrigins = ['https://rele.to', 'http://localhost:18789', 'http://127.0.0.1:18789'];
+    }
+  }
+
+  fs.writeFileSync('$CONFIG_FILE', JSON.stringify(cfg, null, 2) + '\n');
+"
+echo "Runtime config values injected"
+
+echo "Config ready at $CONFIG_FILE"
 
 # Start auth proxy (port 80 → OpenClaw on 18789, validates JWT)
 echo "Starting auth proxy..."

@@ -77,12 +77,9 @@
       "allowInsecureAuth": true,
       "dangerouslyDisableDeviceAuth": true
     },
-    "remote": {
-      "url": "${OPENCLAW_GATEWAY_URL}"
-    },
     "auth": {
       "mode": "token",
-      "token": "${OPENCLAW_GATEWAY_TOKEN}"
+      "token": ""
     }
   }
 }
