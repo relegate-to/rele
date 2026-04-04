@@ -33,4 +33,14 @@ echo "Starting auth proxy..."
 node /opt/openclaw/auth-server.mjs &
 
 echo "Launching Gateway..."
-exec node dist/index.js gateway run
+while true; do
+  node dist/index.js gateway run
+  exit_code=$?
+  if [ $exit_code -eq 0 ]; then
+    echo "Gateway exited cleanly (restart requested), restarting..."
+    sleep 1
+  else
+    echo "Gateway exited with error code $exit_code, shutting down"
+    exit $exit_code
+  fi
+done
