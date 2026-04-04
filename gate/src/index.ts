@@ -425,13 +425,12 @@ app.post("/machines", async (c) => {
     return c.json({ error: "config.image is required" }, 400);
   }
 
-  const { env, gatewayToken } = await buildMachineEnv(userId, body.config.env);
-
   if (USE_DOCKER) {
     const containerName = userAppName(userId);
     // In Docker mode, always use the local image — the frontend may send a
     // remote registry reference (e.g. ghcr.io/...) that doesn't exist locally.
     const image = DOCKER_IMAGE;
+    const { env, gatewayToken } = await buildMachineEnv(userId, body.config.env);
 
     let result: { id: string; port: number };
     try {
@@ -492,6 +491,11 @@ app.post("/machines", async (c) => {
     console.error("Failed to ensure user app:", err);
     return c.json({ error: `Failed to create user app: ${err instanceof Error ? err.message : String(err)}` }, 502);
   }
+
+  const { env, gatewayToken } = await buildMachineEnv(userId, {
+    ...body.config.env,
+    GATEWAY_REMOTE_URL: `https://${flyAppName}.fly.dev`,
+  });
 
   let flyMachine: any;
   try {

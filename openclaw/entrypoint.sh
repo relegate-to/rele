@@ -36,11 +36,14 @@ node -e "
   cfg.gateway.auth.token = '$OPENCLAW_GATEWAY_TOKEN';
 
   // Public URL so OpenClaw generates correct webhook/callback URLs
+  const remoteUrl = '${GATEWAY_REMOTE_URL:-}';
+  if (remoteUrl) {
+    cfg.gateway.remote = { url: remoteUrl };
+  }
+
+  // In production, restrict allowed origins to the production domain only
   const appName = '${FLY_APP_NAME:-}';
   if (appName) {
-    cfg.gateway.remote = { url: 'https://' + appName + '.fly.dev' };
-
-    // In production, restrict allowed origins to the production domain only
     if (cfg.gateway.controlUi) {
       cfg.gateway.controlUi.allowedOrigins = ['https://rele.to', 'http://localhost:18789', 'http://127.0.0.1:18789'];
     }
