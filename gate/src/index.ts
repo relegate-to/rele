@@ -486,24 +486,6 @@ app.post("/machines", async (c) => {
   // --- Fly.io path ---
   const region = body.region ?? "sin";
 
-  const machineConfig = {
-    image: body.config.image,
-    env,
-    guest: body.config.guest ?? { cpus: 2, memory_mb: 4096, cpu_kind: "shared" },
-    metadata: { user_id: userId, fly_process_group: "user" },
-    services: [
-      {
-        ports: [
-          { port: 80, handlers: ["http"] },
-          { port: 443, handlers: ["tls", "http"] },
-        ],
-        protocol: "tcp",
-        internal_port: 80,
-        force_instance_key: null,
-      },
-    ],
-  };
-
   let flyAppName: string;
   try {
     flyAppName = await ensureUserApp(userId);
@@ -525,7 +507,24 @@ app.post("/machines", async (c) => {
     return c.json({ error: `Failed to create user volume: ${err instanceof Error ? err.message : String(err)}` }, 502);
   }
 
-  machineConfig.mounts = [{ volume: volumeId, path: "/home/node/.openclaw" }];
+  const machineConfig = {
+    image: body.config.image,
+    env,
+    guest: body.config.guest ?? { cpus: 2, memory_mb: 4096, cpu_kind: "shared" },
+    metadata: { user_id: userId, fly_process_group: "user" },
+    mounts: [{ volume: volumeId, path: "/home/node/.openclaw" }],
+    services: [
+      {
+        ports: [
+          { port: 80, handlers: ["http"] },
+          { port: 443, handlers: ["tls", "http"] },
+        ],
+        protocol: "tcp",
+        internal_port: 80,
+        force_instance_key: null,
+      },
+    ],
+  };
 
   let flyMachine: any;
   try {
