@@ -68,7 +68,8 @@
       "allowedOrigins": [
         "https://rele.to",
         "http://localhost:3000",
-        "http://localhost:18790"
+        "http://localhost:18790",
+        "http://127.0.0.1:18789"
       ],
       "allowInsecureAuth": true,
       "dangerouslyDisableDeviceAuth": true
