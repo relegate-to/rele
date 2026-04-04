@@ -78,21 +78,27 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  const hasBearer = !!req.headers["authorization"]?.startsWith("Bearer ");
-  const hasQueryToken = new URL(req.url, "http://localhost").searchParams.has("jwt") ||
-    new URL(req.url, "http://localhost").searchParams.has("token");
-  const hasCookie = !!req.headers["cookie"]?.includes("session=");
-  console.log(`${tag} auth candidates: bearer=${hasBearer} query=${hasQueryToken} cookie=${hasCookie}`);
+  const isControlUi = req.url.startsWith("/__openclaw__");
 
-  const authResult = await authenticate(req);
-  if (!authResult) {
-    console.log(`${tag} -> 401 Unauthorized`);
-    res.writeHead(401, { "Content-Type": "text/plain" });
-    return res.end("Unauthorized");
+  let sessionToken = null;
+  if (isControlUi) {
+    const hasBearer = !!req.headers["authorization"]?.startsWith("Bearer ");
+    const hasQueryToken = new URL(req.url, "http://localhost").searchParams.has("jwt") ||
+      new URL(req.url, "http://localhost").searchParams.has("token");
+    const hasCookie = !!req.headers["cookie"]?.includes("session=");
+    console.log(`${tag} control UI auth candidates: bearer=${hasBearer} query=${hasQueryToken} cookie=${hasCookie}`);
+
+    const authResult = await authenticate(req);
+    if (!authResult) {
+      console.log(`${tag} -> 401 Unauthorized`);
+      res.writeHead(401, { "Content-Type": "text/plain" });
+      return res.end("Unauthorized");
+    }
+    console.log(`${tag} authenticated userId=${authResult.userId}`);
+    sessionToken = authResult.sessionToken;
+  } else {
+    console.log(`${tag} non-control-UI path, passing through`);
   }
-  console.log(`${tag} authenticated userId=${authResult.userId}`);
-
-  const { sessionToken } = authResult;
   const url = new URL(req.url, "http://localhost");
   url.searchParams.delete("token");
   url.searchParams.delete("jwt");
@@ -187,14 +193,19 @@ const server = createServer(async (req, res) => {
 server.on("upgrade", async (req, socket, head) => {
   const tag = `[WS ${req.url}]`;
   console.log(`${tag} upgrade origin=${req.headers["origin"] ?? "-"}`);
-  const result = await authenticate(req);
-  if (!result) {
-    console.log(`${tag} -> 401 Unauthorized`);
-    socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-    socket.destroy();
-    return;
+
+  if (req.url.startsWith("/__openclaw__")) {
+    const result = await authenticate(req);
+    if (!result) {
+      console.log(`${tag} -> 401 Unauthorized`);
+      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    console.log(`${tag} authenticated userId=${result.userId}`);
+  } else {
+    console.log(`${tag} non-control-UI path, passing through`);
   }
-  console.log(`${tag} authenticated userId=${result.userId}`);
 
   const url = new URL(req.url, "http://localhost");
   url.searchParams.delete("token");
