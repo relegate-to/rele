@@ -56,16 +56,6 @@ echo "Config ready at $CONFIG_FILE"
 echo "Starting auth proxy..."
 node /opt/openclaw/auth-server.mjs &
 
-# Background: wait for gateway to be ready, then self-pair (once per fresh container)
-{
-  echo "[pair] Waiting for gateway..."
-  for i in $(seq 1 60); do
-    nc -z 127.0.0.1 18789 2>/dev/null && break
-    sleep 1
-  done
-  node /opt/openclaw/pair.mjs || echo "[pair] Pairing step failed (non-fatal)"
-} &
-
 echo "Launching Gateway..."
 while true; do
   node dist/index.js gateway run
