@@ -2,6 +2,8 @@
 
 Control plane for OpenClaw instances Deploy and manage multiple instances from a single dashboard.
 
+Say hello for me.
+
 ## Stack
 
 - **web** — Next.js frontend + Neon Auth (port 3000)
