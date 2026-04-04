@@ -61,16 +61,26 @@ node /opt/openclaw/auth-server.mjs &
 
 echo "Launching Gateway..."
 while true; do
-  node dist/index.js gateway run
+  _fifo=$(mktemp -u /tmp/gw.XXXXXX)
+  mkfifo "$_fifo"
+  node dist/index.js gateway run >"$_fifo" 2>&1 &
+  _node_pid=$!
+  while IFS= read -r _line; do
+    printf '%s\n' "$_line"
+    case "$_line" in
+      *"spawned pid "*)
+        _spawned=$(printf '%s\n' "$_line" | sed 's/.*spawned pid \([0-9]*\).*/\1/')
+        kill "$_spawned" 2>/dev/null && echo "Killed self-spawned gateway pid $_spawned, restarting cleanly" || true
+        ;;
+    esac
+  done <"$_fifo"
+  wait "$_node_pid"
   exit_code=$?
+  rm -f "$_fifo"
+
   if [ $exit_code -eq 0 ]; then
+    echo "Gateway exited cleanly (restart requested), restarting..."
     sleep 1
-    if node -e "require('net').connect(18789,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))" 2>/dev/null; then
-      echo "Gateway self-restarted (pid spawned before exit), supervisor yielding..."
-      wait
-    else
-      echo "Gateway exited cleanly (restart requested), restarting..."
-    fi
   else
     echo "Gateway exited with error code $exit_code, shutting down"
     exit $exit_code
