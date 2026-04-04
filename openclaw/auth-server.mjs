@@ -59,16 +59,12 @@ async function authenticate(req) {
 }
 
 const server = createServer(async (req, res) => {
-  const tag = `[${req.method} ${req.url}]`;
-  console.log(`${tag} origin=${req.headers["origin"] ?? "-"} ua=${req.headers["user-agent"] ?? "-"}`);
-
   // Unauthenticated health check — probes whether the gateway TCP port is open
   if (req.method === "GET" && req.url === "/health") {
     const socket = netConnect(18789, "127.0.0.1");
     socket.setTimeout(3000);
     const finish = (ok) => {
       socket.destroy();
-      console.log(`${tag} health -> ${ok ? 200 : 503}`);
       res.writeHead(ok ? 200 : 503, { "Content-Type": "text/plain" });
       res.end(ok ? "ok" : "not ready");
     };
@@ -78,27 +74,13 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  const isControlUi = req.url.startsWith("/__openclaw__");
-
-  let sessionToken = null;
-  if (isControlUi) {
-    const hasBearer = !!req.headers["authorization"]?.startsWith("Bearer ");
-    const hasQueryToken = new URL(req.url, "http://localhost").searchParams.has("jwt") ||
-      new URL(req.url, "http://localhost").searchParams.has("token");
-    const hasCookie = !!req.headers["cookie"]?.includes("session=");
-    console.log(`${tag} control UI auth candidates: bearer=${hasBearer} query=${hasQueryToken} cookie=${hasCookie}`);
-
-    const authResult = await authenticate(req);
-    if (!authResult) {
-      console.log(`${tag} -> 401 Unauthorized`);
-      res.writeHead(401, { "Content-Type": "text/plain" });
-      return res.end("Unauthorized");
-    }
-    console.log(`${tag} authenticated userId=${authResult.userId}`);
-    sessionToken = authResult.sessionToken;
-  } else {
-    console.log(`${tag} non-control-UI path, passing through`);
+  const authResult = await authenticate(req);
+  if (!authResult) {
+    res.writeHead(401, { "Content-Type": "text/plain" });
+    return res.end("Unauthorized");
   }
+
+  const { sessionToken } = authResult;
   const url = new URL(req.url, "http://localhost");
   url.searchParams.delete("token");
   url.searchParams.delete("jwt");
@@ -179,7 +161,7 @@ const server = createServer(async (req, res) => {
   );
 
   upstreamReq.on("error", (err) => {
-    console.error(`${tag} upstream error: ${err.message}`);
+    console.error("Upstream error:", err.message);
     if (!res.headersSent) {
       res.writeHead(502);
       res.end("Bad Gateway");
@@ -191,20 +173,11 @@ const server = createServer(async (req, res) => {
 
 // Handle WebSocket upgrades (unchanged logic)
 server.on("upgrade", async (req, socket, head) => {
-  const tag = `[WS ${req.url}]`;
-  console.log(`${tag} upgrade origin=${req.headers["origin"] ?? "-"}`);
-
-  if (req.url.startsWith("/__openclaw__")) {
-    const result = await authenticate(req);
-    if (!result) {
-      console.log(`${tag} -> 401 Unauthorized`);
-      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-      socket.destroy();
-      return;
-    }
-    console.log(`${tag} authenticated userId=${result.userId}`);
-  } else {
-    console.log(`${tag} non-control-UI path, passing through`);
+  const result = await authenticate(req);
+  if (!result) {
+    socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+    socket.destroy();
+    return;
   }
 
   const url = new URL(req.url, "http://localhost");

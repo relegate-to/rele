@@ -61,7 +61,7 @@
       "enabled": true
     },
     "whatsapp": {
-      "enabled": true
+      "enabled": false
     }
   },
   "gateway": {
