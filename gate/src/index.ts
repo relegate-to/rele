@@ -133,6 +133,23 @@ async function ensureUserApp(userId: string): Promise<string> {
   return appName;
 }
 
+async function ensureUserVolume(appName: string, region: string): Promise<string> {
+  // List existing volumes for this app
+  const volumes = await flyRequest(`/apps/${appName}/volumes`) as any[];
+  const existing = volumes?.find((v: any) => v.name === "openclaw_data" && !v.attached_machine_id);
+  if (existing) return existing.id;
+
+  const vol = await flyRequest(`/apps/${appName}/volumes`, {
+    method: "POST",
+    body: JSON.stringify({
+      name: "openclaw_data",
+      region,
+      size_gb: 1,
+    }),
+  });
+  return vol.id;
+}
+
 async function deleteUserApp(appName: string): Promise<void> {
   const res = await fetch(`${FLY_API_URL}/apps/${appName}`, {
     method: "DELETE",
@@ -499,6 +516,16 @@ app.post("/machines", async (c) => {
     ...body.config.env,
     GATEWAY_REMOTE_URL: `https://${flyAppName}.fly.dev`,
   });
+
+  let volumeId: string;
+  try {
+    volumeId = await ensureUserVolume(flyAppName, region);
+  } catch (err) {
+    console.error("Failed to ensure user volume:", err);
+    return c.json({ error: `Failed to create user volume: ${err instanceof Error ? err.message : String(err)}` }, 502);
+  }
+
+  machineConfig.mounts = [{ volume: volumeId, path: "/home/node/.openclaw" }];
 
   let flyMachine: any;
   try {
