@@ -211,6 +211,18 @@ async function dockerRm(name: string): Promise<void> {
   await runDocker(["rm", "-f", name]);
 }
 
+async function waitForGateway(url: string, timeoutMs = 300_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) return;
+    } catch {}
+    await Bun.sleep(3000);
+  }
+  throw new Error("Gateway health check timed out");
+}
+
 // --- Shared helpers ---
 
 const PROVIDER_ENV_MAP: Record<string, string> = {
@@ -443,6 +455,12 @@ app.post("/machines", async (c) => {
       })
       .returning();
 
+    try {
+      await waitForGateway(`http://localhost:${result.port}`);
+    } catch (err) {
+      console.warn("Gateway health check failed:", err);
+    }
+
     return c.json(row, 201);
   }
 
@@ -500,6 +518,12 @@ app.post("/machines", async (c) => {
       config: machineConfig,
     })
     .returning();
+
+  try {
+    await waitForGateway(`https://${flyAppName}.fly.dev`);
+  } catch (err) {
+    console.warn("Gateway health check failed:", err);
+  }
 
   return c.json(row, 201);
 });

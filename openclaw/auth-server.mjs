@@ -59,6 +59,21 @@ async function authenticate(req) {
 }
 
 const server = createServer(async (req, res) => {
+  // Unauthenticated health check — probes whether the gateway TCP port is open
+  if (req.method === "GET" && req.url === "/health") {
+    const socket = netConnect(18789, "127.0.0.1");
+    socket.setTimeout(3000);
+    const finish = (ok) => {
+      socket.destroy();
+      res.writeHead(ok ? 200 : 503, { "Content-Type": "text/plain" });
+      res.end(ok ? "ok" : "not ready");
+    };
+    socket.on("connect", () => finish(true));
+    socket.on("error", () => finish(false));
+    socket.on("timeout", () => finish(false));
+    return;
+  }
+
   const authResult = await authenticate(req);
   if (!authResult) {
     res.writeHead(401, { "Content-Type": "text/plain" });
