@@ -2,7 +2,7 @@ FROM node:22-alpine AS deps
 WORKDIR /opt/openclaw
 RUN npm init -y && npm install jose ws
 
-FROM alpine/openclaw:2026.3.31
+FROM alpine/openclaw:2026.3.24
 
 USER root
 
