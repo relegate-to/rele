@@ -469,16 +469,21 @@ app.post("/machines", async (c) => {
         flyMachineId: result.id,
         flyAppName: containerName,
         region: "local",
-        state: "started",
+        state: "starting",
         config: machineConfig,
       })
       .returning();
 
-    try {
-      await waitForGateway(`http://localhost:${result.port}`);
-    } catch (err) {
-      console.warn("Gateway health check failed:", err);
-    }
+    // Fire-and-forget: keep machine in "starting" until gateway responds,
+    // then flip to "started" so the frontend knows it's actually connectable.
+    waitForGateway(`http://localhost:${result.port}`)
+      .then(() =>
+        db
+          .update(machines)
+          .set({ state: "started", updatedAt: new Date() })
+          .where(eq(machines.id, row.id)),
+      )
+      .catch((err) => console.warn("Gateway health check failed:", err));
 
     return c.json(row, 201);
   }
@@ -548,16 +553,21 @@ app.post("/machines", async (c) => {
       flyMachineId: flyMachine.id,
       flyAppName,
       region,
-      state: flyMachine.state,
+      state: "starting",
       config: machineConfig,
     })
     .returning();
 
-  try {
-    await waitForGateway(`https://${flyAppName}.fly.dev`);
-  } catch (err) {
-    console.warn("Gateway health check failed:", err);
-  }
+  // Fire-and-forget: keep machine in "starting" until gateway responds,
+  // then flip to "started" so the frontend knows it's actually connectable.
+  waitForGateway(`https://${flyAppName}.fly.dev`)
+    .then(() =>
+      db
+        .update(machines)
+        .set({ state: "started", updatedAt: new Date() })
+        .where(eq(machines.id, row.id)),
+    )
+    .catch((err) => console.warn("Gateway health check failed:", err));
 
   return c.json(row, 201);
 });

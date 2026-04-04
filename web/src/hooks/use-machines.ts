@@ -94,7 +94,17 @@ export function useMachines() {
       }
 
       const machine: Machine = await res.json();
-      setMachines((prev) => [...prev, machine]);
+      // Upsert: polling may have already added this machine while the POST was
+      // in flight; don't create a duplicate entry.
+      setMachines((prev) => {
+        const idx = prev.findIndex((m) => m.id === machine.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = machine;
+          return next;
+        }
+        return [...prev, machine];
+      });
       return machine;
     },
     [],

@@ -59,18 +59,27 @@ async function authenticate(req) {
 }
 
 const server = createServer(async (req, res) => {
-  // Unauthenticated health check — probes whether the gateway TCP port is open
+  // Unauthenticated health check — probes whether the gateway HTTP server is ready
   if (req.method === "GET" && req.url === "/health") {
-    const socket = netConnect(18789, "127.0.0.1");
-    socket.setTimeout(3000);
+    let finished = false;
     const finish = (ok) => {
-      socket.destroy();
+      if (finished) return;
+      finished = true;
+      probe.destroy();
       res.writeHead(ok ? 200 : 503, { "Content-Type": "text/plain" });
       res.end(ok ? "ok" : "not ready");
     };
-    socket.on("connect", () => finish(true));
-    socket.on("error", () => finish(false));
-    socket.on("timeout", () => finish(false));
+    const probe = httpRequest(
+      { host: "127.0.0.1", port: 18789, path: "/", method: "HEAD" },
+      (r) => {
+        r.resume();
+        finish(true);
+      },
+    );
+    probe.setTimeout(3000);
+    probe.on("error", () => finish(false));
+    probe.on("timeout", () => finish(false));
+    probe.end();
     return;
   }
 
