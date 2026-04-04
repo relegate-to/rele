@@ -1,45 +1,39 @@
 # rele
-A monorepo with a Next.js frontend and a Hono/Bun API.
+
+Control plane for OpenClaw instances on Fly.io. Deploy and manage multiple instances from a single dashboard.
 
 ## Stack
-| Service | Description | Port |
-|---|---|---|
-| `web` | Next.js frontend (Neon Auth) | 3000 |
-| `gate` | Hono/Bun API (JWT validation) | 3001 |
-| `db` | Drizzle schema + migrations | — |
 
-## Prerequisites
-- [Bun](https://bun.sh)
+- **web** — Next.js frontend + Neon Auth (port 3000)
+- **gate** — Hono/Bun API with JWT validation (port 3001)
+- **db** — Drizzle ORM + Neon PostgreSQL
 
 ## Setup
-Pull env files from the configuration repo:
-```bash
-bun run env:pull
-```
 
-## Running locally
 ```bash
-bun run dev
+bun install
+bun run env:pull        # Pull secrets from config repo
+bun run dev             # Start web + gate
 ```
-Starts `web` and `gate` concurrently.
 
 ## Commands
-| Command | Description |
-|---|---|
-| `bun run dev` | Start web + gate |
-| `bun run dev:gate` | Start gate only |
-| `bun run build:gate` | Build gate for production |
-| `bun run start:gate` | Start gate in production mode |
-| `bun run --filter db push` | Push schema changes to dev database |
-| `bun run --filter db push:prod` | Push schema changes to production database |
+
+```bash
+bun run dev             # Start everything
+bun run dev:gate        # Gate only
+bun run build:gate      # Build for production
+bun run --filter db push      # Sync schema to dev DB
+bun run --filter db push:prod # Sync schema to prod DB
+```
+
+## How It Works
+
+The API manages OpenClaw instances via Fly.io Machines API. User instances are tracked in Neon with JWT-validated access. Real-time stats stream via WebSocket.
 
 ## Database
-The database is managed with [Drizzle Kit](https://orm.drizzle.team) and hosted on [Neon](https://neon.tech).
 
-Two branches are maintained in Neon:
-- **main** — production database, used by the live app
-- **dev** — development database, used during local development
+Two Neon branches: `main` (production) and `dev` (local). Push schema changes with the commands above before deploying.
 
-`.env.local` points to the dev branch. `.env.production` (gitignored, lives in the secrets repo) points to the production branch.
+---
 
-During development, run `bun run --filter db push` to sync schema changes to the dev database. When ready to push to production, run `bun run --filter db push:prod` from your local machine.
+Built with Bun, Next.js, Hono, and Fly.io.
