@@ -1,6 +1,6 @@
 # rele
 
-Control plane for OpenClaw instances on Fly.io. Deploy and manage multiple instances from a single dashboard.
+Control plane for OpenClaw instances. Deploy and manage multiple instances from a single dashboard.
 
 ## Stack
 
