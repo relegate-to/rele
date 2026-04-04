@@ -430,7 +430,10 @@ app.post("/machines", async (c) => {
     // In Docker mode, always use the local image — the frontend may send a
     // remote registry reference (e.g. ghcr.io/...) that doesn't exist locally.
     const image = DOCKER_IMAGE;
-    const { env, gatewayToken } = await buildMachineEnv(userId, body.config.env);
+    const { env, gatewayToken } = await buildMachineEnv(userId, {
+      ...body.config.env,
+      ...(process.env.GATEWAY_REMOTE_URL ? { GATEWAY_REMOTE_URL: process.env.GATEWAY_REMOTE_URL } : {}),
+    });
 
     let result: { id: string; port: number };
     try {
