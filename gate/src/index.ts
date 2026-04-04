@@ -510,6 +510,7 @@ app.post("/machines", async (c) => {
   const machineConfig = {
     image: body.config.image,
     env,
+    restart: { policy: "no" },
     guest: body.config.guest ?? { cpus: 2, memory_mb: 4096, cpu_kind: "shared" },
     metadata: { user_id: userId, fly_process_group: "user" },
     mounts: [{ volume: volumeId, path: "/home/node/.openclaw" }],
