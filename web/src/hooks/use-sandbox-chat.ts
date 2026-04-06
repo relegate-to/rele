@@ -4,9 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface ChatMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "tool";
   content: string;
   timestamp: number;
+  toolName?: string;
+  toolMeta?: string;
+  toolError?: boolean;
 }
 
 function extractText(content: unknown): string {
@@ -135,6 +138,29 @@ export function useSandboxChat() {
               });
 
               setMessages((prev) => dedupe([...prev, ...history]));
+            }
+            return;
+          }
+
+          // --- Tool events ---
+          if (data.type === "event" && data.event === "agent") {
+            const p = data.payload;
+            if (p?.stream === "tool" && p?.data?.phase === "result") {
+              const d = p.data;
+              setMessages((prev) =>
+                dedupe([
+                  ...prev,
+                  {
+                    id: `tool:${d.toolCallId ?? p.runId + ":" + p.seq}`,
+                    role: "tool",
+                    content: d.name,
+                    toolName: d.name,
+                    toolMeta: d.meta ?? "",
+                    toolError: d.isError ?? false,
+                    timestamp: p.ts ?? Date.now(),
+                  },
+                ])
+              );
             }
             return;
           }

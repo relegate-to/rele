@@ -158,6 +158,7 @@ export default function ChatPage() {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25, ease: EASE }}
+                className={msg.role === "tool" ? "-my-2" : ""}
               >
                 {msg.role === "user" ? (
                   /* User message — right-aligned pill */
@@ -167,6 +168,23 @@ export default function ChatPage() {
                         {msg.content}
                       </p>
                     </div>
+                  </div>
+                ) : msg.role === "tool" ? (
+                  /* Tool event — compact inline chip */
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-[var(--font-dm-mono),monospace] text-xs ${
+                        msg.toolError
+                          ? "border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]"
+                          : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"
+                      }`}
+                    >
+                      <span className="opacity-50">▸</span>
+                      <span className="text-[var(--text)]">{msg.toolName}</span>
+                      {msg.toolMeta && (
+                        <span className="opacity-60 truncate max-w-[40ch]">{msg.toolMeta}</span>
+                      )}
+                    </span>
                   </div>
                 ) : (
                   /* Assistant message — left-aligned, clean */
