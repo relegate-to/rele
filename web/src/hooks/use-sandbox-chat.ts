@@ -1,35 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ChatMessage,
+  parseHistoryMessages,
+  parseToolEvent,
+  parseChatEvent,
+} from "./sandbox-chat-protocol";
 
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant" | "tool";
-  content: string;
-  timestamp: number;
-  toolName?: string;
-  toolMeta?: string;
-  toolError?: boolean;
-}
+export type { ChatMessage };
 
-function formatArgs(args: unknown): string {
-  if (!args || typeof args !== "object") return "";
-  const vals = Object.values(args as Record<string, unknown>);
-  if (vals.length === 1 && typeof vals[0] === "string") return vals[0];
-  if (vals.length > 0) return JSON.stringify(args);
-  return "";
-}
-
-function extractText(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) return content.map(extractText).join("");
-  if (content && typeof content === "object" && "text" in content) {
-    return String((content as any).text);
-  }
-  return "";
-}
-
-// 🔒 Deduplicate helper
 function dedupe(messages: ChatMessage[]): ChatMessage[] {
   const seen = new Set<string>();
   return messages.filter((m) => {
@@ -43,12 +23,12 @@ export function useSandboxChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
 
   const connect = useCallback(async () => {
-    // ✅ Prevent duplicate sockets (OPEN or CONNECTING)
     if (
       wsRef.current &&
       (wsRef.current.readyState === WebSocket.OPEN ||
@@ -63,217 +43,136 @@ export function useSandboxChat() {
     try {
       const res = await fetch("/api/gate/ws-auth");
       if (!res.ok) throw new Error("Failed to get WS auth");
-
       const { url, token, gatewayToken } = await res.json();
 
       const ws = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
       wsRef.current = ws;
-
       let authenticated = false;
+
+      function handleHandshake(data: any) {
+        if (data.type === "event" && data.event === "connect.challenge") {
+          ws.send(
+            JSON.stringify({
+              type: "req",
+              id: "rele-connect",
+              method: "connect",
+              params: {
+                minProtocol: 3,
+                maxProtocol: 3,
+                client: {
+                  id: "openclaw-control-ui",
+                  version: "0.1.0",
+                  platform: "web",
+                  mode: "webchat",
+                },
+                role: "operator",
+                scopes: ["operator.admin", "operator.read", "operator.write", "operator.approvals", "operator.pairing"],
+                caps: ["tool-events"],
+                auth: { token: gatewayToken },
+                userAgent: navigator.userAgent,
+                locale: navigator.language,
+              },
+            })
+          );
+          return;
+        }
+
+        if (data.type === "res" && data.id === "rele-connect") {
+          if (data.ok) {
+            authenticated = true;
+            setConnected(true);
+            setConnecting(false);
+            ws.send(
+              JSON.stringify({
+                type: "req",
+                id: "hist-" + Date.now(),
+                method: "chat.history",
+                params: { sessionKey: "agent:main:main" },
+              })
+            );
+          } else {
+            ws.close(4401, "Backend auth failed");
+          }
+        }
+      }
+
+      function handleHistoryResponse(data: any) {
+        if (data.ok && data.payload?.messages) {
+          const history = parseHistoryMessages(data.payload.messages);
+          setMessages((prev) => dedupe([...prev, ...history]));
+        }
+      }
+
+      function handleToolEvent(payload: any) {
+        const event = parseToolEvent(payload);
+        if (!event) return;
+
+        if (event.type === "start") {
+          setMessages((prev) => dedupe([...prev, event.message]));
+        } else {
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === event.chipId);
+            if (idx !== -1) {
+              if (!event.isError) return prev;
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], toolError: true };
+              return updated;
+            }
+            // Chip missing (e.g. reconnect mid-run) — create from fallback
+            return dedupe([...prev, event.fallback]);
+          });
+        }
+      }
+
+      function handleChatEvent(payload: any) {
+        const event = parseChatEvent(payload);
+        if (!event) return;
+
+        if (event.state === "delta" || event.state === "final") {
+          if (event.state === "final") setIsThinking(false);
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === event.messageId);
+            if (idx !== -1) {
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], content: event.text };
+              return updated;
+            }
+            return dedupe([
+              ...prev,
+              {
+                id: event.messageId,
+                role: "assistant",
+                content: event.text,
+                timestamp: Date.now(),
+              },
+            ]);
+          });
+        } else if (event.state === "error") {
+          setIsThinking(false);
+          setMessages((prev) =>
+            dedupe([
+              ...prev,
+              {
+                id: `error:${event.messageId}:${Date.now()}`,
+                role: "assistant",
+                content: event.text || "Agent error",
+                timestamp: Date.now(),
+              },
+            ])
+          );
+        }
+      }
 
       ws.onopen = () => {};
 
-      ws.onmessage = (event) => {
+      ws.onmessage = (e) => {
         try {
-          const data = JSON.parse(event.data);
+          const data = JSON.parse(e.data);
           console.log("[OC]", data);
-
-          // --- Handshake ---
-          if (!authenticated) {
-            if (data.type === "event" && data.event === "connect.challenge") {
-              ws.send(
-                JSON.stringify({
-                  type: "req",
-                  id: "rele-connect",
-                  method: "connect",
-                  params: {
-                    minProtocol: 3,
-                    maxProtocol: 3,
-                    client: {
-                      id: "openclaw-control-ui",
-                      version: "0.1.0",
-                      platform: "web",
-                      mode: "webchat",
-                    },
-                    role: "operator",
-                    scopes: ["operator.admin", "operator.read", "operator.write", "operator.approvals", "operator.pairing"],
-                    caps: ["tool-events"],
-                    auth: { token: gatewayToken },
-                    userAgent: navigator.userAgent,
-                    locale: navigator.language,
-                  },
-                })
-              );
-              return;
-            }
-
-            if (data.type === "res" && data.id === "rele-connect") {
-              if (data.ok) {
-                authenticated = true;
-                setConnected(true);
-                setConnecting(false);
-
-                ws.send(
-                  JSON.stringify({
-                    type: "req",
-                    id: "hist-" + Date.now(),
-                    method: "chat.history",
-                    params: { sessionKey: "agent:main:main" },
-                  })
-                );
-              } else {
-                ws.close(4401, "Backend auth failed");
-              }
-              return;
-            }
-          }
-
-          // --- History response ---
-          if (data.type === "res") {
-            if (data.ok && data.payload?.messages) {
-              // Build toolCallId → { name, meta } map from assistant toolCall blocks
-              const toolCallMap: Record<string, { name: string; meta: string }> = {};
-              for (const m of data.payload.messages) {
-                if (m.role === "assistant" && Array.isArray(m.content)) {
-                  for (const block of m.content) {
-                    if (block.type === "toolCall" && block.id && block.name) {
-                      toolCallMap[block.id] = { name: block.name, meta: formatArgs(block.arguments) };
-                    }
-                  }
-                }
-              }
-
-              const history = data.payload.messages.map((m: any, i: number) => {
-                const runId = m.runId ?? m.id;
-                const baseId = runId
-                  ? `run:${runId}`
-                  : `hist:${m.timestamp ?? i}-${i}`;
-
-                if (m.role === "toolResult") {
-                  const entry = toolCallMap[m.toolCallId];
-                  const toolName = entry?.name ?? m.toolCallId ?? "tool";
-                  return {
-                    id: `tool:${m.toolCallId ?? baseId}`,
-                    role: "tool" as const,
-                    content: toolName,
-                    toolName,
-                    toolMeta: entry?.meta ?? "",
-                    toolError: m.isError ?? false,
-                    timestamp: m.timestamp ?? Date.now(),
-                  };
-                }
-
-                return {
-                  id: baseId,
-                  role: m.role,
-                  content: extractText(m.content),
-                  timestamp: m.timestamp ?? Date.now(),
-                };
-              });
-
-              setMessages((prev) => dedupe([...prev, ...history]));
-            }
-            return;
-          }
-
-          // --- Tool events ---
-          if (data.type === "event" && data.event === "agent") {
-            const p = data.payload;
-            if (p?.stream === "tool") {
-              const d = p.data;
-              const chipId = `tool:${d.toolCallId ?? p.runId + ":" + p.seq}`;
-
-              if (d?.phase === "start") {
-                setMessages((prev) =>
-                  dedupe([
-                    ...prev,
-                    {
-                      id: chipId,
-                      role: "tool" as const,
-                      content: d.name,
-                      toolName: d.name,
-                      toolMeta: formatArgs(d.args),
-                      toolError: false,
-                      timestamp: p.ts ?? Date.now(),
-                    },
-                  ])
-                );
-              } else if (d?.phase === "result") {
-                setMessages((prev) => {
-                  const idx = prev.findIndex((m) => m.id === chipId);
-                  if (idx !== -1) {
-                    if (!d.isError) return prev;
-                    const updated = [...prev];
-                    updated[idx] = { ...updated[idx], toolError: true };
-                    return updated;
-                  }
-                  // Chip missing (e.g. reconnect mid-run) — create from result
-                  return dedupe([
-                    ...prev,
-                    {
-                      id: chipId,
-                      role: "tool" as const,
-                      content: d.name,
-                      toolName: d.name,
-                      toolMeta: d.meta ?? formatArgs(d.args),
-                      toolError: d.isError ?? false,
-                      timestamp: p.ts ?? Date.now(),
-                    },
-                  ]);
-                });
-              }
-            }
-            return;
-          }
-
-          // --- Streaming events ---
-          if (data.type === "event" && data.event === "chat") {
-            const p = data.payload;
-            const runId = p?.runId;
-
-            if (!runId) return;
-
-            const messageId = `run:${runId}`;
-            const text = extractText(
-              p?.message?.content ?? p?.errorMessage ?? ""
-            );
-
-            if (p?.state === "delta" || p?.state === "final") {
-              setMessages((prev) => {
-                const idx = prev.findIndex((m) => m.id === messageId);
-
-                if (idx !== -1) {
-                  const updated = [...prev];
-                  updated[idx] = { ...updated[idx], content: text };
-                  return updated;
-                }
-
-                return dedupe([
-                  ...prev,
-                  {
-                    id: messageId,
-                    role: "assistant",
-                    content: text,
-                    timestamp: Date.now(),
-                  },
-                ]);
-              });
-            } else if (p?.state === "error") {
-              setMessages((prev) =>
-                dedupe([
-                  ...prev,
-                  {
-                    id: `error:${runId}:${Date.now()}`,
-                    role: "assistant",
-                    content: text || "Agent error",
-                    timestamp: Date.now(),
-                  },
-                ])
-              );
-            }
-
-            return;
-          }
+          if (!authenticated) { handleHandshake(data); return; }
+          if (data.type === "res") { handleHistoryResponse(data); return; }
+          if (data.type === "event" && data.event === "agent") { handleToolEvent(data.payload); return; }
+          if (data.type === "event" && data.event === "chat") { handleChatEvent(data.payload); return; }
         } catch {
           // ignore non-JSON
         }
@@ -282,16 +181,12 @@ export function useSandboxChat() {
       ws.onclose = (event) => {
         setConnected(false);
         setConnecting(false);
+        setIsThinking(false);
         wsRef.current = null;
-
         if (event.code === 4401) {
           setError("Authentication failed.");
-          return;
-        }
-
-        if (event.code === 1006) {
+        } else if (event.code === 1006) {
           setError("Connection failed — instance may still be starting up.");
-          return;
         }
       };
 
@@ -316,14 +211,10 @@ export function useSandboxChat() {
 
     const id = crypto.randomUUID();
 
-    const msg: ChatMessage = {
-      id,
-      role: "user",
-      content,
-      timestamp: Date.now(),
-    };
-
-    setMessages((prev) => dedupe([...prev, msg]));
+    setMessages((prev) =>
+      dedupe([...prev, { id, role: "user", content, timestamp: Date.now() }])
+    );
+    setIsThinking(true);
 
     wsRef.current.send(
       JSON.stringify({
@@ -345,5 +236,5 @@ export function useSandboxChat() {
     };
   }, []);
 
-  return { messages, connected, connecting, error, connect, disconnect, sendMessage };
+  return { messages, connected, connecting, isThinking, error, connect, disconnect, sendMessage };
 }

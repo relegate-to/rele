@@ -4,35 +4,29 @@ import { useEffect, useRef, useState, useCallback, type KeyboardEvent } from "re
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Markdown from "react-markdown";
-import {
-  ArrowUpIcon,
-  FileTextIcon,
-  FilePenIcon,
-  TerminalIcon,
-  SearchIcon,
-  GlobeIcon,
-  Trash2Icon,
-  FolderIcon,
-  WrenchIcon,
-  AlertCircleIcon,
-} from "lucide-react";
+import { ArrowUpIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 import { useSandboxChat } from "@/hooks/use-sandbox-chat";
+import { ToolIcon } from "@/components/tool-icon";
 
-function ToolIcon({ name, isError }: { name: string; isError?: boolean }) {
-  if (isError) return <AlertCircleIcon className="size-3 shrink-0 text-[var(--status-error-text)]" />;
-  const n = name.toLowerCase();
-  const cls = "size-3 shrink-0 text-[var(--muted)]";
-  if (n === "read" || n.includes("read")) return <FileTextIcon className={cls} />;
-  if (n === "write" || n === "edit" || n.includes("write") || n.includes("edit")) return <FilePenIcon className={cls} />;
-  if (n === "bash" || n.includes("shell") || n.includes("exec") || n.includes("run")) return <TerminalIcon className={cls} />;
-  if (n.includes("search")) return <SearchIcon className={cls} />;
-  if (n.includes("fetch") || n.includes("web") || n.includes("http")) return <GlobeIcon className={cls} />;
-  if (n.includes("delete") || n.includes("remove") || n.includes("trash")) return <Trash2Icon className={cls} />;
-  if (n.includes("list") || n.includes("glob") || n.includes("dir") || n.includes("folder")) return <FolderIcon className={cls} />;
-  return <WrenchIcon className={cls} />;
-}
+const PROSE_CLASSES = [
+  "prose-chat text-sm leading-relaxed text-[var(--text)]",
+  "[&_strong]:font-semibold [&_em]:italic",
+  "[&_p]:mb-3 [&_p:last-child]:mb-0",
+  "[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3",
+  "[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3",
+  "[&_li]:mb-1.5 [&_li]:leading-relaxed",
+  "[&_a]:text-[var(--accent)] [&_a]:underline [&_a]:underline-offset-2",
+  "[&_h1]:text-base [&_h1]:font-semibold [&_h1]:mb-3 [&_h1]:mt-4 [&_h1:first-child]:mt-0",
+  "[&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2:first-child]:mt-0",
+  "[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-2",
+  "[&_code]:bg-[var(--surface-hi)] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:text-xs [&_code]:font-[var(--font-dm-mono),monospace]",
+  "[&_pre]:bg-[var(--surface)] [&_pre]:border [&_pre]:border-[var(--border)] [&_pre]:p-4 [&_pre]:rounded-xl [&_pre]:mb-3 [&_pre]:overflow-x-auto",
+  "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
+  "[&_hr]:border-[var(--border)] [&_hr]:my-4",
+  "[&_blockquote]:border-l-2 [&_blockquote]:border-[var(--accent)]/30 [&_blockquote]:pl-4 [&_blockquote]:text-[var(--text-dim)] [&_blockquote]:italic",
+].join(" ");
 
 function TypingIndicator() {
   return (
@@ -56,7 +50,7 @@ function TypingIndicator() {
 
 export default function ChatPage() {
   const { machines, loading } = useMachinesContext();
-  const { messages, connected, connecting, error, connect, sendMessage } = useSandboxChat();
+  const { messages, connected, connecting, isThinking, error, connect, sendMessage } = useSandboxChat();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -64,9 +58,6 @@ export default function ChatPage() {
 
   const machine = machines[0] ?? null;
   const isRunning = machine?.state === "started" || machine?.state === "running";
-
-  const lastMessage = messages[messages.length - 1];
-  const isWaitingForReply = lastMessage?.role === "user";
 
   // Redirect if no machine
   useEffect(() => {
@@ -219,25 +210,7 @@ export default function ChatPage() {
                 ) : (
                   /* Assistant message — left-aligned, clean */
                   <div>
-                    <div
-                      className="
-                        prose-chat text-sm leading-relaxed text-[var(--text)]
-                        [&_strong]:font-semibold [&_em]:italic
-                        [&_p]:mb-3 [&_p:last-child]:mb-0
-                        [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3
-                        [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3
-                        [&_li]:mb-1.5 [&_li]:leading-relaxed
-                        [&_a]:text-[var(--accent)] [&_a]:underline [&_a]:underline-offset-2
-                        [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mb-3 [&_h1]:mt-4 [&_h1:first-child]:mt-0
-                        [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2:first-child]:mt-0
-                        [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-2
-                        [&_code]:bg-[var(--surface-hi)] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:text-xs [&_code]:font-[var(--font-dm-mono),monospace]
-                        [&_pre]:bg-[var(--surface)] [&_pre]:border [&_pre]:border-[var(--border)] [&_pre]:p-4 [&_pre]:rounded-xl [&_pre]:mb-3 [&_pre]:overflow-x-auto
-                        [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs
-                        [&_hr]:border-[var(--border)] [&_hr]:my-4
-                        [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--accent)]/30 [&_blockquote]:pl-4 [&_blockquote]:text-[var(--text-dim)] [&_blockquote]:italic
-                      "
-                    >
+                    <div className={PROSE_CLASSES}>
                       <Markdown>{msg.content}</Markdown>
                     </div>
                   </div>
@@ -247,7 +220,7 @@ export default function ChatPage() {
 
             {/* Typing indicator */}
             <AnimatePresence>
-              {isWaitingForReply && connected && (
+              {isThinking && connected && (
                 <motion.div
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
