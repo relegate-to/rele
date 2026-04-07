@@ -28,6 +28,31 @@ const PROSE_CLASSES = [
   "[&_blockquote]:border-l-2 [&_blockquote]:border-[var(--accent)]/30 [&_blockquote]:pl-4 [&_blockquote]:text-[var(--text-dim)] [&_blockquote]:italic",
 ].join(" ");
 
+function AnimatedText({ content }: { content: string }) {
+  // Split into word/whitespace tokens. Words get a stable index key — React
+  // keeps existing nodes alive (no re-animation) and mounts new ones fresh.
+  const tokens = content.split(/(\s+)/);
+  return (
+    <>
+      {tokens.map((token, i) =>
+        /^\s+$/.test(token) ? (
+          <span key={i}>{token}</span>
+        ) : (
+          <motion.span
+            key={i}
+            initial={{ opacity: 0, filter: "blur(6px)" }}
+            animate={{ opacity: 1, filter: "blur(0px)" }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            style={{ display: "inline-block" }}
+          >
+            {token}
+          </motion.span>
+        )
+      )}
+    </>
+  );
+}
+
 function TypingIndicator() {
   return (
     <div className="flex items-center gap-1 px-1 py-2">
@@ -211,7 +236,11 @@ export default function ChatPage() {
                   /* Assistant message — left-aligned, clean */
                   <div>
                     <div className={PROSE_CLASSES}>
-                      <Markdown>{msg.content}</Markdown>
+                      {msg.isStreaming ? (
+                        <p><AnimatedText content={msg.content} /></p>
+                      ) : (
+                        <Markdown>{msg.content}</Markdown>
+                      )}
                     </div>
                   </div>
                 )}

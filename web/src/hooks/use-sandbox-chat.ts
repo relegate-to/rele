@@ -129,12 +129,13 @@ export function useSandboxChat() {
         if (!event) return;
 
         if (event.state === "delta" || event.state === "final") {
-          if (event.state === "final") setIsThinking(false);
+          const isStreaming = event.state === "delta";
+          if (!isStreaming) setIsThinking(false);
           setMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === event.messageId);
             if (idx !== -1) {
               const updated = [...prev];
-              updated[idx] = { ...updated[idx], content: event.text };
+              updated[idx] = { ...updated[idx], content: event.text, isStreaming };
               return updated;
             }
             return dedupe([
@@ -143,6 +144,7 @@ export function useSandboxChat() {
                 id: event.messageId,
                 role: "assistant",
                 content: event.text,
+                isStreaming,
                 timestamp: Date.now(),
               },
             ]);

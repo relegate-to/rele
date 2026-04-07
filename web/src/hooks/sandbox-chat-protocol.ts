@@ -11,6 +11,7 @@ export interface ChatMessage {
   toolName?: string;
   toolMeta?: string;
   toolError?: boolean;
+  isStreaming?: boolean;
 }
 
 export function formatArgs(args: unknown): string {
