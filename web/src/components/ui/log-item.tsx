@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CodeIcon } from "lucide-react";
-import { MarkdownProse } from "./markdown-prose";
-import { JsonModal } from "./json-modal";
+import { MarkdownProse } from "@/components/ui/markdown-prose";
+import { JsonModal } from "@/components/ui/json-modal";
 import {
   extractJsonFromCodeBlock,
   isValidJson,

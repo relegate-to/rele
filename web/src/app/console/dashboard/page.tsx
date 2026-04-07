@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useMachinesContext } from "../_context/machines-context";
 import { useInstanceStats } from "@/hooks/use-instance-stats";
-import { LogItem } from "@/components/log-item";
+import { LogItem } from "@/components/ui/log-item";
 import {
   REGION_LABELS,
   CHANNEL_ICONS,

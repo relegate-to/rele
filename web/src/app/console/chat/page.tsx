@@ -10,9 +10,9 @@ import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 import { useSandboxChat } from "@/hooks/use-sandbox-chat";
 import { ToolIcon } from "@/components/ui/tool-icon";
-import { MarkdownProse } from "@/components/markdown-prose";
-import { TypingIndicator } from "@/components/typing-indicator";
-import { ConnectionStatus } from "@/components/connection-status";
+import { MarkdownProse } from "@/components/ui/markdown-prose";
+import { TypingIndicator } from "@/components/ui/typing-indicator";
+import { ConnectionStatus } from "@/components/ui/connection-status";
 import { PROSE_CLASSES } from "@/lib/constants";
 
 export default function ChatPage() {
