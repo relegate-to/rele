@@ -245,22 +245,60 @@ export default function ChatPage() {
    </div>
 
    <div className="px-6 pb-5 pt-2">
-    <div className="mx-auto max-w-4xl">
-     <div className="flex items-end gap-2 rounded-2xl border bg-[var(--surface)] p-2 pl-4">
-      <textarea
-       ref={textareaRef}
-       value={input}
-       onChange={(e) => setInput(e.target.value)}
-       onKeyDown={handleKeyDown}
-       disabled={!connected}
-       rows={1}
-       className="flex-1 resize-none bg-transparent text-sm focus:outline-none"
-      />
-      <button onClick={handleSend} disabled={!connected || !input.trim()}>
-       <ArrowUpIcon className="size-4" />
-      </button>
-     </div>
-    </div>
+     <motion.div
+       initial={{ opacity: 0, y: 16 }}
+       animate={{ opacity: 1, y: 0 }}
+       transition={{ duration: 0.4, ease: EASE, delay: 0.05 }}
+       className="mx-auto max-w-4xl"
+     >
+       <div
+         className={`
+           relative flex items-end gap-2 rounded-2xl border
+           bg-[var(--surface)]/80 backdrop-blur-sm
+           p-2 pl-4
+           shadow-[0_2px_12px_rgba(0,0,0,0.04),0_0_0_1px_var(--border)]
+           transition-all duration-200
+           focus-within:shadow-[0_2px_20px_rgba(99,102,241,0.12),0_0_0_1px_var(--accent)]
+           ${!connected ? "opacity-60" : ""}
+         `}
+       >
+         <textarea
+           ref={textareaRef}
+           value={input}
+           onChange={(e) => setInput(e.target.value)}
+           onKeyDown={handleKeyDown}
+           placeholder={connected ? "Message your agent..." : "Waiting for connection..."}
+           disabled={!connected}
+           rows={1}
+           className="
+           max-h-[200px] min-h-[28px] flex-1 resize-none bg-transparent py-1
+           font-[var(--font-dm-mono),monospace] text-sm leading-relaxed text-[var(--text)]
+           placeholder:text-[var(--muted)]
+           focus:outline-none
+           disabled:cursor-not-allowed
+         "
+         />
+
+         <button
+           onClick={handleSend}
+           disabled={!connected || !input.trim()}
+           className="
+           flex size-8 shrink-0 items-center justify-center rounded-xl
+           bg-[var(--accent)] text-white
+           transition-all duration-150
+           hover:bg-[var(--accent-dim)]
+           disabled:opacity-30 disabled:hover:bg-[var(--accent)]
+           active:scale-95
+         "
+         >
+           <ArrowUpIcon className="size-4" strokeWidth={2.5} />
+         </button>
+       </div>
+
+       <p className="mt-2 text-center font-[var(--font-dm-mono),monospace] text-[10px] tracking-wide text-[var(--muted)]">
+         Press Enter to send, Shift+Enter for a new line
+       </p>
+     </motion.div>
    </div>
   </div>
  );
