@@ -12,6 +12,14 @@ export interface ChatMessage {
   toolError?: boolean;
 }
 
+function formatArgs(args: unknown): string {
+  if (!args || typeof args !== "object") return "";
+  const vals = Object.values(args as Record<string, unknown>);
+  if (vals.length === 1 && typeof vals[0] === "string") return vals[0];
+  if (vals.length > 0) return JSON.stringify(args);
+  return "";
+}
+
 function extractText(content: unknown): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) return content.map(extractText).join("");
@@ -123,14 +131,40 @@ export function useSandboxChat() {
           // --- History response ---
           if (data.type === "res") {
             if (data.ok && data.payload?.messages) {
+              // Build toolCallId → { name, meta } map from assistant toolCall blocks
+              const toolCallMap: Record<string, { name: string; meta: string }> = {};
+              for (const m of data.payload.messages) {
+                if (m.role === "assistant" && Array.isArray(m.content)) {
+                  for (const block of m.content) {
+                    if (block.type === "toolCall" && block.id && block.name) {
+                      toolCallMap[block.id] = { name: block.name, meta: formatArgs(block.arguments) };
+                    }
+                  }
+                }
+              }
+
               const history = data.payload.messages.map((m: any, i: number) => {
                 const runId = m.runId ?? m.id;
-                const id = runId
+                const baseId = runId
                   ? `run:${runId}`
                   : `hist:${m.timestamp ?? i}-${i}`;
 
+                if (m.role === "toolResult") {
+                  const entry = toolCallMap[m.toolCallId];
+                  const toolName = entry?.name ?? m.toolCallId ?? "tool";
+                  return {
+                    id: `tool:${m.toolCallId ?? baseId}`,
+                    role: "tool" as const,
+                    content: toolName,
+                    toolName,
+                    toolMeta: entry?.meta ?? "",
+                    toolError: m.isError ?? false,
+                    timestamp: m.timestamp ?? Date.now(),
+                  };
+                }
+
                 return {
-                  id,
+                  id: baseId,
                   role: m.role,
                   content: extractText(m.content),
                   timestamp: m.timestamp ?? Date.now(),
@@ -145,22 +179,49 @@ export function useSandboxChat() {
           // --- Tool events ---
           if (data.type === "event" && data.event === "agent") {
             const p = data.payload;
-            if (p?.stream === "tool" && p?.data?.phase === "result") {
+            if (p?.stream === "tool") {
               const d = p.data;
-              setMessages((prev) =>
-                dedupe([
-                  ...prev,
-                  {
-                    id: `tool:${d.toolCallId ?? p.runId + ":" + p.seq}`,
-                    role: "tool",
-                    content: d.name,
-                    toolName: d.name,
-                    toolMeta: d.meta ?? "",
-                    toolError: d.isError ?? false,
-                    timestamp: p.ts ?? Date.now(),
-                  },
-                ])
-              );
+              const chipId = `tool:${d.toolCallId ?? p.runId + ":" + p.seq}`;
+
+              if (d?.phase === "start") {
+                setMessages((prev) =>
+                  dedupe([
+                    ...prev,
+                    {
+                      id: chipId,
+                      role: "tool" as const,
+                      content: d.name,
+                      toolName: d.name,
+                      toolMeta: formatArgs(d.args),
+                      toolError: false,
+                      timestamp: p.ts ?? Date.now(),
+                    },
+                  ])
+                );
+              } else if (d?.phase === "result") {
+                setMessages((prev) => {
+                  const idx = prev.findIndex((m) => m.id === chipId);
+                  if (idx !== -1) {
+                    if (!d.isError) return prev;
+                    const updated = [...prev];
+                    updated[idx] = { ...updated[idx], toolError: true };
+                    return updated;
+                  }
+                  // Chip missing (e.g. reconnect mid-run) — create from result
+                  return dedupe([
+                    ...prev,
+                    {
+                      id: chipId,
+                      role: "tool" as const,
+                      content: d.name,
+                      toolName: d.name,
+                      toolMeta: d.meta ?? formatArgs(d.args),
+                      toolError: d.isError ?? false,
+                      timestamp: p.ts ?? Date.now(),
+                    },
+                  ]);
+                });
+              }
             }
             return;
           }

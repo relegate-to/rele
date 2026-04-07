@@ -4,10 +4,35 @@ import { useEffect, useRef, useState, useCallback, type KeyboardEvent } from "re
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Markdown from "react-markdown";
-import { ArrowUpIcon } from "lucide-react";
+import {
+  ArrowUpIcon,
+  FileTextIcon,
+  FilePenIcon,
+  TerminalIcon,
+  SearchIcon,
+  GlobeIcon,
+  Trash2Icon,
+  FolderIcon,
+  WrenchIcon,
+  AlertCircleIcon,
+} from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 import { useSandboxChat } from "@/hooks/use-sandbox-chat";
+
+function ToolIcon({ name, isError }: { name: string; isError?: boolean }) {
+  if (isError) return <AlertCircleIcon className="size-3 shrink-0 text-[var(--status-error-text)]" />;
+  const n = name.toLowerCase();
+  const cls = "size-3 shrink-0 text-[var(--muted)]";
+  if (n === "read" || n.includes("read")) return <FileTextIcon className={cls} />;
+  if (n === "write" || n === "edit" || n.includes("write") || n.includes("edit")) return <FilePenIcon className={cls} />;
+  if (n === "bash" || n.includes("shell") || n.includes("exec") || n.includes("run")) return <TerminalIcon className={cls} />;
+  if (n.includes("search")) return <SearchIcon className={cls} />;
+  if (n.includes("fetch") || n.includes("web") || n.includes("http")) return <GlobeIcon className={cls} />;
+  if (n.includes("delete") || n.includes("remove") || n.includes("trash")) return <Trash2Icon className={cls} />;
+  if (n.includes("list") || n.includes("glob") || n.includes("dir") || n.includes("folder")) return <FolderIcon className={cls} />;
+  return <WrenchIcon className={cls} />;
+}
 
 function TypingIndicator() {
   return (
@@ -171,20 +196,25 @@ export default function ChatPage() {
                   </div>
                 ) : msg.role === "tool" ? (
                   /* Tool event — compact inline chip */
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-[var(--font-dm-mono),monospace] text-xs ${
+                  <div className="flex items-center">
+                    <div
+                      className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 font-[var(--font-dm-mono),monospace] text-xs ${
                         msg.toolError
-                          ? "border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]"
-                          : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"
+                          ? "border-[var(--status-error-border)] bg-[var(--status-error-bg)]"
+                          : "border-[var(--border)] bg-[var(--surface)]"
                       }`}
                     >
-                      <span className="opacity-50">▸</span>
-                      <span className="text-[var(--text)]">{msg.toolName}</span>
+                      <ToolIcon name={msg.toolName ?? ""} isError={msg.toolError} />
+                      <span className={msg.toolError ? "text-[var(--status-error-text)]" : "text-[var(--text)]"}>
+                        {msg.toolName}
+                      </span>
                       {msg.toolMeta && (
-                        <span className="opacity-60 truncate max-w-[40ch]">{msg.toolMeta}</span>
+                        <>
+                          <span className="text-[var(--border)]">·</span>
+                          <span className="text-[var(--muted)] truncate max-w-[48ch]">{msg.toolMeta}</span>
+                        </>
                       )}
-                    </span>
+                    </div>
                   </div>
                 ) : (
                   /* Assistant message — left-aligned, clean */
