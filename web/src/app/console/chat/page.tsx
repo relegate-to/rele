@@ -8,7 +8,7 @@ import { ArrowUpIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 import { useSandboxChat } from "@/hooks/use-sandbox-chat";
-import { ToolIcon } from "@/components/tool-icon";
+import { ToolIcon } from "@/components/ui/tool-icon";
 
 const PROSE_CLASSES = [
   "prose-chat text-sm leading-relaxed text-[var(--text)]",
