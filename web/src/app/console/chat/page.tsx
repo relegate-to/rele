@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, type KeyboardEvent } from "re
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Markdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
 import { ArrowUpIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
@@ -43,7 +44,7 @@ function AnimatedText({ content }: { content: string }) {
             initial={{ opacity: 0, filter: "blur(6px)" }}
             animate={{ opacity: 1, filter: "blur(0px)" }}
             transition={{ duration: 0.35, ease: "easeOut" }}
-            style={{ display: "inline-block" }}
+            style={{ display: "inline" }}
           >
             {token}
           </motion.span>
@@ -77,8 +78,11 @@ export default function ChatPage() {
   const { machines, loading } = useMachinesContext();
   const { messages, connected, connecting, isThinking, error, connect, sendMessage } = useSandboxChat();
   const [input, setInput] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pinnedToBottomRef = useRef(true);
+  const prevMessageCountRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
   const router = useRouter();
 
   const machine = machines[0] ?? null;
@@ -98,10 +102,54 @@ export default function ChatPage() {
     }
   }, [isRunning, connected, connecting, error, connect]);
 
-  // Auto-scroll to bottom
+  // Track whether user is pinned to the bottom
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    pinnedToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }, []);
+
+  // Lerp scroll: smoothly chases scrollHeight with inertia
+  const startLerpScroll = useCallback(() => {
+    if (rafRef.current !== null) return; // already running
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const tick = () => {
+      const target = el.scrollHeight - el.clientHeight;
+      const diff = target - el.scrollTop;
+      if (Math.abs(diff) < 1) {
+        el.scrollTop = target;
+        rafRef.current = null;
+        return;
+      }
+      el.scrollTop += diff * 0.14;
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  // Auto-scroll: lerp while streaming, browser-smooth for new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const isNewMessage = messages.length !== prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+    const isStreaming = messages.some((m) => m.isStreaming);
+
+    if (isStreaming) {
+      startLerpScroll();
+    } else {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (isNewMessage || pinnedToBottomRef.current) {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }
+    }
+  }, [messages, startLerpScroll]);
 
   // Auto-resize textarea
   const resizeTextarea = useCallback(() => {
@@ -172,7 +220,7 @@ export default function ChatPage() {
       </motion.div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-4xl px-6 py-6">
           {/* Empty state */}
           {messages.length === 0 && connected && (
@@ -236,11 +284,20 @@ export default function ChatPage() {
                   /* Assistant message — left-aligned, clean */
                   <div>
                     <div className={PROSE_CLASSES}>
-                      {msg.isStreaming ? (
-                        <p><AnimatedText content={msg.content} /></p>
-                      ) : (
-                        <Markdown>{msg.content}</Markdown>
-                      )}
+                      <Markdown
+                        remarkPlugins={[remarkBreaks]}
+                        components={msg.isStreaming ? {
+                          p: ({ children }) => (
+                            <p>
+                              {typeof children === "string"
+                                ? <AnimatedText content={children} />
+                                : children}
+                            </p>
+                          ),
+                        } : undefined}
+                      >
+                        {msg.content}
+                      </Markdown>
                     </div>
                   </div>
                 )}
@@ -261,7 +318,6 @@ export default function ChatPage() {
               )}
             </AnimatePresence>
 
-            <div ref={messagesEndRef} />
           </div>
         </div>
       </div>
