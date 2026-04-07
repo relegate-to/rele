@@ -233,10 +233,22 @@ export function useSandboxChat() {
   }, []);
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (
+        document.visibilityState === "visible" &&
+        wsRef.current?.readyState !== WebSocket.OPEN &&
+        wsRef.current?.readyState !== WebSocket.CONNECTING
+      ) {
+        connect();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       wsRef.current?.close();
     };
-  }, []);
+  }, [connect]);
 
   return { messages, connected, connecting, isThinking, error, connect, disconnect, sendMessage };
 }
