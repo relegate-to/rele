@@ -144,7 +144,7 @@ async function ensureUserVolume(appName: string, region: string): Promise<string
     body: JSON.stringify({
       name: "openclaw_data",
       region,
-      size_gb: 1,
+      size_gb: 5,
     }),
   });
   return vol.id;

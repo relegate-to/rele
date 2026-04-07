@@ -5,76 +5,15 @@
 import { useEffect, useRef, useState, useCallback, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import Markdown from "react-markdown";
-import remarkBreaks from "remark-breaks";
 import { ArrowUpIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 import { useSandboxChat } from "@/hooks/use-sandbox-chat";
 import { ToolIcon } from "@/components/ui/tool-icon";
-
-const PROSE_CLASSES = [
- "prose-chat text-sm leading-relaxed text-[var(--text)]",
- "[&_strong]:font-semibold [&_em]:italic",
- "[&_p]:mb-3 [&_p:last-child]:mb-0",
- "[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3",
- "[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3",
- "[&_li]:mb-1.5 [&_li]:leading-relaxed",
- "[&_a]:text-[var(--accent)] [&_a]:underline [&_a]:underline-offset-2",
- "[&_h1]:text-base [&_h1]:font-semibold [&_h1]:mb-3 [&_h1]:mt-4 [&_h1:first-child]:mt-0",
- "[&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2:first-child]:mt-0",
- "[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-2",
- "[&_code]:bg-[var(--surface-hi)] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:text-xs [&_code]:font-[var(--font-dm-mono),monospace]",
- "[&_pre]:bg-[var(--surface)] [&_pre]:border [&_pre]:border-[var(--border)] [&_pre]:p-4 [&_pre]:rounded-xl [&_pre]:mb-3 [&_pre]:overflow-x-auto",
- "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
- "[&_hr]:border-[var(--border)] [&_hr]:my-4",
- "[&_blockquote]:border-l-2 [&_blockquote]:border-[var(--accent)]/30 [&_blockquote]:pl-4 [&_blockquote]:text-[var(--text-dim)] [&_blockquote]:italic",
-].join(" ");
-
-function AnimatedText({ content }: { content: string }) {
- const [displayedContent, setDisplayedContent] = useState("");
- const prevLengthRef = useRef(0);
-
- useEffect(() => {
-  if (content.length > prevLengthRef.current) {
-   setDisplayedContent(content);
-   prevLengthRef.current = content.length;
-  }
- }, [content]);
-
- return (
-  <motion.div
-   initial={{ opacity: 0.4 }}
-   animate={{ opacity: 1 }}
-   transition={{ duration: 0.2 }}
-   className={PROSE_CLASSES}
-  >
-   <Markdown remarkPlugins={[remarkBreaks]}>
-    {displayedContent}
-   </Markdown>
-  </motion.div>
- );
-}
-
-function TypingIndicator() {
- return (
-  <div className="flex items-center gap-1 px-1 py-2">
-   {[0, 1, 2].map((i) => (
-    <motion.span
-     key={i}
-     className="size-1.5 rounded-full bg-[var(--muted)]"
-     animate={{ opacity: [0.3, 1, 0.3] }}
-     transition={{
-      duration: 1.2,
-      repeat: Infinity,
-      delay: i * 0.2,
-      ease: "easeInOut",
-     }}
-    />
-   ))}
-  </div>
- );
-}
+import { MarkdownProse } from "@/components/markdown-prose";
+import { TypingIndicator } from "@/components/typing-indicator";
+import { ConnectionStatus } from "@/components/connection-status";
+import { PROSE_CLASSES } from "@/lib/constants";
 
 export default function ChatPage() {
  const { machines, loading } = useMachinesContext();
@@ -179,27 +118,9 @@ export default function ChatPage() {
 
  return (
   <div className="relative flex h-[100svh] flex-col bg-[var(--bg)] text-[var(--text)]">
-   <motion.div
-    initial={{ opacity: 0, y: -8 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, ease: EASE }}
-    className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2"
-   >
-    <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)]/80 px-3 py-1.5 shadow-sm backdrop-blur-sm">
-     <span
-      className={`size-1.5 rounded-full ${
-       connected
-        ? "bg-[var(--status-success)]"
-        : connecting
-        ? "bg-[var(--status-warning)] animate-pulse"
-        : "bg-[var(--status-neutral)]"
-      }`}
-     />
-     <span className="font-[var(--font-dm-mono),monospace] text-[11px] text-[var(--muted)]">
-      {connected ? "Connected" : connecting ? "Connecting..." : "Disconnected"}
-     </span>
-    </div>
-   </motion.div>
+   <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">
+    <ConnectionStatus connected={connected} connecting={connecting} />
+   </div>
 
    <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
     <div className="mx-auto max-w-4xl px-6 py-6">
@@ -225,14 +146,10 @@ export default function ChatPage() {
            <span>{msg.toolName}</span>
           </div>
          </div>
-        ) : msg.isStreaming ? (
-         <AnimatedText content={msg.content} />
         ) : (
-         <div className={PROSE_CLASSES}>
-          <Markdown remarkPlugins={[remarkBreaks]}>
-           {msg.content}
-          </Markdown>
-         </div>
+         <MarkdownProse isStreaming={msg.isStreaming}>
+          {msg.content}
+         </MarkdownProse>
         )}
        </motion.div>
       ))}
