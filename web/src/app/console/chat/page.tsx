@@ -1,5 +1,7 @@
 "use client";
 
+// TODO: Tool calls are out of order sometimes.
+
 import { useEffect, useRef, useState, useCallback, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
