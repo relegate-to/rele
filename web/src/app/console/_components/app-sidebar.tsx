@@ -175,13 +175,17 @@ export function AppSidebar() {
   const { connected: gatewayConnected, connect: connectGateway, disconnect: disconnectGateway } = useGateway();
   const hasInstances = !loading && machines.length > 0;
 
-  // Connect to the gateway as soon as any machine is in a started/running state.
+  // Connect when any machine is running; disconnect when none are (and machines are loaded).
   const anyMachineRunning = machines.some(
     (m) => m.state === "started" || m.state === "running"
   );
   useEffect(() => {
-    if (anyMachineRunning) connectGateway();
-  }, [anyMachineRunning, connectGateway]);
+    if (anyMachineRunning) {
+      connectGateway();
+    } else if (!loading) {
+      disconnectGateway();
+    }
+  }, [anyMachineRunning, loading, connectGateway, disconnectGateway]);
 
   const [showDebug, setShowDebug] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false);
@@ -240,7 +244,7 @@ export function AppSidebar() {
                   key={m.id}
                   instance={machineToInstance(m, gatewayConnected)}
                   isActive={pathname === "/console/status" || pathname === "/console/dashboard"}
-                  onStop={() => { stopMachine(m.id); disconnectGateway(); }}
+                  onStop={() => stopMachine(m.id)}
                   onStart={() => startMachine(m.id)}
                   onDelete={() => deleteMachine(m.id)}
                 />
