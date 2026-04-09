@@ -43,14 +43,16 @@ const DEBUG_NAV_ITEMS = [
 function flyStateToStatus(state: string, gatewayConnected: boolean): InstanceStatus {
   switch (state) {
     case "started":
-    case "running":   return gatewayConnected ? "running" : "connecting";
+    case "running":    return gatewayConnected ? "running" : "connecting";
     case "created":
-    case "starting":  return "provisioning";
+    case "starting":   return "provisioning";
     case "stopping":
+    case "suspending":
     case "destroying": return "stopping";
     case "stopped":
-    case "destroyed": return "stopped";
-    default:          return "error";
+    case "suspended":
+    case "destroyed":  return "stopped";
+    default:           return "error";
   }
 }
 
@@ -170,7 +172,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { machines, loading, startMachine, stopMachine, deleteMachine } = useMachinesContext();
-  const { connected: gatewayConnected, connect: connectGateway } = useGateway();
+  const { connected: gatewayConnected, connect: connectGateway, disconnect: disconnectGateway } = useGateway();
   const hasInstances = !loading && machines.length > 0;
 
   // Connect to the gateway as soon as any machine is in a started/running state.
@@ -238,7 +240,7 @@ export function AppSidebar() {
                   key={m.id}
                   instance={machineToInstance(m, gatewayConnected)}
                   isActive={pathname === "/console/status" || pathname === "/console/dashboard"}
-                  onStop={() => stopMachine(m.id)}
+                  onStop={() => { stopMachine(m.id); disconnectGateway(); }}
                   onStart={() => startMachine(m.id)}
                   onDelete={() => deleteMachine(m.id)}
                 />

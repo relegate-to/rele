@@ -36,7 +36,7 @@ function writeCache(machines: Machine[]) {
 }
 
 /** States that are still transitioning and worth polling for. */
-const TRANSIENT_STATES = new Set(["created", "starting", "stopping", "replacing", "restarting"]);
+const TRANSIENT_STATES = new Set(["created", "starting", "stopping", "suspending", "replacing", "restarting"]);
 
 /** How often to poll while any machine is in a transient state. */
 const FAST_POLL_MS = 3_000;
@@ -159,6 +159,9 @@ export function useMachines() {
       }
       const updated: Machine = await res.json();
       setMachines((prev) => prev.map((m) => (m.id === id ? updated : m)));
+      // Kick off an immediate re-fetch so we catch the suspended state quickly
+      // even if the regular poll was in slow-poll territory (30s interval).
+      setTimeout(() => fetchMachines(), 2_000);
     },
     [fetchMachines],
   );
