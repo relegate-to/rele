@@ -41,7 +41,7 @@ const DEBUG_NAV_ITEMS = [
 function flyStateToStatus(state: string, gatewayConnected: boolean): InstanceStatus {
   switch (state) {
     case "started":
-    case "running":   return gatewayConnected ? "running" : "provisioning";
+    case "running":   return gatewayConnected ? "running" : "connecting";
     case "created":
     case "starting":  return "provisioning";
     case "stopping":
@@ -253,12 +253,14 @@ export function AppSidebar() {
               {NAV_ITEMS.map((item) => {
                 const active = pathname === item.href;
                 const primaryStatus = machines[0] ? flyStateToStatus(machines[0].state, gatewayConnected) : null;
-                const notReady = primaryStatus === "provisioning" || primaryStatus === "stopping";
+                const notReady = primaryStatus === "provisioning" || primaryStatus === "connecting" || primaryStatus === "stopping";
                 const disabled = !hasInstances || notReady;
                 const tooltip = !hasInstances
                   ? "Create an instance first"
                   : primaryStatus === "provisioning"
                   ? "Instance is starting up…"
+                  : primaryStatus === "connecting"
+                  ? "Connecting to instance…"
                   : primaryStatus === "stopping"
                   ? "Instance is stopping…"
                   : item.label;

@@ -3,15 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const GATE_PROXY = "/api/gate";
-
-/** States that are still transitioning and worth polling for. */
-const TRANSIENT_STATES = new Set(["created", "starting", "stopping", "replacing", "restarting"]);
-
-/** How often to poll while any machine is in a transient state. */
-const FAST_POLL_MS = 3_000;
-
-/** Background poll interval when all machines are settled. */
-const SLOW_POLL_MS = 30_000;
+const CACHE_KEY = "rele:machines";
 
 export interface Machine {
   id: string;
@@ -25,9 +17,37 @@ export interface Machine {
   updatedAt: string;
 }
 
+function readCached(): Machine[] {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? (JSON.parse(raw) as Machine[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCache(machines: Machine[]) {
+  try {
+    if (machines.length === 0) localStorage.removeItem(CACHE_KEY);
+    else localStorage.setItem(CACHE_KEY, JSON.stringify(machines));
+  } catch {
+    // ignore — storage may be unavailable
+  }
+}
+
+/** States that are still transitioning and worth polling for. */
+const TRANSIENT_STATES = new Set(["created", "starting", "stopping", "replacing", "restarting"]);
+
+/** How often to poll while any machine is in a transient state. */
+const FAST_POLL_MS = 3_000;
+
+/** Background poll interval when all machines are settled. */
+const SLOW_POLL_MS = 30_000;
+
 export function useMachines() {
-  const [machines, setMachines] = useState<Machine[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = readCached();
+  const [machines, setMachines] = useState<Machine[]>(cached);
+  const [loading, setLoading] = useState(cached.length === 0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const deletingRef = useRef<Set<string>>(new Set());
   /** Optimistic state overrides — polling won't clobber these until the action resolves. */
@@ -46,6 +66,7 @@ export function useMachines() {
           return override ? { ...m, state: override } : m;
         });
         setMachines(merged);
+        writeCache(merged);
         return merged;
       }
     } catch {
@@ -157,7 +178,11 @@ export function useMachines() {
       } finally {
         deletingRef.current.delete(id);
       }
-      setMachines((prev) => prev.filter((m) => m.id !== id));
+      setMachines((prev) => {
+        const next = prev.filter((m) => m.id !== id);
+        writeCache(next);
+        return next;
+      });
     },
     [],
   );

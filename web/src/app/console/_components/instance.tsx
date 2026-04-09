@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type InstanceStatus = "running" | "provisioning" | "stopping" | "stopped" | "error"
+export type InstanceStatus = "running" | "provisioning" | "connecting" | "stopping" | "stopped" | "error"
 
 export interface Instance {
   id: string
@@ -54,6 +54,13 @@ const statusConfig: Record<
     dot:       "bg-status-info animate-pulse",
     outline:   "border-sidebar-border hover:border-sidebar-border/60",
     pulseColor: "var(--status-info-border)",
+  },
+  connecting: {
+    color:     "var(--status-warning)",
+    textColor: "var(--status-warning-text)",
+    dot:       "bg-status-warning animate-pulse",
+    outline:   "border-sidebar-border hover:border-sidebar-border/60",
+    pulseColor: "var(--status-warning-border)",
   },
   stopping: {
     color:     "var(--status-warning)",
@@ -234,6 +241,10 @@ function InstanceMeta({ instance }: { instance: Instance }) {
     return <p className={`${mono} text-status-info`}>provisioning…</p>
   }
 
+  if (status === "connecting") {
+    return <p className={`${mono} text-status-warning`}>connecting…</p>
+  }
+
   if (status === "stopping") {
     return <p className={`${mono} text-status-warning`}>stopping…</p>
   }
@@ -270,7 +281,7 @@ function InstanceActions({
   if (instance.status === "running") {
     return <ActionButton label="Stop" onClick={onStop}><StopIcon /></ActionButton>
   }
-  if (instance.status === "provisioning") {
+  if (instance.status === "provisioning" || instance.status === "connecting") {
     return <ActionButton label="Stop" onClick={onStop}><StopIcon /></ActionButton>
   }
   if (instance.status === "stopping") {
@@ -336,7 +347,7 @@ export function InstanceItem({
     return () => clearTimeout(timeout)
   }, [instance.status])
 
-  const isTransitioning = instance.status === "provisioning"
+  const isTransitioning = instance.status === "provisioning" || instance.status === "connecting"
 
   const animClass =
     anim === "pop"   ? "animate-[status-pop_0.55s_ease-out]" :
