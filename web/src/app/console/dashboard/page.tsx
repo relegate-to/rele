@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -9,7 +8,6 @@ import {
   PlayIcon,
   RefreshCwIcon,
   SquareIcon,
-  WifiIcon,
 } from "lucide-react";
 import { useMachinesContext } from "../_context/machines-context";
 import { useInstanceStats } from "@/hooks/use-instance-stats";
@@ -19,10 +17,7 @@ import {
   CHANNEL_ICONS,
   DEFAULT_CHANNEL_ICON,
 } from "@/lib/constants";
-import {
-  flyStateToStatus,
-  formatDuration,
-} from "@/lib/format";
+import { formatDuration } from "@/lib/format";
 
 // --- UI Helpers ---
 function Mono({
@@ -52,9 +47,10 @@ export default function DashboardPage() {
   const router = useRouter();
   const stats = useInstanceStats();
   const machine = machines[0];
-  const isRunning = machine ? flyStateToStatus(machine.state) === "running" : false;
-
-  useEffect(() => { if (isRunning) stats.connect(); }, [isRunning]);
+  const machineStarted = machine
+    ? machine.state === "started" || machine.state === "running"
+    : false;
+  const isRunning = machineStarted && stats.gatewayConnected;
 
   if (loading || !machine) return null;
 

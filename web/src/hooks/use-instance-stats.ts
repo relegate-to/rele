@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useGateway } from "@/app/console/_context/gateway-context";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,6 @@ export interface DashboardMessage {
 export interface InstanceStats {
   gatewayConnected: boolean;
   gatewayConnecting: boolean;
-  gatewayLatencyMs: number | null;
   channels: ChannelStatus[];
   sessions: SessionInfo[];
   recentMessages: DashboardMessage[];
@@ -109,109 +109,43 @@ function parseSessions(raw: unknown): SessionInfo[] {
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useInstanceStats(): InstanceStats {
-  const [gatewayConnected,  setGatewayConnected]  = useState(false);
-  const [gatewayConnecting, setGatewayConnecting] = useState(false);
-  const [gatewayLatencyMs,  setGatewayLatencyMs]  = useState<number | null>(null);
-  const [channels,          setChannels]          = useState<ChannelStatus[]>([]);
-  const [sessions,          setSessions]          = useState<SessionInfo[]>([]);
-  const [recentMessages,    setRecentMessages]    = useState<DashboardMessage[]>([]);
-  const [error,             setError]             = useState<string | null>(null);
+  const { connected, connecting, error, connect, send, subscribe } = useGateway();
 
-  const wsRef           = useRef<WebSocket | null>(null);
-  const connectStartRef = useRef<number>(0);
+  const [channels,       setChannels]       = useState<ChannelStatus[]>([]);
+  const [sessions,       setSessions]       = useState<SessionInfo[]>([]);
+  const [recentMessages, setRecentMessages] = useState<DashboardMessage[]>([]);
 
-  const connect = useCallback(async () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      // Already connected — just re-request data
-      const ws = wsRef.current;
-      const send = (method: string, params: Record<string, unknown> = {}) =>
-        ws.send(JSON.stringify({ type: "req", id: `dash-${method}`, method, params }));
-      send("channels.status");
-      send("sessions.list");
-      send("chat.history", { sessionKey: "agent:main:main" });
+  // Prevent re-requesting data on every render when already connected.
+  const dataRequestedRef = useRef(false);
+
+  // Request all dashboard data once per connection.
+  useEffect(() => {
+    if (!connected) {
+      dataRequestedRef.current = false;
       return;
     }
+    if (dataRequestedRef.current) return;
+    dataRequestedRef.current = true;
 
-    setGatewayConnecting(true);
-    setError(null);
-    connectStartRef.current = performance.now();
+    send({ type: "req", id: "stats-channels", method: "channels.status" });
+    send({ type: "req", id: "stats-sessions", method: "sessions.list" });
+    send({ type: "req", id: "stats-history",  method: "chat.history", params: { sessionKey: "agent:main:main" } });
+  }, [connected, send]);
 
-    let url: string, token: string, gatewayToken: string;
-    try {
-      const res = await fetch("/api/gate/ws-auth");
-      if (!res.ok) throw new Error("Instance not reachable");
-      ({ url, token, gatewayToken } = await res.json());
-    } catch (e) {
-      setGatewayConnecting(false);
-      setError(e instanceof Error ? e.message : "Connection failed");
-      return;
-    }
+  // Subscribe to gateway messages.
+  useEffect(() => {
+    return subscribe((raw) => {
+      const data = raw as Record<string, unknown>;
 
-    const ws = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
-    wsRef.current = ws;
-    let authenticated = false;
-
-    ws.onopen = () => {
-      // waiting for connect.challenge
-    };
-
-    ws.onmessage = (event) => {
-      let data: Record<string, unknown>;
-      try { data = JSON.parse(event.data as string); }
-      catch { return; }
-
-      console.log("[dash]", data);
-
-      // ── Handshake ────────────────────────────────────────────────────────
-      if (!authenticated) {
-        if (data.type === "event" && data.event === "connect.challenge") {
-          ws.send(JSON.stringify({
-            type: "req",
-            id: "dash-connect",
-            method: "connect",
-            params: {
-              minProtocol: 3, maxProtocol: 3,
-              client: { id: "openclaw-control-ui", version: "0.1.0", platform: "web", mode: "webchat" },
-              role: "operator",
-              scopes: ["operator.read", "operator.write"],
-              caps: [], commands: [], permissions: {},
-              auth: { token: gatewayToken },
-            },
-          }));
-          return;
-        }
-        if (data.type === "res" && data.id === "dash-connect") {
-          if (data.ok) {
-            authenticated = true;
-            setGatewayLatencyMs(Math.round(performance.now() - connectStartRef.current));
-            setGatewayConnected(true);
-            setGatewayConnecting(false);
-            // Fetch all dashboard data
-            const send = (method: string, params: Record<string, unknown> = {}) =>
-              ws.send(JSON.stringify({ type: "req", id: `dash-${method}`, method, params }));
-            send("channels.status");
-            send("sessions.list");
-            send("chat.history", { sessionKey: "agent:main:main" });
-          } else {
-            setGatewayConnecting(false);
-            setError("Authentication failed");
-            ws.close(4401, "Auth failed");
-          }
-          return;
-        }
-        return;
-      }
-
-      // ── Batch responses ──────────────────────────────────────────────────
-      if (data.type === "res" && typeof data.id === "string" && data.id.startsWith("dash-")) {
-        const method = (data.id as string).slice("dash-".length);
+      if (data.type === "res" && typeof data.id === "string" && data.id.startsWith("stats-")) {
+        const method = (data.id as string).slice("stats-".length);
         if (!data.ok) return;
 
-        if (method === "channels.status") {
+        if (method === "channels") {
           setChannels(parseChannels(data.payload));
-        } else if (method === "sessions.list") {
+        } else if (method === "sessions") {
           setSessions(parseSessions(data.payload));
-        } else if (method === "chat.history") {
+        } else if (method === "history") {
           const raw = data.payload as Record<string, unknown>;
           const msgs = (raw?.messages ?? []) as Record<string, unknown>[];
           setRecentMessages(
@@ -226,7 +160,7 @@ export function useInstanceStats(): InstanceStats {
         return;
       }
 
-      // ── Live chat events ─────────────────────────────────────────────────
+      // Live chat events — append latest assistant message.
       if (data.type === "event" && data.event === "chat") {
         const p = data.payload as Record<string, unknown>;
         if (p?.state === "final" && p?.message) {
@@ -239,32 +173,12 @@ export function useInstanceStats(): InstanceStats {
           }
         }
       }
-    };
-
-    ws.onclose = (event) => {
-      setGatewayConnected(false);
-      setGatewayConnecting(false);
-      wsRef.current = null;
-      if (event.code === 4401) setError("Authentication failed");
-      else if (event.code === 1006) setError("Connection closed unexpectedly");
-    };
-
-    ws.onerror = () => {
-      setGatewayConnected(false);
-      setGatewayConnecting(false);
-      wsRef.current = null;
-    };
-  }, []);
-
-  // Cleanup on unmount only — caller decides when to connect
-  useEffect(() => {
-    return () => { wsRef.current?.close(); };
-  }, []);
+    });
+  }, [subscribe]);
 
   return {
-    gatewayConnected,
-    gatewayConnecting,
-    gatewayLatencyMs,
+    gatewayConnected:  connected,
+    gatewayConnecting: connecting,
     channels,
     sessions,
     recentMessages,

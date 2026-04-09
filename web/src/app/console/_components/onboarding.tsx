@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
+import { useGateway } from "../_context/gateway-context";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -22,13 +23,13 @@ const GATE_PROXY = "/api/gate";
 
 // ─── Phase derivation ─────────────────────────────────────────────────────────
 
-type Phase = "setup" | "provisioning" | "ready";
+type Phase = "setup" | "provisioning" | "connecting" | "ready";
 
-function derivePhase(machines: { state: string }[]): Phase {
+function derivePhase(machines: { state: string }[], gatewayConnected: boolean): Phase {
   if (machines.length === 0) return "setup";
   const state = machines[0].state;
   if (["created", "starting"].includes(state)) return "provisioning";
-  if (["started", "running"].includes(state)) return "ready";
+  if (["started", "running"].includes(state)) return gatewayConnected ? "ready" : "connecting";
   return "setup";
 }
 
@@ -37,6 +38,7 @@ function derivePhase(machines: { state: string }[]): Phase {
 export function Onboarding() {
   const router = useRouter();
   const { machines, loading, createMachine } = useMachinesContext();
+  const { connected: gatewayConnected } = useGateway();
 
   const [region, setRegion] = useState("sin");
   const [apiKey, setApiKey] = useState("");
@@ -45,7 +47,7 @@ export function Onboarding() {
   const panelRef = useRef<HTMLDivElement>(null);
   const [lockedHeight, setLockedHeight] = useState<number | undefined>(undefined);
 
-  const phase = loading ? null : derivePhase(machines);
+  const phase = loading ? null : derivePhase(machines, gatewayConnected);
 
   // Redirect to dashboard when instance is ready
   const hasRedirected = useRef(false);
@@ -82,7 +84,7 @@ export function Onboarding() {
     }
   }
 
-  const isProvisioning = phase === "provisioning" || (submitting && phase !== "setup");
+  const isProvisioning = phase === "provisioning" || phase === "connecting" || (submitting && phase !== "setup");
 
   // Lock the panel height when transitioning to provisioning
   useEffect(() => {
@@ -117,10 +119,10 @@ export function Onboarding() {
               </svg>
               <div className="text-center">
                 <p className="font-[var(--font-dm-mono),monospace] text-sm font-medium text-[var(--text)]">
-                  Spinning up your instance
+                  {phase === "connecting" ? "Connecting to instance" : "Spinning up your instance"}
                 </p>
                 <p className="mt-1.5 text-sm text-[var(--muted)]">
-                  This usually takes 20&ndash;40 seconds.
+                  {phase === "connecting" ? "Waiting for gateway connection…" : "This usually takes 20\u201340 seconds."}
                 </p>
               </div>
             </motion.div>

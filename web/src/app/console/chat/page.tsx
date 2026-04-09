@@ -15,7 +15,7 @@ import { PROSE_CLASSES } from "@/lib/constants";
 
 export default function ChatPage() {
  const { machines, loading } = useMachinesContext();
- const { messages, connected, connecting, isThinking, error, connect, sendMessage } = useSandboxChat();
+ const { messages, connected, connecting, isThinking, error, sendMessage } = useSandboxChat();
  const [input, setInput] = useState("");
  const scrollContainerRef = useRef<HTMLDivElement>(null);
  const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -24,7 +24,6 @@ export default function ChatPage() {
  const router = useRouter();
 
  const machine = machines[0] ?? null;
- const isRunning = machine?.state === "started" || machine?.state === "running";
 
  useEffect(() => {
   if (!loading && !machine) {
@@ -32,11 +31,6 @@ export default function ChatPage() {
   }
  }, [machine, loading, router]);
 
- useEffect(() => {
-  if (isRunning && !connected && !connecting && !error) {
-   connect();
-  }
- }, [isRunning, connected, connecting, error, connect]);
 
  const handleScroll = useCallback(() => {
   const el = scrollContainerRef.current;

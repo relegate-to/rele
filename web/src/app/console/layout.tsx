@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "./_components/app-sidebar";
 import { MachinesProvider } from "./_context/machines-context";
+import { GatewayProvider } from "./_context/gateway-context";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
 
@@ -52,13 +53,15 @@ function ConsoleTrigger() {
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
   return (
     <MachinesProvider>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <ConsoleTrigger />
-          {children}
-        </SidebarInset>
-      </SidebarProvider>
+      <GatewayProvider>
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>
+            <ConsoleTrigger />
+            {children}
+          </SidebarInset>
+        </SidebarProvider>
+      </GatewayProvider>
     </MachinesProvider>
   );
 }

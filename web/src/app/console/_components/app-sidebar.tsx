@@ -20,6 +20,7 @@ import { AddInstanceItem, InstanceItem } from "./instance";
 import type { Instance, InstanceStatus } from "./instance";
 import UserPill from "./user-pill";
 import { useMachinesContext, type Machine } from "../_context/machines-context";
+import { useGateway } from "../_context/gateway-context";
 import { cn } from "@/lib/utils";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
@@ -37,10 +38,10 @@ const DEBUG_NAV_ITEMS = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function flyStateToStatus(state: string): InstanceStatus {
+function flyStateToStatus(state: string, gatewayConnected: boolean): InstanceStatus {
   switch (state) {
     case "started":
-    case "running":   return "running";
+    case "running":   return gatewayConnected ? "running" : "provisioning";
     case "created":
     case "starting":  return "provisioning";
     case "stopping":
@@ -60,8 +61,8 @@ const REGION_LABELS: Record<string, string> = {
   syd: "Sydney",
 };
 
-function machineToInstance(m: Machine): Instance {
-  const status = flyStateToStatus(m.state);
+function machineToInstance(m: Machine, gatewayConnected: boolean): Instance {
+  const status = flyStateToStatus(m.state, gatewayConnected);
   const image = (m.config as { image?: string })?.image ?? "";
   const name = image.split("/").pop()?.split(":")[0] ?? m.flyMachineId.slice(0, 8);
   const regionLabel = REGION_LABELS[m.region] ?? m.region;
@@ -167,7 +168,16 @@ export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { machines, loading, startMachine, stopMachine, deleteMachine } = useMachinesContext();
+  const { connected: gatewayConnected, connect: connectGateway } = useGateway();
   const hasInstances = !loading && machines.length > 0;
+
+  // Connect to the gateway as soon as any machine is in a started/running state.
+  const anyMachineRunning = machines.some(
+    (m) => m.state === "started" || m.state === "running"
+  );
+  useEffect(() => {
+    if (anyMachineRunning) connectGateway();
+  }, [anyMachineRunning, connectGateway]);
 
   const [showDebug, setShowDebug] = useState(false);
   useEffect(() => {
@@ -217,7 +227,7 @@ export function AppSidebar() {
               {machines.map((m) => (
                 <InstanceItem
                   key={m.id}
-                  instance={machineToInstance(m)}
+                  instance={machineToInstance(m, gatewayConnected)}
                   isActive={pathname === "/console/status" || pathname === "/console/dashboard"}
                   onStop={() => stopMachine(m.id)}
                   onStart={() => startMachine(m.id)}
@@ -242,13 +252,22 @@ export function AppSidebar() {
             <SidebarMenu>
               {NAV_ITEMS.map((item) => {
                 const active = pathname === item.href;
-                const disabled = !hasInstances;
+                const primaryStatus = machines[0] ? flyStateToStatus(machines[0].state, gatewayConnected) : null;
+                const notReady = primaryStatus === "provisioning" || primaryStatus === "stopping";
+                const disabled = !hasInstances || notReady;
+                const tooltip = !hasInstances
+                  ? "Create an instance first"
+                  : primaryStatus === "provisioning"
+                  ? "Instance is starting up…"
+                  : primaryStatus === "stopping"
+                  ? "Instance is stopping…"
+                  : item.label;
                 const isControlUi = item.href === "/console/control-ui";
                 return (
                   <SidebarMenuItem key={item.href} className={isControlUi ? "group/control-ui" : undefined}>
                     <SidebarMenuButton
                       isActive={active}
-                      tooltip={disabled ? "Create an instance first" : item.label}
+                      tooltip={tooltip}
                       render={disabled ? <span /> : <Link href={item.href} />}
                       aria-disabled={disabled}
                       className={cn(
