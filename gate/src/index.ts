@@ -273,7 +273,7 @@ async function buildMachineEnv(userId: string, extra?: Record<string, string>): 
       OPENCLAW_GATEWAY_TOKEN: gatewayToken,
       NEON_AUTH_URL: process.env.NEON_AUTH_URL!,
       OPENCLAW_STATE_DIR: "/home/node/.openclaw",
-      NODE_OPTIONS: "--max-old-space-size=3072",
+      NODE_OPTIONS: "--max-old-space-size=2048",
       NODE_ENV: "production",
     },
   };
@@ -516,7 +516,11 @@ app.post("/machines", async (c) => {
     image: body.config.image,
     env,
     restart: { policy: "no" },
-    guest: body.config.guest ?? { cpus: 2, memory_mb: 4096, cpu_kind: "shared" },
+    guest: body.config.guest ?? {
+      cpus: 2,
+      memory_mb: 4096,
+      cpu_kind: "performance",
+    },
     metadata: { user_id: userId, fly_process_group: "user" },
     mounts: [{ volume: volumeId, path: "/home/node/.openclaw" }],
     services: [

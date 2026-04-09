@@ -21,8 +21,8 @@ primary_region = 'sin'
   processes = ['api']
 
 [[vm]]
-  memory = '1gb'
-  cpu_kind = 'shared'
-  cpus = 1
-  memory_mb = 1024
+  memory = '2gb'
+  cpu_kind = 'performance'
+  cpus = 2
+  memory_mb = 2048
   processes = ['api']
