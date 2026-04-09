@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState, useEffect } from "react";
-import { ActivityIcon, ArrowRightIcon, BookOpenIcon, CheckCircle2Icon, ExternalLinkIcon, LayoutGridIcon, MessageSquareIcon, MonitorIcon, SettingsIcon, SparklesIcon } from "lucide-react";
+import { ActivityIcon, ArrowRightIcon, BookOpenIcon, CheckCircle2Icon, ExternalLinkIcon, LayoutGridIcon, MessageSquareIcon, MonitorIcon, RocketIcon, SettingsIcon, SparklesIcon, XIcon } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Sidebar,
   SidebarContent,
@@ -182,6 +183,12 @@ export function AppSidebar() {
 
   const [showDebug, setShowDebug] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false);
+  const [showRoadmapBanner, setShowRoadmapBanner] = useState(true);
+  const dismissRoadmapBanner = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowRoadmapBanner(false);
+    localStorage.setItem("roadmap-banner-dismissed", "1");
+  };
   useEffect(() => {
     const toggle = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -343,21 +350,35 @@ export function AppSidebar() {
       <SidebarFooter className="px-3 py-3">
         <div className="space-y-2">
           <RoadmapDialog open={showRoadmap} onOpenChange={setShowRoadmap} />
-          <button
-            onClick={() => setShowRoadmap(true)}
-            className="group flex w-full items-center gap-2.5 rounded-lg border border-[var(--border)]/60 bg-[var(--surface)] px-3 py-2.5 text-left transition-all hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/5"
-          >
-            <BookOpenIcon className="size-4 text-[var(--muted)] group-hover:text-[var(--accent)] transition-colors" />
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="text-xs font-medium text-[var(--muted)] group-hover:text-[var(--text)] transition-colors">
-                Roadmap
-              </span>
-              <span className="text-[10px] text-[var(--text-dim)]">
-                See what we're working on
-              </span>
-            </div>
-            <ArrowRightIcon className="size-3 shrink-0 text-[var(--muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
-          </button>
+          <AnimatePresence>
+            {showRoadmapBanner && (
+              <motion.div
+                className="group relative flex w-full items-center gap-3 overflow-hidden rounded-lg px-3 py-3 cursor-pointer"
+                style={{ background: "linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 70%, purple) 100%)" }}
+                onClick={() => setShowRoadmap(true)}
+                initial={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95, y: 4 }}
+                transition={{ duration: 0.2, ease: "easeIn" }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {/* shimmer */}
+                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
+                <RocketIcon className="size-5 shrink-0 text-white/90" />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="text-sm font-semibold text-white">Roadmap</span>
+                  <span className="text-xs text-white/70">See what we're building</span>
+                </div>
+                <button
+                  onClick={dismissRoadmapBanner}
+                  className="relative z-10 rounded p-0.5 text-white/50 hover:bg-white/10 hover:text-white/90 transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <XIcon className="size-3.5" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <UserPill />
         </div>
       </SidebarFooter>
