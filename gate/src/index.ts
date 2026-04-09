@@ -532,6 +532,8 @@ app.post("/machines", async (c) => {
         protocol: "tcp",
         internal_port: 80,
         force_instance_key: null,
+        auto_start_machines: false,
+        auto_stop_machines: "off",
       },
     ],
   };
