@@ -21,7 +21,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/z-ai/glm-4.6"
+        "primary": "openrouter/z-ai/glm-4.7-flash"
       },
       "workspace": "/home/node/.openclaw/workspace"
     },
