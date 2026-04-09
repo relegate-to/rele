@@ -108,7 +108,17 @@ export function useSandboxChat() {
         if (!event) return;
 
         if (event.type === "start") {
-          setMessages((prev) => dedupe([...prev, event.message]));
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === event.message.id)) return prev;
+            // Insert before any currently-streaming assistant message so tool
+            // chips don't land after text that was already streaming when the
+            // tool fired.
+            const streamIdx = prev.findIndex((m) => m.role === "assistant" && m.isStreaming);
+            if (streamIdx !== -1) {
+              return [...prev.slice(0, streamIdx), event.message, ...prev.slice(streamIdx)];
+            }
+            return [...prev, event.message];
+          });
         } else {
           setMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === event.chipId);
@@ -119,7 +129,11 @@ export function useSandboxChat() {
               return updated;
             }
             // Chip missing (e.g. reconnect mid-run) — create from fallback
-            return dedupe([...prev, event.fallback]);
+            const streamIdx = prev.findIndex((m) => m.role === "assistant" && m.isStreaming);
+            if (streamIdx !== -1) {
+              return [...prev.slice(0, streamIdx), event.fallback, ...prev.slice(streamIdx)];
+            }
+            return [...prev, event.fallback];
           });
         }
       }
