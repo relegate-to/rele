@@ -517,8 +517,8 @@ app.post("/machines", async (c) => {
     env,
     restart: { policy: "no" },
     guest: body.config.guest ?? {
-      cpus: 2,
-      memory_mb: 4096,
+      cpus: 1,
+      memory_mb: 2048,
       cpu_kind: "performance",
     },
     metadata: { user_id: userId, fly_process_group: "user" },
@@ -638,13 +638,13 @@ app.post("/machines/:id/start", async (c) => {
       return c.json({ ...machine, state: "started", config });
     }
 
-    // 1. Uncordon first so the proxy sees it once it's up
+    // Uncordon so the proxy resumes routing traffic to the resumed/started machine
     await flyRequest(
       `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/uncordon`,
       { method: "POST" }
     );
 
-    // 2. Start the machine
+    // This endpoint works for both "stopped" and "suspended" states
     await flyRequest(
       `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/start`,
       { method: "POST" }
@@ -678,15 +678,15 @@ app.post("/machines/:id/stop", async (c) => {
     if (USE_DOCKER) {
       await dockerStop(machine.flyAppName);
     } else {
-      // 1. Cordon the machine to prevent proxy wake-ups
+      // 1. Cordon to prevent proxy wake-ups during hibernation
       await flyRequest(
         `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/cordon`,
         { method: "POST" }
       );
 
-      // 2. Signal the machine to stop
+      // 2. Suspend freezes the VM state to RAM/Disk for near-instant resume
       await flyRequest(
-        `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/stop`,
+        `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/suspend`,
         { method: "POST" }
       );
     }
@@ -697,7 +697,7 @@ app.post("/machines/:id/stop", async (c) => {
       .where(eq(machines.id, id));
   } catch (err) {
     const prefix = USE_DOCKER ? "Docker" : "Fly API";
-    console.error(`${prefix} stop machine failed:`, err);
+    console.error(`${prefix} suspend machine failed:`, err);
     return c.json({ error: `${prefix} error: ${err instanceof Error ? err.message : String(err)}` }, 502);
   }
 
