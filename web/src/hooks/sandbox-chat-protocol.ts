@@ -16,7 +16,9 @@ export interface ChatMessage {
 
 export function formatArgs(args: unknown): string {
   if (!args || typeof args !== "object") return "";
-  const vals = Object.values(args as Record<string, unknown>);
+  const obj = args as Record<string, unknown>;
+  if (typeof obj.path === "string") return obj.path;
+  const vals = Object.values(obj);
   if (vals.length === 1 && typeof vals[0] === "string") return vals[0];
   if (vals.length > 0) return JSON.stringify(args);
   return "";

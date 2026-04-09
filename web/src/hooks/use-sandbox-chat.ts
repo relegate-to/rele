@@ -27,6 +27,11 @@ export function useSandboxChat() {
   const [error, setError] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
+  // Current segment index per runId. Increments on each tool result so the
+  // next assistant stream event creates a fresh bubble.
+  const segCounterRef = useRef<Record<string, number>>({});
+  // ID of the last assistant bubble we created/updated, for lifecycle:end.
+  const currentStreamIdRef = useRef<string | null>(null);
 
   const connect = useCallback(async () => {
     if (
@@ -103,23 +108,68 @@ export function useSandboxChat() {
         }
       }
 
+      // Handles stream:"assistant" agent events.
+      // data.text is the segment-local cumulative text (resets after each tool
+      // call), so we use segment counters to give each segment its own bubble.
+      function handleAssistantStream(payload: any) {
+        const runId = payload.runId;
+        const text = payload.data?.text;
+        if (!runId || !text) return;
+
+        const seg = segCounterRef.current[runId] ?? 0;
+        const messageId = `run:${runId}:${seg}`;
+        currentStreamIdRef.current = messageId;
+        setIsThinking(false);
+
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === messageId);
+          if (idx !== -1) {
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], content: text, isStreaming: true };
+            return updated;
+          }
+          return [
+            ...prev,
+            {
+              id: messageId,
+              role: "assistant" as const,
+              content: text,
+              isStreaming: true,
+              timestamp: payload.ts ?? Date.now(),
+            },
+          ];
+        });
+      }
+
+      // Handles stream:"tool" agent events.
+      // Tool start: mark the current segment bubble as no longer streaming,
+      // then append the chip in arrival order.
+      // Tool result: increment the segment counter so the next assistant stream
+      // event creates a new bubble.
       function handleToolEvent(payload: any) {
         const event = parseToolEvent(payload);
         if (!event) return;
 
         if (event.type === "start") {
+          const runId = payload.runId;
+          const seg = runId != null ? (segCounterRef.current[runId] ?? 0) : -1;
+          const segId = runId != null ? `run:${runId}:${seg}` : null;
+
           setMessages((prev) => {
             if (prev.some((m) => m.id === event.message.id)) return prev;
-            // Insert before any currently-streaming assistant message so tool
-            // chips don't land after text that was already streaming when the
-            // tool fired.
-            const streamIdx = prev.findIndex((m) => m.role === "assistant" && m.isStreaming);
-            if (streamIdx !== -1) {
-              return [...prev.slice(0, streamIdx), event.message, ...prev.slice(streamIdx)];
-            }
-            return [...prev, event.message];
+            // Pause the current segment bubble.
+            const next = segId
+              ? prev.map((m) => (m.id === segId ? { ...m, isStreaming: false } : m))
+              : [...prev];
+            return [...next, event.message];
           });
         } else {
+          // Increment segment counter before the next assistant stream event.
+          const runId = payload.runId;
+          if (runId != null) {
+            segCounterRef.current[runId] = (segCounterRef.current[runId] ?? 0) + 1;
+          }
+
           setMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === event.chipId);
             if (idx !== -1) {
@@ -128,55 +178,48 @@ export function useSandboxChat() {
               updated[idx] = { ...updated[idx], toolError: true };
               return updated;
             }
-            // Chip missing (e.g. reconnect mid-run) — create from fallback
-            const streamIdx = prev.findIndex((m) => m.role === "assistant" && m.isStreaming);
-            if (streamIdx !== -1) {
-              return [...prev.slice(0, streamIdx), event.fallback, ...prev.slice(streamIdx)];
-            }
+            // Chip missing (e.g. reconnect mid-run) — create from fallback.
             return [...prev, event.fallback];
           });
         }
       }
 
+      // Handles stream:"lifecycle" agent events.
+      function handleLifecycleEvent(payload: any) {
+        if (payload.data?.phase !== "end") return;
+        const msgId = currentStreamIdRef.current;
+        if (msgId) {
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === msgId);
+            if (idx === -1) return prev;
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], isStreaming: false };
+            return updated;
+          });
+          currentStreamIdRef.current = null;
+        }
+        setIsThinking(false);
+        const runId = payload.runId;
+        if (runId != null) delete segCounterRef.current[runId];
+      }
+
+      // Chat events are still used for error reporting. Delta/final are driven
+      // by agent stream events instead.
       function handleChatEvent(payload: any) {
         const event = parseChatEvent(payload);
-        if (!event) return;
-
-        if (event.state === "delta" || event.state === "final") {
-          const isStreaming = event.state === "delta";
-          if (!isStreaming) setIsThinking(false);
-          setMessages((prev) => {
-            const idx = prev.findIndex((m) => m.id === event.messageId);
-            if (idx !== -1) {
-              const updated = [...prev];
-              updated[idx] = { ...updated[idx], content: event.text, isStreaming };
-              return updated;
-            }
-            return dedupe([
-              ...prev,
-              {
-                id: event.messageId,
-                role: "assistant",
-                content: event.text,
-                isStreaming,
-                timestamp: Date.now(),
-              },
-            ]);
-          });
-        } else if (event.state === "error") {
-          setIsThinking(false);
-          setMessages((prev) =>
-            dedupe([
-              ...prev,
-              {
-                id: `error:${event.messageId}:${Date.now()}`,
-                role: "assistant",
-                content: event.text || "Agent error",
-                timestamp: Date.now(),
-              },
-            ])
-          );
-        }
+        if (!event || event.state !== "error") return;
+        setIsThinking(false);
+        setMessages((prev) =>
+          dedupe([
+            ...prev,
+            {
+              id: `error:${event.messageId}:${Date.now()}`,
+              role: "assistant",
+              content: event.text || "Agent error",
+              timestamp: Date.now(),
+            },
+          ])
+        );
       }
 
       ws.onopen = () => {};
@@ -187,7 +230,13 @@ export function useSandboxChat() {
           console.log("[OC]", data);
           if (!authenticated) { handleHandshake(data); return; }
           if (data.type === "res") { handleHistoryResponse(data); return; }
-          if (data.type === "event" && data.event === "agent") { handleToolEvent(data.payload); return; }
+          if (data.type === "event" && data.event === "agent") {
+            const stream = data.payload?.stream;
+            if (stream === "assistant") { handleAssistantStream(data.payload); return; }
+            if (stream === "tool") { handleToolEvent(data.payload); return; }
+            if (stream === "lifecycle") { handleLifecycleEvent(data.payload); return; }
+            return;
+          }
           if (data.type === "event" && data.event === "chat") { handleChatEvent(data.payload); return; }
         } catch {
           // ignore non-JSON
