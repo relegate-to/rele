@@ -32,40 +32,48 @@ interface InstanceItemProps {
 const statusConfig: Record<
   InstanceStatus,
   {
-    icon: string
+    /** Base CSS color variable used to derive icon bg/border via color-mix */
+    color: string
+    /** CSS variable for the icon's text/letter color */
+    textColor: string
     dot: string
     outline: string
     pulseColor: string
   }
 > = {
   running: {
-    icon:    "border-status-warning/30 bg-status-warning-bg text-status-warning shadow-[0_0_8px_var(--status-success-border)]",
-    dot:     "bg-status-success",
-    outline: "border-sidebar-border hover:border-sidebar-border/80",
+    color:     "var(--status-success)",
+    textColor: "var(--status-success-text)",
+    dot:       "bg-status-success",
+    outline:   "border-sidebar-border hover:border-sidebar-border/60",
     pulseColor: "var(--status-success-border)",
   },
   provisioning: {
-    icon:    "border-status-info/30 bg-status-info-bg text-status-info shadow-[0_0_8px_var(--status-info-border)]",
-    dot:     "bg-status-info animate-pulse",
-    outline: "border-status-info/30 hover:border-status-info/50",
+    color:     "var(--status-info)",
+    textColor: "var(--status-info-text)",
+    dot:       "bg-status-info animate-pulse",
+    outline:   "border-sidebar-border hover:border-sidebar-border/60",
     pulseColor: "var(--status-info-border)",
   },
   stopping: {
-    icon:    "border-status-warning/30 bg-status-warning-bg text-status-warning",
-    dot:     "bg-status-warning animate-pulse",
-    outline: "border-status-warning/30 hover:border-status-warning/50",
+    color:     "var(--status-warning)",
+    textColor: "var(--status-warning-text)",
+    dot:       "bg-status-warning animate-pulse",
+    outline:   "border-sidebar-border hover:border-sidebar-border/60",
     pulseColor: "transparent",
   },
   stopped: {
-    icon:    "border-status-neutral-border bg-status-neutral-bg text-status-neutral",
-    dot:     "bg-status-neutral",
-    outline: "border-status-neutral-border hover:border-status-neutral/50",
+    color:     "var(--sidebar-foreground)",
+    textColor: "var(--sidebar-foreground)",
+    dot:       "bg-sidebar-foreground/25",
+    outline:   "border-sidebar-border hover:border-sidebar-border/60",
     pulseColor: "transparent",
   },
   error: {
-    icon:    "border-status-error/30 bg-status-error-bg text-status-error",
-    dot:     "bg-status-error",
-    outline: "border-status-error/30 hover:border-status-error/50",
+    color:     "var(--status-error)",
+    textColor: "var(--status-error-text)",
+    dot:       "bg-status-error",
+    outline:   "border-status-error/20 hover:border-status-error/35",
     pulseColor: "var(--status-error-border)",
   },
 }
@@ -186,16 +194,20 @@ function ActionButton({
   )
 }
 
-function InstanceIcon({ status }: { status: InstanceStatus }) {
-  const { icon, dot } = statusConfig[status]
+function InstanceIcon({ status, name }: { status: InstanceStatus; name: string }) {
+  const { color, textColor, dot } = statusConfig[status]
+  const isStopped = status === "stopped"
+  const initial = (name[0] ?? "?").toUpperCase()
   return (
     <div
-      className={cn(
-        "relative flex size-9 shrink-0 items-center justify-center rounded-lg border font-sans text-sm italic transition-shadow duration-500",
-        icon
-      )}
+      className="relative flex size-7 shrink-0 items-center justify-center rounded-md border text-xs font-medium"
+      style={{
+        background:  isStopped ? "var(--sidebar-accent)"                                           : `color-mix(in srgb, ${color} 14%, transparent)`,
+        borderColor: isStopped ? "var(--sidebar-border)"                                           : `color-mix(in srgb, ${color} 55%, transparent)`,
+        color:       isStopped ? "color-mix(in srgb, var(--sidebar-foreground) 35%, transparent)"  : textColor,
+      }}
     >
-      r
+      {initial}
       <span
         className={cn(
           "absolute -bottom-px -right-px size-1.5 rounded-full border-[1.5px] border-sidebar",
@@ -208,33 +220,34 @@ function InstanceIcon({ status }: { status: InstanceStatus }) {
 
 function InstanceMeta({ instance }: { instance: Instance }) {
   const { status, uptime, lastActive } = instance
+  const mono = "truncate font-[var(--font-dm-mono),monospace] text-xs"
 
   if (status === "running") {
     return (
-      <p className="truncate text-xs text-sidebar-foreground/45">
+      <p className={`${mono} text-sidebar-foreground/40`}>
         {uptime ?? "running"}
       </p>
     )
   }
 
   if (status === "provisioning") {
-    return <p className="truncate text-xs text-status-info">provisioning…</p>
+    return <p className={`${mono} text-status-info`}>provisioning…</p>
   }
 
   if (status === "stopping") {
-    return <p className="truncate text-xs text-status-warning">stopping…</p>
+    return <p className={`${mono} text-status-warning`}>stopping…</p>
   }
 
   if (status === "stopped") {
     return (
-      <p className="truncate text-xs text-status-neutral">
+      <p className={`${mono} text-sidebar-foreground/30`}>
         {lastActive ?? "stopped"}
       </p>
     )
   }
 
   if (status === "error") {
-    return <p className="truncate text-xs text-status-error">crashed · view logs</p>
+    return <p className={`${mono} text-status-error`}>crashed · view logs</p>
   }
 
   return null
@@ -356,10 +369,10 @@ export function InstanceItem({
             }}
           />
         )}
-        <InstanceIcon status={instance.status} />
+        <InstanceIcon status={instance.status} name={instance.name} />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-semibold leading-tight text-sidebar-foreground">
+          <span className="truncate text-sm font-medium leading-tight text-sidebar-foreground">
             {instance.name}
           </span>
           <InstanceMeta instance={instance} />

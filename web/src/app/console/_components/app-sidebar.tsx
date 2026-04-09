@@ -185,9 +185,6 @@ export function AppSidebar() {
       {/* Wordmark */}
       <SidebarHeader className="border-b border-sidebar-border px-4 py-[9px]">
         <div className="flex items-center gap-2">
-          <div className="flex size-6 shrink-0 items-center justify-center rounded-[5px] border border-[var(--accent)]/30 bg-[var(--accent-subtle)] text-xs font-semibold text-[var(--accent)]">
-            r
-          </div>
           <span className="text-base font-semibold tracking-[-0.01em] text-sidebar-foreground">
             rele
           </span>
