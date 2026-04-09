@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState, useEffect } from "react";
-import { ActivityIcon, CheckCircle2Icon, ExternalLinkIcon, LayoutGridIcon, MessageSquareIcon, MonitorIcon, SettingsIcon, SparklesIcon } from "lucide-react";
+import { ActivityIcon, ArrowRightIcon, BookOpenIcon, CheckCircle2Icon, ExternalLinkIcon, LayoutGridIcon, MessageSquareIcon, MonitorIcon, SettingsIcon, SparklesIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +22,7 @@ import UserPill from "./user-pill";
 import { useMachinesContext, type Machine } from "../_context/machines-context";
 import { useGateway } from "../_context/gateway-context";
 import { cn } from "@/lib/utils";
+import { RoadmapDialog } from "@/components/ui/roadmap-dialog";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
@@ -180,6 +181,7 @@ export function AppSidebar() {
   }, [anyMachineRunning, connectGateway]);
 
   const [showDebug, setShowDebug] = useState(false);
+  const [showRoadmap, setShowRoadmap] = useState(false);
   useEffect(() => {
     const toggle = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -339,7 +341,25 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="px-3 py-3">
-        <UserPill />
+        <div className="space-y-2">
+          <RoadmapDialog open={showRoadmap} onOpenChange={setShowRoadmap} />
+          <button
+            onClick={() => setShowRoadmap(true)}
+            className="group flex w-full items-center gap-2.5 rounded-lg border border-[var(--border)]/60 bg-[var(--surface)] px-3 py-2.5 text-left transition-all hover:border-[var(--accent)]/50 hover:bg-[var(--accent)]/5"
+          >
+            <BookOpenIcon className="size-4 text-[var(--muted)] group-hover:text-[var(--accent)] transition-colors" />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-xs font-medium text-[var(--muted)] group-hover:text-[var(--text)] transition-colors">
+                Roadmap
+              </span>
+              <span className="text-[10px] text-[var(--text-dim)]">
+                See what we're working on
+              </span>
+            </div>
+            <ArrowRightIcon className="size-3 shrink-0 text-[var(--muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
+          <UserPill />
+        </div>
       </SidebarFooter>
 
     </Sidebar>
