@@ -534,6 +534,7 @@ app.post("/machines", async (c) => {
         force_instance_key: null,
         auto_start_machines: false,
         auto_stop_machines: "off",
+        min_machines_running: 0
       },
     ],
   };
@@ -628,7 +629,6 @@ app.post("/machines/:id/start", async (c) => {
   try {
     if (USE_DOCKER) {
       await dockerStart(machine.flyAppName);
-      // Port may change after restart — re-read it
       const port = await dockerPort(machine.flyAppName);
       const config = { ...(machine.config as any), dockerPort: port };
       await db
@@ -638,6 +638,13 @@ app.post("/machines/:id/start", async (c) => {
       return c.json({ ...machine, state: "started", config });
     }
 
+    // 1. Uncordon first so the proxy sees it once it's up
+    await flyRequest(
+      `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/uncordon`,
+      { method: "POST" }
+    );
+
+    // 2. Start the machine
     await flyRequest(
       `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/start`,
       { method: "POST" }
@@ -671,6 +678,13 @@ app.post("/machines/:id/stop", async (c) => {
     if (USE_DOCKER) {
       await dockerStop(machine.flyAppName);
     } else {
+      // 1. Cordon the machine to prevent proxy wake-ups
+      await flyRequest(
+        `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/cordon`,
+        { method: "POST" }
+      );
+
+      // 2. Signal the machine to stop
       await flyRequest(
         `/apps/${machine.flyAppName}/machines/${machine.flyMachineId}/stop`,
         { method: "POST" }
