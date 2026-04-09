@@ -449,7 +449,7 @@ export function RoadmapDialog({
                       }`}>{item.title}</span>
                       {"priority" in item && (
                         <span className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-medium ${priorityStyles[item.priority as keyof typeof priorityStyles]}`}>
-                          {item.priority}
+                          {item.priority as string}
                         </span>
                       )}
                       {view === "completed" && (
@@ -484,7 +484,7 @@ export function RoadmapDialog({
                       <h3 className="text-base font-semibold text-[var(--text)]">{active.title}</h3>
                       {"priority" in active ? (
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${priorityStyles[active.priority as keyof typeof priorityStyles]}`}>
-                          {active.priority} priority
+                          {active.priority as string} priority
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500">
