@@ -79,25 +79,22 @@ export function useMachines() {
 
   // Adaptive polling — fast when machines are transitioning, slow otherwise.
   useEffect(() => {
-    function scheduleNext(ms: number) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(async () => {
-        const data = await fetchMachines();
-        const hasTransient = data?.some((m) => TRANSIENT_STATES.has(m.state));
-        // If the pace needs to change, reschedule
-        const nextMs = hasTransient ? FAST_POLL_MS : SLOW_POLL_MS;
-        if (nextMs !== ms) scheduleNext(nextMs);
-      }, ms);
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    async function poll(currentMs: number) {
+      const data = await fetchMachines();
+      const hasTransient = data?.some((m) => TRANSIENT_STATES.has(m.state));
+
+      // Determine next interval
+      const nextMs = hasTransient ? FAST_POLL_MS : SLOW_POLL_MS;
+
+      timeoutId = setTimeout(() => poll(nextMs), nextMs);
     }
 
-    // Initial fetch, then start polling
-    fetchMachines().then((data) => {
-      const hasTransient = data?.some((m) => TRANSIENT_STATES.has(m.state));
-      scheduleNext(hasTransient ? FAST_POLL_MS : SLOW_POLL_MS);
-    });
+    poll(FAST_POLL_MS);
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [fetchMachines]);
 
