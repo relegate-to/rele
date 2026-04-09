@@ -442,6 +442,10 @@ body {
   color: var(--text-dim) !important;
 }
 
+.stable-gutter {
+  scrollbar-gutter: stable;
+}
+
 
 @layer base {
   * {

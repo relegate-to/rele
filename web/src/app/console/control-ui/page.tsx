@@ -46,7 +46,12 @@ export default function ControlUiPage() {
           className="h-full w-full border-0 transition-opacity duration-500"
           style={{ opacity: iframeReady ? 1 : 0 }}
           allow="clipboard-read; clipboard-write"
-          onLoad={() => setIframeReady(true)}
+          onLoad={() => {
+            // A small buffer (150-200ms) is usually enough to hide the internal layout snap
+            setTimeout(() => {
+              setIframeReady(true);
+            }, 200);
+          }}
         />
       )}
     </div>
