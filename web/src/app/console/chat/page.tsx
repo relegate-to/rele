@@ -122,7 +122,27 @@ export default function ChatPage() {
     <ConnectionStatus connected={connected} connecting={connecting} />
    </div>
 
-   <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
+   <div ref={scrollContainerRef} onScroll={handleScroll} className="relative flex-1 overflow-y-auto">
+    <AnimatePresence>
+     {messages.length === 0 && (
+      <motion.div
+       key="greeting"
+       initial={{ opacity: 0, y: 12 }}
+       animate={{ opacity: 1, y: 0 }}
+       exit={{ opacity: 0 }}
+       transition={{ duration: 0.3, ease: EASE }}
+       className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center pointer-events-none"
+      >
+       <div className="size-12 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center mb-1">
+        <span className="text-2xl">✦</span>
+       </div>
+       <h2 className="text-base font-semibold text-[var(--text)]">How can I help?</h2>
+       <p className="text-sm text-[var(--muted)] max-w-xs leading-relaxed">
+        Send a message to start a conversation with your agent.
+       </p>
+      </motion.div>
+     )}
+    </AnimatePresence>
     <div className="mx-auto max-w-4xl px-6 py-6">
      <div className="flex flex-col gap-5">
       {messages.map((msg) => (
@@ -144,6 +164,9 @@ export default function ChatPage() {
           <div className="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs">
            <ToolIcon name={msg.toolName ?? ""} isError={msg.toolError} />
            <span>{msg.toolName}</span>
+           {msg.toolMeta && (
+            <span className="text-[var(--muted)] truncate max-w-[300px]">{msg.toolMeta}</span>
+           )}
           </div>
          </div>
         ) : (
