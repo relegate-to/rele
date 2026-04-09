@@ -353,8 +353,8 @@ export function AppSidebar() {
           <AnimatePresence>
             {showRoadmapBanner && (
               <motion.div
-                className="group relative flex w-full items-center gap-3 overflow-hidden rounded-lg px-3 py-3 cursor-pointer"
-                style={{ background: "linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 70%, purple) 100%)" }}
+                className="group relative flex w-full items-center gap-3 p-px cursor-pointer"
+                style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-dim))", borderRadius: "10px" }}
                 onClick={() => setShowRoadmap(true)}
                 initial={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95, y: 4 }}
@@ -362,20 +362,23 @@ export function AppSidebar() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {/* shimmer */}
-                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
-                <RocketIcon className="size-5 shrink-0 text-white/90" />
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="text-sm font-semibold text-white">Roadmap</span>
-                  <span className="text-xs text-white/70">See what we're building</span>
+                {/* inner surface */}
+                <div className="relative flex w-full items-center gap-3 overflow-hidden rounded-[9.1px] bg-[var(--surface)] px-3 py-2.5">
+                  {/* shimmer */}
+                  <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-[var(--accent)]/8 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
+                  <RocketIcon className="size-4 shrink-0 text-[var(--accent)]" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-[var(--text)]">Roadmap</span>
+                    <span className="text-xs text-[var(--muted)]">See what we're building</span>
+                  </div>
+                  <button
+                    onClick={dismissRoadmapBanner}
+                    className="relative z-10 rounded p-0.5 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                    aria-label="Dismiss"
+                  >
+                    <XIcon className="size-3.5" />
+                  </button>
                 </div>
-                <button
-                  onClick={dismissRoadmapBanner}
-                  className="relative z-10 rounded p-0.5 text-white/50 hover:bg-white/10 hover:text-white/90 transition-colors"
-                  aria-label="Dismiss"
-                >
-                  <XIcon className="size-3.5" />
-                </button>
               </motion.div>
             )}
           </AnimatePresence>

@@ -27,7 +27,7 @@ export default function UserPill() {
   return (
     <UserButton
       align="end"
-      sideOffset={8}
+      sideOffset={7}
       size="sm"
       classNames={{
         trigger: {
