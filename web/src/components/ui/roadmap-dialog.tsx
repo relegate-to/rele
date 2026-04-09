@@ -66,6 +66,20 @@ const roadmapItems = [
     },
   },
   {
+    icon: BookOpen,
+    title: "Chat Filtering",
+    priority: "medium" as const,
+    description: "Filter and search through your conversation history.",
+    detail: {
+      summary: "As conversations grow it becomes hard to find what you're looking for. Filtering lets you narrow down by message type, tool use, date, or keyword.",
+      bullets: [
+        "Search messages by keyword",
+        "Filter by message type: text, tool calls, file writes",
+        "Jump to any point in a long conversation",
+      ],
+    },
+  },
+  {
     icon: Wrench,
     title: "OpenClaw Interfaces",
     priority: "medium" as const,
