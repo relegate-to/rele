@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { BookOpen, Layers, Link2, MessageSquare, Smartphone, Sparkles, ShieldCheck, RocketIcon, XIcon, Wrench, CheckCircle2, Cloud, Plug, MonitorSmartphone, BotMessageSquare, KeyRound, CreditCard, Zap, Monitor, Activity, Terminal, FileCode } from "lucide-react";
+import { BookOpen, Layers, Link2, MessageSquare, Smartphone, Sparkles, ShieldCheck, RocketIcon, XIcon, Wrench, CheckCircle2, Cloud, Plug, MonitorSmartphone, BotMessageSquare, KeyRound, CreditCard, Zap, Monitor, Activity, Terminal, FileCode, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const metadata = {
@@ -345,6 +345,12 @@ const completedItems = [
   },
 ];
 
+function issueUrl(title: string, completed: boolean) {
+  const state = completed ? "state%3Aclosed" : "state%3Aopen";
+  const encoded = title.split(" ").join("%20");
+  return `https://github.com/relegate-to/rele/issues?q=is%3Aissue%20${state}%20[${encoded}]`;
+}
+
 const priorityStyles = {
   high: "bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/20",
   medium: "bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/20",
@@ -482,6 +488,7 @@ export function RoadmapDialog({
                     </div>
                     <div>
                       <h3 className="text-base font-semibold text-[var(--text)]">{active.title}</h3>
+                      <div className="flex items-center gap-2">
                       {"priority" in active ? (
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${priorityStyles[active.priority as keyof typeof priorityStyles]}`}>
                           {active.priority as string} priority
@@ -491,6 +498,16 @@ export function RoadmapDialog({
                           <CheckCircle2 className="size-3" /> Completed
                         </span>
                       )}
+                      <a
+                        href={issueUrl(active.title, !("priority" in active))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[11px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+                      >
+                        <ExternalLink className="size-3" />
+                        issues
+                      </a>
+                      </div>
                     </div>
                   </div>
 
