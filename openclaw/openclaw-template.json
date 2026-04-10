@@ -21,7 +21,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/z-ai/glm-4.7-flash"
+        "primary": "openrouter/deepseek/deepseek-v3.2"
       },
       "workspace": "/home/node/.openclaw/workspace"
     },
