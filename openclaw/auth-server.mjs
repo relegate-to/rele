@@ -1,6 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { createServer, request as httpRequest } from "node:http";
 import { connect as netConnect } from "node:net";
+import { watch as fsWatch } from "node:fs";
 import { URL } from "node:url";
 
 const NEON_AUTH_URL = process.env.NEON_AUTH_URL;
@@ -12,6 +13,32 @@ if (!NEON_AUTH_URL || !USER_ID || !GATEWAY_TOKEN) {
   console.error("ERROR: Missing required environment variables");
   process.exit(1);
 }
+
+// --- Canvas live-reload via fs.watch + SSE ---
+const CANVAS_DIR = "/home/node/.openclaw/canvas";
+const sseClients = new Set();
+
+let debounceTimer = null;
+function notifyCanvasChange() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    for (const res of sseClients) {
+      try { res.write("data: changed\n\n"); } catch { sseClients.delete(res); }
+    }
+  }, 100);
+}
+
+function startCanvasWatcher() {
+  try {
+    fsWatch(CANVAS_DIR, (_, filename) => {
+      if (filename === "index.html") notifyCanvasChange();
+    });
+  } catch {
+    // Directory not ready yet — retry
+    setTimeout(startCanvasWatcher, 2000);
+  }
+}
+startCanvasWatcher();
 
 const JWKS = createRemoteJWKSet(
   new URL(`${NEON_AUTH_URL}/.well-known/jwks.json`),
@@ -89,6 +116,21 @@ const server = createServer(async (req, res) => {
     return res.end("Unauthorized");
   }
 
+  // Canvas SSE endpoint — authenticated via session cookie set on initial canvas load
+  const url0 = new URL(req.url, "http://localhost");
+  if (req.method === "GET" && url0.pathname === "/__rele__/canvas/events") {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    res.write(": connected\n\n");
+    sseClients.add(res);
+    req.on("close", () => sseClients.delete(res));
+    return;
+  }
+
   const { sessionToken } = authResult;
   const url = new URL(req.url, "http://localhost");
   url.searchParams.delete("token");
@@ -143,7 +185,60 @@ const server = createServer(async (req, res) => {
         upstreamRes.on("end", () => {
           let html = Buffer.concat(body).toString();
 
+          const isCanvas = url.pathname.startsWith("/__openclaw__/canvas");
+          const canvasStyles = isCanvas ? `
+          <style>
+            /* rele branding: design tokens */
+            :root {
+              --bg:           #09090b;
+              --bg-warm:      #111113;
+              --surface:      #111113;
+              --surface-hi:   #1e1e23;
+              --border:       #27272a;
+              --border-hi:    #3f3f46;
+              --text:         #fafafa;
+              --text-dim:     #a1a1aa;
+              --muted:        #52525b;
+              --accent:       #818cf8;
+              --accent-dim:   #6366f1;
+              --accent-subtle: rgba(129, 140, 248, 0.1);
+
+              --status-success:        #4ade80;
+              --status-success-bg:     rgba(74,  222, 128, 0.08);
+              --status-success-border: rgba(74,  222, 128, 0.3);
+              --status-success-text:   #86efac;
+
+              --status-warning:        #fbbf24;
+              --status-warning-bg:     rgba(251, 191, 36,  0.08);
+              --status-warning-border: rgba(251, 191, 36,  0.3);
+              --status-warning-text:   #fde68a;
+
+              --status-error:          #f87171;
+              --status-error-bg:       rgba(248, 113, 113, 0.08);
+              --status-error-border:   rgba(248, 113, 113, 0.3);
+              --status-error-text:     #fca5a5;
+
+              --status-info:           #818cf8;
+              --status-info-bg:        rgba(129, 140, 248, 0.08);
+              --status-info-border:    rgba(129, 140, 248, 0.3);
+              --status-info-text:      #a5b4fc;
+            }
+
+            html, body {
+              background: #09090b !important;
+              color: #fafafa !important;
+              -webkit-font-smoothing: antialiased;
+            }
+          </style>
+          <script>
+            (function () {
+              var es = new EventSource('/__rele__/canvas/events');
+              es.onmessage = function () { location.reload(); };
+            })();
+          <\/script>` : "";
+
           const script = `
+          ${canvasStyles}
           <style>
             /*
              * HACK: OpenClaw uses <dialog open> (not showModal()) so dialogs sit in

@@ -62,7 +62,7 @@ export default function RelePage() {
               onClick={() => navigate("/console")}
               className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase bg-[var(--accent)] text-white px-6 py-[0.65rem] rounded-lg border-none cursor-pointer hover:bg-[var(--accent-dim)] transition-colors"
             >
-              Go to dashboard
+              Go to console
             </button>
           ) : (
             <>

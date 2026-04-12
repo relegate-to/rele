@@ -2,6 +2,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMachinesContext } from "../_context/machines-context";
+import { FloatingChat } from "../_components/floating-chat";
+
+const CANVAS_CONTEXT = `\
+<system context — not visible to user>
+The user is viewing the rele Canvas. The canvas is a single HTML file served directly from the agent's filesystem at /home/node/.openclaw/canvas/index.html. When the user asks you to create, change, or update canvas content, edit that file in place using your file tools. Write clean, self-contained HTML — all styles inline or in a <style> block, no external dependencies. Make targeted edits and preserve anything the user hasn't asked to change. Respond briefly to confirm what you did.
+</system context>`;
 
 export default function CanvasPage() {
   const { machines, loading } = useMachinesContext();
@@ -30,7 +36,7 @@ export default function CanvasPage() {
       .catch((e: unknown) => setError(typeof e === "string" ? e : "Failed to get connection info."));
   }, [loading, machine, isRunning, router]);
 
-  if (error) {
+if (error) {
     return (
       <div className="flex h-[100svh] items-center justify-center">
         <p className="font-mono text-sm text-[var(--status-error-text)]">{error}</p>
@@ -49,6 +55,7 @@ export default function CanvasPage() {
           onLoad={() => setIframeReady(true)}
         />
       )}
+      <FloatingChat contextPrompt={CANVAS_CONTEXT} />
     </div>
   );
 }

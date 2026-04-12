@@ -190,7 +190,7 @@ export function useSandboxChat() {
   }, [subscribe]);
 
   const sendMessage = useCallback(
-    (content: string) => {
+    (content: string, hiddenPrefix?: string) => {
       if (!connected) return;
 
       const id = crypto.randomUUID();
@@ -200,13 +200,17 @@ export function useSandboxChat() {
       );
       setIsThinking(true);
 
+      const gatewayMessage = hiddenPrefix
+        ? `${hiddenPrefix}\n\n${content}`
+        : content;
+
       send({
         type: "req",
         id,
         method: "chat.send",
         params: {
           sessionKey: "agent:main:main",
-          message: content,
+          message: gatewayMessage,
           idempotencyKey: id,
         },
       });

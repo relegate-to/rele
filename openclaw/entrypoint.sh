@@ -16,8 +16,13 @@ fi
 CONFIG_DIR="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}"
 CONFIG_FILE="$CONFIG_DIR/openclaw.json"
 
-mkdir -p "$CONFIG_DIR" "$CONFIG_DIR/workspace" "$CONFIG_DIR/credentials" "$CONFIG_DIR/agents/main/sessions"
+mkdir -p "$CONFIG_DIR" "$CONFIG_DIR/workspace" "$CONFIG_DIR/credentials" "$CONFIG_DIR/agents/main/sessions" "$CONFIG_DIR/canvas"
 chmod 700 "$CONFIG_DIR" "$CONFIG_DIR/credentials" || true
+
+# Seed canvas placeholder (never overwrite if the agent has put real content there)
+if [ ! -f "$CONFIG_DIR/canvas/index.html" ]; then
+  cp /opt/openclaw/canvas-placeholder.html "$CONFIG_DIR/canvas/index.html"
+fi
 
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "No config found, copying template..."

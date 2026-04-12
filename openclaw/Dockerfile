@@ -12,6 +12,7 @@ COPY --from=deps /opt/openclaw/package.json /opt/openclaw/package.json
 
 COPY auth-server.mjs /opt/openclaw/auth-server.mjs
 COPY openclaw-template.json /opt/openclaw/openclaw-template.json
+COPY canvas/index.html /opt/openclaw/canvas-placeholder.html
 COPY --chmod=755 entrypoint.sh /opt/openclaw/entrypoint.sh
 
 WORKDIR /app

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Canvas — rele</title>
+        <style>
+            /* Base tokens — overridden by auth-server injection on the canvas route */
+            :root {
+                --bg: #09090b;
+                --surface: #111113;
+                --surface-hi: #1e1e23;
+                --border: #27272a;
+                --text: #fafafa;
+                --text-dim: #a1a1aa;
+                --muted: #52525b;
+                --accent: #818cf8;
+                --accent-dim: #6366f1;
+            }
+
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            html,
+            body {
+                height: 100%;
+                background: var(--bg);
+                color: var(--text);
+                font-family: ui-sans-serif, system-ui, sans-serif;
+                -webkit-font-smoothing: antialiased;
+            }
+
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                user-select: none;
+            }
+
+            .icon {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+                background: var(--surface-hi);
+                border: 1px solid var(--border);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 4px;
+            }
+
+            .icon svg {
+                width: 20px;
+                height: 20px;
+                stroke: var(--muted);
+            }
+
+            h1 {
+                font-size: 15px;
+                font-weight: 500;
+                color: var(--text-dim);
+                letter-spacing: -0.01em;
+            }
+
+            p {
+                font-size: 12px;
+                color: var(--muted);
+                max-width: 240px;
+                text-align: center;
+                line-height: 1.6;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="icon">
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+            >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 9h6M9 12h6M9 15h4" />
+            </svg>
+        </div>
+        <h1>Canvas</h1>
+        <p>No canvas content yet. Ask your agent to show you something.</p>
+    </body>
+</html>

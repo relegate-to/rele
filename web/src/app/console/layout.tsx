@@ -6,6 +6,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/com
 import { AppSidebar } from "./_components/app-sidebar";
 import { MachinesProvider } from "./_context/machines-context";
 import { GatewayProvider } from "./_context/gateway-context";
+import { ChatProvider } from "./_context/chat-context";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
 
@@ -54,6 +55,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
   return (
     <MachinesProvider>
       <GatewayProvider>
+        <ChatProvider>
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
@@ -61,6 +63,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
             {children}
           </SidebarInset>
         </SidebarProvider>
+        </ChatProvider>
       </GatewayProvider>
     </MachinesProvider>
   );
