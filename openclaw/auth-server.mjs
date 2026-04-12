@@ -144,6 +144,24 @@ const server = createServer(async (req, res) => {
           let html = Buffer.concat(body).toString();
 
           const script = `
+          <style>
+            /*
+             * HACK: OpenClaw uses <dialog open> (not showModal()) so dialogs sit in
+             * normal flow as position:absolute, ending up thousands of pixels down a
+             * tall document when viewed inside an iframe. Force them into the viewport
+             * with position:fixed until a proper fix lands in OpenClaw itself.
+             */
+            dialog[open] {
+              position: fixed !important;
+              inset: unset !important;
+              top: 50% !important;
+              left: 50% !important;
+              transform: translate(-50%, -50%) !important;
+              margin: 0 !important;
+              max-height: 90svh !important;
+              overflow-y: auto !important;
+            }
+          </style>
           <script>
             (function() {
               const key = 'openclaw.control.settings.v1';

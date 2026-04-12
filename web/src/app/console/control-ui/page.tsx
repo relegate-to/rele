@@ -39,12 +39,12 @@ export default function ControlUiPage() {
   }
 
   return (
-    <div className="h-[100svh] w-full">
+    <div className="relative h-[100svh] w-full overflow-hidden">
       {src && (
         <iframe
           src={src}
-          className="h-full w-full border-0 transition-opacity duration-500"
-          style={{ opacity: iframeReady ? 1 : 0 }}
+          className="absolute inset-0 border-0 transition-opacity duration-500"
+          style={{ opacity: iframeReady ? 1 : 0, width: "100%", height: "100%" }}
           allow="clipboard-read; clipboard-write"
           onLoad={() => {
             // A small buffer (150-200ms) is usually enough to hide the internal layout snap
