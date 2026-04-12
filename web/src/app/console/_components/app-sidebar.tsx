@@ -67,12 +67,14 @@ const REGION_LABELS: Record<string, string> = {
 
 function machineToInstance(m: Machine, gatewayConnected: boolean): Instance {
   const status = flyStateToStatus(m.state, gatewayConnected);
-  const image = (m.config as { image?: string })?.image ?? "";
-  const name = image.split("/").pop()?.split(":")[0] ?? m.flyMachineId.slice(0, 8);
+  const config = m.config as { image?: string; name?: string; icon?: string };
+  const image = config.image ?? "";
+  const name = config.name ?? image.split("/").pop()?.split(":")[0] ?? m.flyMachineId.slice(0, 8);
   const regionLabel = REGION_LABELS[m.region] ?? m.region;
   return {
     id: m.id,
     name,
+    icon: config.icon,
     status,
     ...(status === "running" && { uptime: regionLabel }),
     ...(status === "stopped" && { lastActive: regionLabel }),

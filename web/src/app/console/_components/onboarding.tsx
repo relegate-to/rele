@@ -193,8 +193,8 @@ export function Onboarding() {
                   </p>
                   <p className="mt-1.5 text-sm text-[var(--muted)]">
                     {phase === "connecting"
-                      ? "Waiting for gateway connection…"
-                      : "This usually takes 20–40 seconds."}
+                      ? "Instance is up — opening a secure connection."
+                      : "Allocating your container. Usually 20–40 seconds."}
                   </p>
                 </div>
                 <svg
@@ -389,7 +389,9 @@ export function Onboarding() {
                     {name}
                   </p>
                   <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-                    Your instance is being created. It'll be ready to connect in a moment.
+                    {phase === "connecting"
+                      ? "Your instance is running. We're opening a secure connection to it now — this usually takes just a few seconds."
+                      : "We're allocating a dedicated container and booting it up. This usually takes 20–40 seconds."}
                   </p>
                 </div>
               </motion.div>
