@@ -23,24 +23,13 @@ function randomIcon(): string {
   return ICONS[Math.floor(Math.random() * ICONS.length)];
 }
 
-// ─── Regions ──────────────────────────────────────────────────────────────────
-
-const REGIONS = [
-  { value: "sin", label: "Singapore", flag: "🇸🇬" },
-  { value: "sjc", label: "San Jose",  flag: "🇺🇸" },
-  { value: "iad", label: "Ashburn",   flag: "🇺🇸" },
-  { value: "ams", label: "Amsterdam", flag: "🇳🇱" },
-  { value: "nrt", label: "Tokyo",     flag: "🇯🇵" },
-  { value: "syd", label: "Sydney",    flag: "🇦🇺" },
-] as const;
-
 const DEFAULT_IMAGE = "ghcr.io/relegate-to/openclaw-sandbox:latest";
 const GATE_PROXY = "/api/gate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase = "setup" | "provisioning" | "connecting" | "ready";
-type Focus = "name" | "managed" | "byok" | "region";
+type Focus = "name" | "managed" | "byok";
 
 function derivePhase(machines: { state: string }[], gatewayConnected: boolean): Phase {
   if (machines.length === 0) return "setup";
@@ -77,11 +66,11 @@ function getPanelContent(focus: Focus): PanelContent {
         extra: (
           <div className="mt-5 flex flex-wrap gap-2">
             {MODEL_PILLS.map((m) => (
-              <span key={m} className="rounded-full border border-white/10 bg-white/6 px-3 py-1 font-[var(--font-dm-mono),monospace] text-[11px] text-white/60">
+              <span key={m} className="rounded-full border border-[var(--border-hi)] bg-[var(--surface)] px-3 py-1 font-[var(--font-dm-mono),monospace] text-[11px] text-[var(--text-dim)]">
                 {m}
               </span>
             ))}
-            <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 font-[var(--font-dm-mono),monospace] text-[11px] text-white/40">
+            <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 font-[var(--font-dm-mono),monospace] text-[11px] text-[var(--muted)]">
               +100 more
             </span>
           </div>
@@ -97,17 +86,11 @@ function getPanelContent(focus: Focus): PanelContent {
             href="https://openrouter.ai"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-5 inline-flex items-center gap-1.5 font-[var(--font-dm-mono),monospace] text-xs text-white/40 transition-colors hover:text-white/70"
+            className="mt-5 inline-flex items-center gap-1.5 font-[var(--font-dm-mono),monospace] text-xs text-[var(--muted)] transition-colors hover:text-[var(--text)]"
           >
             openrouter.ai ↗
           </a>
         ),
-      };
-    case "region":
-      return {
-        eyebrow: "Region",
-        title: "Where your instance lives",
-        body: "Auto picks the best available datacenter. Manual selection gives you control over latency and data residency.",
       };
   }
 }
@@ -124,8 +107,6 @@ export function Onboarding() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [keyMode, setKeyMode] = useState<"managed" | "byok">("managed");
   const [apiKey, setApiKey] = useState("");
-  const [region, setRegion] = useState<string | null>(null);
-  const [showRegions, setShowRegions] = useState(false);
   const [focus, setFocus] = useState<Focus>("managed");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,7 +147,6 @@ export function Onboarding() {
         image: DEFAULT_IMAGE,
         name: name.trim() || undefined,
         icon,
-        ...(region ? { region } : {}),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create instance");
@@ -348,69 +328,6 @@ export function Onboarding() {
                   </AnimatePresence>
                 </div>
 
-                {/* Advanced */}
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = !showRegions;
-                      setShowRegions(next);
-                      setFocus(next ? "region" : keyMode);
-                      if (!next) setRegion(null);
-                    }}
-                    className="flex items-center gap-1.5 font-[var(--font-dm-mono),monospace] text-xs text-[var(--muted)] transition-colors hover:text-[var(--text)]"
-                  >
-                    <svg
-                      viewBox="0 0 12 12"
-                      className={`size-3 transition-transform ${showRegions ? "rotate-90" : ""}`}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    >
-                      <path d="M4 2l4 4-4 4" />
-                    </svg>
-                    Advanced options
-                  </button>
-
-                  <AnimatePresence initial={false}>
-                    {showRegions && (
-                      <motion.div
-                        key="region-picker"
-                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, height: "auto", marginTop: 12 }}
-                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                        transition={{ duration: 0.2, ease: EASE }}
-                        className="overflow-hidden"
-                      >
-                        <label className="mb-2 block font-[var(--font-dm-mono),monospace] text-xs font-medium text-[var(--text-dim)]">
-                          Region
-                        </label>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {REGIONS.map((r) => {
-                            const selected = region === r.value;
-                            return (
-                              <button
-                                key={r.value}
-                                type="button"
-                                onClick={() => setRegion(r.value)}
-                                className={`flex flex-col items-center gap-1 rounded-lg border py-2.5 transition-all ${
-                                  selected
-                                    ? "border-[var(--accent)]/40 bg-[var(--accent)]/8 text-[var(--text)]"
-                                    : "border-[var(--border)] text-[var(--text-dim)] hover:border-[var(--border-hi)] hover:text-[var(--text)]"
-                                }`}
-                              >
-                                <span className="text-base leading-none">{r.flag}</span>
-                                <span className="font-[var(--font-dm-mono),monospace] text-[11px]">{r.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
                 {/* Error */}
                 {error && (
                   <div className="rounded-lg border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3.5 py-2.5">
@@ -464,7 +381,7 @@ export function Onboarding() {
                 transition={{ duration: 0.35, ease: EASE }}
                 className="flex flex-col items-center gap-5 text-center"
               >
-                <div className="flex size-20 items-center justify-center rounded-2xl border border-white/10 bg-white/6 text-4xl">
+                <div className="flex size-20 items-center justify-center rounded-2xl border border-[var(--border-hi)] bg-[var(--surface)] text-4xl">
                   {icon}
                 </div>
                 <div>

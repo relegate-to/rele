@@ -95,7 +95,7 @@ async function ensureUserVolume(appName: string, region: string): Promise<string
 export class FlyProvider implements MachineProvider {
   async create(userId: string, env: Record<string, string>, config: CreateConfig): Promise<CreateResult> {
     const flyAppName = await ensureUserApp(userId);
-    const region = config.region ?? "sin";
+    const region = config.region ?? "ams";
     const volumeId = await ensureUserVolume(flyAppName, region);
 
     const fullEnv = { ...env, GATEWAY_REMOTE_URL: `https://${flyAppName}.fly.dev` };

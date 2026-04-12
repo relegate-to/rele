@@ -34,9 +34,10 @@ export interface SubKeyUsage {
 }
 
 export async function createSubKey(userId: string): Promise<SubKey> {
+  const env = process.env.NODE_ENV === "production" ? "prod" : "dev";
   const data = await request("", {
     method: "POST",
-    body: JSON.stringify({ name: `rele-user-${userId}` }),
+    body: JSON.stringify({ name: `rele/${env}/user-${userId}` }),
   });
   return { key: data.key, hash: data.hash };
 }
