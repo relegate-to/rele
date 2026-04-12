@@ -1,12 +1,6 @@
+import { ClockIcon } from "lucide-react";
+import { ComingSoon } from "../_components/coming-soon";
+
 export default function ScheduledJobsPage() {
-  return (
-    <div className="min-h-[100svh] bg-[var(--bg)] text-[var(--text)]">
-      <div className="max-w-[520px] mx-auto px-8 py-16">
-        <h1 className="text-2xl font-light text-[var(--text)] mb-2">Scheduled Jobs</h1>
-        <p className="text-sm text-[var(--muted)] font-[var(--font-dm-mono),monospace]">
-          Coming soon.
-        </p>
-      </div>
-    </div>
-  );
+  return <ComingSoon title="Scheduled Jobs" icon={ClockIcon} />;
 }
