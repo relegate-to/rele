@@ -21,7 +21,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/deepseek/deepseek-v3.2"
+        "primary": "openrouter/inception/mercury-2"
       },
       "workspace": "/home/node/.openclaw/workspace"
     },

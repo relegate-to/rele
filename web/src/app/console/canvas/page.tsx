@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMachinesContext } from "../_context/machines-context";
+import { useGateway } from "../_context/gateway-context";
 import { FloatingChat } from "../_components/floating-chat";
 
 const CANVAS_CONTEXT = `\
@@ -11,14 +12,33 @@ The user is viewing the rele Canvas. The canvas is a single HTML file served dir
 
 export default function CanvasPage() {
   const { machines, loading } = useMachinesContext();
+  const { subscribe } = useGateway();
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [iframeReady, setIframeReady] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const router = useRouter();
   const fetched = useRef(false);
 
   const machine = machines[0] ?? null;
   const isRunning = machine?.state === "started" || machine?.state === "running";
+
+  useEffect(() => {
+    return subscribe((raw) => {
+      const data = raw as Record<string, unknown>;
+      if (data.type !== "event" || data.event !== "agent") return;
+      const payload = data.payload as Record<string, unknown>;
+      if (payload?.stream !== "tool") return;
+      const d = payload.data as Record<string, unknown> | undefined;
+      if (d?.phase !== "result") return;
+      const name = typeof d?.name === "string" ? d.name.toLowerCase() : "";
+      const meta = d?.meta;
+      if (typeof meta === "string" && meta.includes("canvas/index.html") && name !== "read") {
+        setReloadKey((k) => k + 1);
+        setIframeReady(false);
+      }
+    });
+  }, [subscribe]);
 
   useEffect(() => {
     if (loading) return;
@@ -36,7 +56,7 @@ export default function CanvasPage() {
       .catch((e: unknown) => setError(typeof e === "string" ? e : "Failed to get connection info."));
   }, [loading, machine, isRunning, router]);
 
-if (error) {
+  if (error) {
     return (
       <div className="flex h-[100svh] items-center justify-center">
         <p className="font-mono text-sm text-[var(--status-error-text)]">{error}</p>
@@ -48,7 +68,8 @@ if (error) {
     <div className="h-[100svh] w-full">
       {src && (
         <iframe
-          src={src}
+          key={reloadKey}
+          src={`${src}&_r=${reloadKey}`}
           className="h-full w-full border-0 transition-opacity duration-500"
           style={{ opacity: iframeReady ? 1 : 0 }}
           allow="clipboard-read; clipboard-write"

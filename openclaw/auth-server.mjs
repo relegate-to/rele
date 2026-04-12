@@ -1,7 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { createServer, request as httpRequest } from "node:http";
 import { connect as netConnect } from "node:net";
-import { watch as fsWatch } from "node:fs";
 import { URL } from "node:url";
 
 const NEON_AUTH_URL = process.env.NEON_AUTH_URL;
@@ -13,32 +12,6 @@ if (!NEON_AUTH_URL || !USER_ID || !GATEWAY_TOKEN) {
   console.error("ERROR: Missing required environment variables");
   process.exit(1);
 }
-
-// --- Canvas live-reload via fs.watch + SSE ---
-const CANVAS_DIR = "/home/node/.openclaw/canvas";
-const sseClients = new Set();
-
-let debounceTimer = null;
-function notifyCanvasChange() {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    for (const res of sseClients) {
-      try { res.write("data: changed\n\n"); } catch { sseClients.delete(res); }
-    }
-  }, 100);
-}
-
-function startCanvasWatcher() {
-  try {
-    fsWatch(CANVAS_DIR, (_, filename) => {
-      if (filename === "index.html") notifyCanvasChange();
-    });
-  } catch {
-    // Directory not ready yet — retry
-    setTimeout(startCanvasWatcher, 2000);
-  }
-}
-startCanvasWatcher();
 
 const JWKS = createRemoteJWKSet(
   new URL(`${NEON_AUTH_URL}/.well-known/jwks.json`),
@@ -114,21 +87,6 @@ const server = createServer(async (req, res) => {
   if (!authResult) {
     res.writeHead(401, { "Content-Type": "text/plain" });
     return res.end("Unauthorized");
-  }
-
-  // Canvas SSE endpoint — authenticated via session cookie set on initial canvas load
-  const url0 = new URL(req.url, "http://localhost");
-  if (req.method === "GET" && url0.pathname === "/__rele__/canvas/events") {
-    res.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-      "X-Accel-Buffering": "no",
-    });
-    res.write(": connected\n\n");
-    sseClients.add(res);
-    req.on("close", () => sseClients.delete(res));
-    return;
   }
 
   const { sessionToken } = authResult;
@@ -230,12 +188,7 @@ const server = createServer(async (req, res) => {
               -webkit-font-smoothing: antialiased;
             }
           </style>
-          <script>
-            (function () {
-              var es = new EventSource('/__rele__/canvas/events');
-              es.onmessage = function () { location.reload(); };
-            })();
-          <\/script>` : "";
+` : "";
 
           const script = `
           ${canvasStyles}
