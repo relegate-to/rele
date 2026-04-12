@@ -16,7 +16,7 @@ export default function CanvasPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (!machine) { router.replace("/console/dashboard"); return; }
+    if (!machine) { router.replace("/console/chat"); return; }
     if (!isRunning) { setError("Instance is not running."); return; }
     if (fetched.current) return;
     fetched.current = true;

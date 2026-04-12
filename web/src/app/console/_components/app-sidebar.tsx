@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useRef, useState, useEffect } from "react";
-import { ActivityIcon, ArrowRightIcon, BookOpenIcon, CheckCircle2Icon, ExternalLinkIcon, LayoutGridIcon, MessageSquareIcon, MonitorIcon, RocketIcon, SettingsIcon, SparklesIcon, XIcon } from "lucide-react";
+import React, { useRef, useState, useEffect } from "react";
+import { ActivityIcon, ArrowRightIcon, BarChart2Icon, BlocksIcon, BookOpenIcon, CheckCircle2Icon, ClockIcon, ExternalLinkIcon, Link2Icon, MessageSquareIcon, MonitorIcon, RocketIcon, SettingsIcon, SparklesIcon, SquarePenIcon, SquareTerminalIcon, XIcon, ZapIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Sidebar,
@@ -27,15 +27,27 @@ import { RoadmapDialog } from "@/components/ui/roadmap-dialog";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
-  { label: "Dashboard",  href: "/console/dashboard",   icon: LayoutGridIcon },
-  { label: "Chat",       href: "/console/chat",        icon: MessageSquareIcon },
-  { label: "Control UI", href: "/console/control-ui",  icon: MonitorIcon },
+const MAIN_NAV = [
+  { label: "Chat",   href: "/console/chat",   icon: MessageSquareIcon },
+  { label: "Canvas", href: "/console/canvas", icon: SquarePenIcon },
 ] as const;
 
-const DEBUG_NAV_ITEMS = [
-  { label: "Settings",  href: "/console/settings",  icon: SettingsIcon },
-  { label: "Status",    href: "/console/status",    icon: ActivityIcon },
+const AUTOMATION_NAV = [
+  { label: "Skills",         href: "/console/skills",         icon: BlocksIcon },
+  { label: "Channels",       href: "/console/channels",       icon: Link2Icon },
+  { label: "Features",       href: "/console/features",       icon: ZapIcon },
+  { label: "Scheduled Jobs", href: "/console/scheduled-jobs", icon: ClockIcon },
+  { label: "Terminal",       href: "/console/terminal",       icon: SquareTerminalIcon },
+] as const;
+
+const ACCOUNT_NAV = [
+  { label: "Usage",    href: "/console/usage",    icon: BarChart2Icon },
+  { label: "Settings", href: "/console/settings", icon: SettingsIcon },
+] as const;
+
+const TOOLS_NAV = [
+  { label: "Control UI", href: "/console/control-ui", icon: MonitorIcon, requiresInstance: true,  badge: "alpha" },
+  { label: "Status",     href: "/console/status",     icon: ActivityIcon, requiresInstance: false },
 ] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -189,7 +201,6 @@ export function AppSidebar() {
     }
   }, [anyMachineRunning, loading, connectGateway, disconnectGateway]);
 
-  const [showDebug, setShowDebug] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false);
   const [showRoadmapBanner, setShowRoadmapBanner] = useState(true);
   const dismissRoadmapBanner = (e: React.MouseEvent) => {
@@ -197,14 +208,6 @@ export function AppSidebar() {
     setShowRoadmapBanner(false);
     localStorage.setItem("roadmap-banner-dismissed", "1");
   };
-  useEffect(() => {
-    const toggle = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === "d") setShowDebug((v) => !v);
-    };
-    window.addEventListener("keydown", toggle);
-    return () => window.removeEventListener("keydown", toggle);
-  }, []);
 
   return (
     <Sidebar variant="floating">
@@ -245,7 +248,7 @@ export function AppSidebar() {
                 <InstanceItem
                   key={m.id}
                   instance={machineToInstance(m, gatewayConnected)}
-                  isActive={pathname === "/console/status" || pathname === "/console/dashboard"}
+                  isActive={pathname === "/console/status"}
                   onStop={() => stopMachine(m.id)}
                   onStart={() => startMachine(m.id)}
                   onDelete={() => deleteMachine(m.id)}
@@ -264,100 +267,78 @@ export function AppSidebar() {
 
 
         {/* Navigation */}
-        <SidebarGroup className="px-2 py-1">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {NAV_ITEMS.map((item) => {
-                const active = pathname === item.href;
-                const primaryStatus = machines[0] ? flyStateToStatus(machines[0].state, gatewayConnected) : null;
-                const notReady = primaryStatus === "provisioning" || primaryStatus === "connecting" || primaryStatus === "stopping";
-                const disabled = !hasInstances || notReady;
-                const tooltip = !hasInstances
-                  ? "Create an instance first"
-                  : primaryStatus === "provisioning"
-                  ? "Instance is starting up…"
-                  : primaryStatus === "connecting"
-                  ? "Connecting to instance…"
-                  : primaryStatus === "stopping"
-                  ? "Instance is stopping…"
-                  : item.label;
-                const isControlUi = item.href === "/console/control-ui";
-                return (
-                  <SidebarMenuItem key={item.href} className={isControlUi ? "group/control-ui" : undefined}>
-                    <SidebarMenuButton
-                      isActive={active}
-                      tooltip={tooltip}
-                      render={disabled ? <span /> : <Link href={item.href} />}
-                      aria-disabled={disabled}
-                      className={cn(
-                        "h-9 gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
-                        "data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary data-[active]:ring-sidebar-primary/40 data-[active]:shadow-[0_1px_6px_rgba(0,0,0,0.18)]",
-                        !active && "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                        disabled && "pointer-events-none opacity-35",
-                        isControlUi && "pr-8"
-                      )}
-                    >
-                      <item.icon className="size-4 shrink-0" />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                    {isControlUi && (
-                      <button
-                        className={cn(
-                          "absolute right-1.5 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-md",
-                          "text-sidebar-foreground/35 transition-colors",
-                          "hover:text-sidebar-foreground",
-                          disabled && "pointer-events-none"
-                        )}
-                        title="Open in new tab"
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          try {
-                            const r = await fetch("/api/gate/ws-auth");
-                            const data = await r.json() as { url?: string; token?: string; gatewayToken?: string; error?: string };
-                            if (!r.ok || !data.url || !data.token || !data.gatewayToken) throw new Error(data.error ?? "Failed");
-                            const httpBase = data.url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
-                            window.open(`${httpBase}/__openclaw__/?jwt=${encodeURIComponent(data.token)}&token=${encodeURIComponent(data.gatewayToken)}`, "_blank");
-                          } catch {
-                            // ignore
-                          }
-                        }}
-                      >
-                        <ExternalLinkIcon className="size-3.5" />
-                      </button>
-                    )}
-                  </SidebarMenuItem>
-                );
-              })}
-              {showDebug && DEBUG_NAV_ITEMS.map((item) => {
-                const active = pathname === item.href;
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      isActive={active}
-                      tooltip={item.label}
-                      render={<Link href={item.href} />}
-                      className={cn(
-                        "h-9 gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
-                        "data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary data-[active]:ring-sidebar-primary/40 data-[active]:shadow-[0_1px_6px_rgba(0,0,0,0.18)]",
-                        !active && "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                      )}
-                    >
-                      <item.icon className="size-4 shrink-0" />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {(
+          [
+            { label: "MAIN",       items: MAIN_NAV,       requiresInstance: true  },
+            { label: "AUTOMATION", items: AUTOMATION_NAV, requiresInstance: false },
+            { label: "ACCOUNT",    items: ACCOUNT_NAV,    requiresInstance: false },
+            { label: "TOOLS",      items: TOOLS_NAV,      requiresInstance: false },
+          ] as const
+        ).map((section, i) => {
+          const primaryStatus = machines[0] ? flyStateToStatus(machines[0].state, gatewayConnected) : null;
+          const notReady = primaryStatus === "provisioning" || primaryStatus === "connecting" || primaryStatus === "stopping";
+
+          return (
+            <React.Fragment key={section.label}>
+            {i > 0 && <div className="h-px w-full bg-sidebar-border my-2" />}
+            <SidebarGroup className="px-2 py-1">
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {section.items.map((item) => {
+                    const active = pathname === item.href;
+                    const isExternal = !!(item as { external?: boolean }).external;
+                    const itemRequiresInstance = !!(item as { requiresInstance?: boolean }).requiresInstance;
+                    const badge = (item as { badge?: string }).badge;
+                    const disabled = (section.requiresInstance || itemRequiresInstance) && (!hasInstances || notReady);
+                    const tooltip = section.requiresInstance && !hasInstances
+                      ? "Create an instance first"
+                      : section.requiresInstance && primaryStatus === "provisioning"
+                      ? "Instance is starting up…"
+                      : section.requiresInstance && primaryStatus === "connecting"
+                      ? "Connecting to instance…"
+                      : section.requiresInstance && primaryStatus === "stopping"
+                      ? "Instance is stopping…"
+                      : item.label;
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          isActive={active}
+                          tooltip={tooltip}
+                          render={disabled ? <span /> : <Link href={item.href} />}
+                          aria-disabled={disabled}
+                          className={cn(
+                            "h-9 gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
+                            "data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary data-[active]:ring-sidebar-primary/40 data-[active]:shadow-[0_1px_6px_rgba(0,0,0,0.18)]",
+                            !active && "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                            disabled && "pointer-events-none opacity-35",
+                          )}
+                        >
+                          <item.icon className="size-4 shrink-0" />
+                          <span className="flex-1">{item.label}</span>
+                          {badge && (
+                            <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-400">
+                              {badge}
+                            </span>
+                          )}
+                          {isExternal && (
+                            <ExternalLinkIcon className="size-3 text-sidebar-foreground/25" />
+                          )}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            </React.Fragment>
+          );
+        })}
 
       </SidebarContent>
 
       <SidebarFooter className="px-3 py-3">
         <div className="space-y-2">
-          <RoadmapDialog open={showRoadmap} onOpenChange={setShowRoadmap} />
+<RoadmapDialog open={showRoadmap} onOpenChange={setShowRoadmap} />
           <AnimatePresence>
             {showRoadmapBanner && (
               <motion.div

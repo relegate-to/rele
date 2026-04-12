@@ -13,7 +13,7 @@ export default function ConsolePage() {
     if (machines.length === 0) {
       router.replace("/console/onboarding");
     } else {
-      router.replace("/console/dashboard");
+      router.replace("/console/chat");
     }
   }, [machines, loading, router]);
 
