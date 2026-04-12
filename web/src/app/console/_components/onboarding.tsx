@@ -406,7 +406,7 @@ export function Onboarding() {
                   </h2>
                   <p className="mt-3 text-[15px] leading-relaxed text-[var(--muted)]">
                     {phase === "connecting"
-                      ? "Your instance is running. We're opening a secure connection to it now — this usually takes just a few seconds."
+                      ? "Your instance is running. Openclaw is starting up. This will take a minute."
                       : "We're allocating a dedicated container and booting it up. This usually takes 1–2 minutes."}
                   </p>
                 </div>
