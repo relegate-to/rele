@@ -194,7 +194,7 @@ export function Onboarding() {
                   <p className="mt-1.5 text-sm text-[var(--muted)]">
                     {phase === "connecting"
                       ? "Instance is up — opening a secure connection."
-                      : "Allocating your container. Usually 20–40 seconds."}
+                      : "Allocating your container. Usually 1–2 minutes."}
                   </p>
                 </div>
                 <svg
@@ -379,19 +379,35 @@ export function Onboarding() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
                 transition={{ duration: 0.35, ease: EASE }}
-                className="flex flex-col items-center gap-5 text-center"
+                className="flex flex-col gap-5"
               >
-                <div className="flex size-20 items-center justify-center rounded-2xl border border-[var(--border-hi)] bg-[var(--surface)] text-4xl">
-                  {icon}
+                <div className="flex size-16 items-center justify-center rounded-2xl border border-[var(--border-hi)] bg-[var(--surface)] text-[var(--accent)]">
+                  {phase === "connecting" ? (
+                    <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h.01" />
+                      <path d="M2 8.82a15 15 0 0 1 20 0" />
+                      <path d="M5 12.859a10 10 0 0 1 14 0" />
+                      <path d="M8.5 16.429a5 5 0 0 1 7 0" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="2" width="20" height="8" rx="2" />
+                      <rect x="2" y="14" width="20" height="8" rx="2" />
+                      <path d="M6 6h.01M6 18h.01" />
+                    </svg>
+                  )}
                 </div>
                 <div>
-                  <p className="font-[var(--font-dm-mono),monospace] text-lg font-medium text-[var(--text)]">
-                    {name}
+                  <p className="font-[var(--font-dm-mono),monospace] text-[11px] font-medium uppercase tracking-widest text-[var(--accent)] mb-3">
+                    {phase === "connecting" ? "Connecting" : "Provisioning"}
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+                  <h2 className="text-2xl font-semibold leading-snug tracking-[-0.01em] text-[var(--text)]">
+                    {phase === "connecting" ? "Opening a secure connection" : "Spinning up your container"}
+                  </h2>
+                  <p className="mt-3 text-[15px] leading-relaxed text-[var(--muted)]">
                     {phase === "connecting"
                       ? "Your instance is running. We're opening a secure connection to it now — this usually takes just a few seconds."
-                      : "We're allocating a dedicated container and booting it up. This usually takes 20–40 seconds."}
+                      : "We're allocating a dedicated container and booting it up. This usually takes 1–2 minutes."}
                   </p>
                 </div>
               </motion.div>
