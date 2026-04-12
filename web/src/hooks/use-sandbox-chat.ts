@@ -65,7 +65,9 @@ export function useSandboxChat() {
           const history = parseHistoryMessages(
             payload.messages as unknown[]
           );
-          setMessages((prev) => dedupe([...prev, ...history]));
+          // History takes priority over any stale in-memory state (e.g. a
+          // streaming bubble that never got a lifecycle:end due to disconnect).
+          setMessages((prev) => dedupe([...history, ...prev]));
         }
         return;
       }

@@ -22,7 +22,7 @@ export default function ChatPage() {
 
  useEffect(() => {
   if (!loading && !machine) {
-   router.replace("/console/chat");
+   router.replace("/console");
   }
  }, [machine, loading, router]);
 
