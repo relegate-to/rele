@@ -87,7 +87,7 @@ async function ensureUserVolume(appName: string, region: string): Promise<string
 
   const vol = await flyRequest(`/apps/${appName}/volumes`, {
     method: "POST",
-    body: JSON.stringify({ name: "openclaw_data", region, size_gb: 5 }),
+    body: JSON.stringify({ name: "openclaw_data", region, size_gb: 4 }),
   });
   return vol.id;
 }
