@@ -9,6 +9,7 @@ export type InstanceStatus = "running" | "provisioning" | "connecting" | "stoppi
 export interface Instance {
   id: string
   name: string
+  icon?: string
   status: InstanceStatus
   /** Region label — shown when running */
   uptime?: string
@@ -201,10 +202,9 @@ function ActionButton({
   )
 }
 
-function InstanceIcon({ status, name }: { status: InstanceStatus; name: string }) {
+function InstanceIcon({ status, name, icon }: { status: InstanceStatus; name: string; icon?: string }) {
   const { color, textColor, dot } = statusConfig[status]
   const isStopped = status === "stopped"
-  const initial = (name[0] ?? "?").toUpperCase()
   return (
     <div
       className="relative flex size-7 shrink-0 items-center justify-center rounded-md border text-xs font-medium"
@@ -214,7 +214,7 @@ function InstanceIcon({ status, name }: { status: InstanceStatus; name: string }
         color:       isStopped ? "color-mix(in srgb, var(--sidebar-foreground) 35%, transparent)"  : textColor,
       }}
     >
-      {initial}
+      {icon ? <span className="text-sm leading-none">{icon}</span> : (name[0] ?? "?").toUpperCase()}
       <span
         className={cn(
           "absolute -bottom-px -right-px size-1.5 rounded-full border-[1.5px] border-sidebar",
@@ -380,7 +380,7 @@ export function InstanceItem({
             }}
           />
         )}
-        <InstanceIcon status={instance.status} name={instance.name} />
+        <InstanceIcon status={instance.status} name={instance.name} icon={instance.icon} />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm font-medium leading-tight text-sidebar-foreground">

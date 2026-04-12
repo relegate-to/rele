@@ -99,11 +99,16 @@ export function useMachines() {
   }, [fetchMachines]);
 
   const createMachine = useCallback(
-    async (config: { image: string; region?: string; env?: Record<string, string> }) => {
+    async (config: { image: string; region?: string; env?: Record<string, string>; name?: string; icon?: string }) => {
       const res = await fetch(`${GATE_PROXY}/machines`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ region: config.region, config: { image: config.image, env: config.env } }),
+        body: JSON.stringify({
+          region: config.region,
+          name: config.name,
+          icon: config.icon,
+          config: { image: config.image, env: config.env },
+        }),
       });
 
       if (!res.ok) {
