@@ -16,15 +16,18 @@ import { sql } from "drizzle-orm";
 
 export const neonAuth = pgSchema("neon_auth");
 
-export const apiKeys = pgTable("api_keys", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id").notNull(),
-  provider: text("provider").notNull(),
-  name: text("name").notNull(),
-  encryptedKey: text("encrypted_key").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull(),
+    provider: text("provider").notNull(),
+    encryptedKey: text("encrypted_key").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("api_keys_user_id_uidx").on(table.userId)],
+);
 
 export const userInNeonAuth = neonAuth.table(
   "user",

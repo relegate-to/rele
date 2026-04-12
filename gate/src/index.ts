@@ -21,7 +21,6 @@ app.get("/health", (c) => c.json({ ok: true }));
 
 app.use("/me", authMiddleware);
 app.use("/api-keys", authMiddleware);
-app.use("/api-keys/*", authMiddleware);
 app.use("/machines", authMiddleware);
 app.use("/machines/*", authMiddleware);
 
