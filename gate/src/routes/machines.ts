@@ -5,6 +5,7 @@ import { db } from "../db";
 import { waitForGateway } from "../lib/gateway";
 import type { MachineProvider } from "../providers/machines/interface";
 import { buildMachineEnv } from "../lib/machine-env";
+import { ensureManagedKey } from "../lib/managed-key";
 import type { AppVariables } from "../middleware/auth";
 
 export function createMachineRoutes(provider: MachineProvider) {
@@ -69,6 +70,8 @@ export function createMachineRoutes(provider: MachineProvider) {
 
     const body = await c.req.json<{
       region?: string;
+      name?: string;
+      icon?: string;
       config: {
         image: string;
         size?: string;
@@ -81,6 +84,7 @@ export function createMachineRoutes(provider: MachineProvider) {
       return c.json({ error: "config.image is required" }, 400);
     }
 
+    await ensureManagedKey(userId);
     const { env } = await buildMachineEnv(userId, body.config.env);
 
     let result;
@@ -103,7 +107,11 @@ export function createMachineRoutes(provider: MachineProvider) {
         flyAppName: result.flyAppName,
         region: result.region,
         state: "starting",
-        config: result.config,
+        config: {
+          ...result.config,
+          ...(body.name ? { name: body.name } : {}),
+          ...(body.icon ? { icon: body.icon } : {}),
+        },
       })
       .returning();
 

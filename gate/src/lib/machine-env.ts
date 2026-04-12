@@ -16,15 +16,15 @@ export async function buildMachineEnv(
   const gatewayToken = crypto.randomUUID();
 
   const userKeys = await db
-    .select({ provider: apiKeys.provider, encryptedKey: apiKeys.encryptedKey })
+    .select({ provider: apiKeys.provider, key: apiKeys.key })
     .from(apiKeys)
     .where(eq(apiKeys.userId, userId));
 
   const keyEnv: Record<string, string> = {};
   for (const key of userKeys) {
     const envVar = PROVIDER_ENV_MAP[key.provider];
-    if (envVar && key.encryptedKey) {
-      keyEnv[envVar] = key.encryptedKey;
+    if (envVar && key.key) {
+      keyEnv[envVar] = key.key;
     }
   }
 
