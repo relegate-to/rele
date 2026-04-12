@@ -104,7 +104,7 @@ export class FlyProvider implements MachineProvider {
       image: config.image,
       env: fullEnv,
       restart: { policy: "no" },
-      guest: config.guest ?? { cpus: 1, memory_mb: 2048, cpu_kind: "shared" },
+      guest: config.guest ?? { cpus: 4, memory_mb: 2048, cpu_kind: "shared" },
       metadata: { user_id: userId, fly_process_group: "user" },
       mounts: [{ volume: volumeId, path: "/home/node/.openclaw" }],
       services: [
