@@ -21,7 +21,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/inception/mercury-2"
+        "primary": "openrouter/moonshotai/kimi-k2.5"
       },
       "workspace": "/home/node/.openclaw/workspace"
     },
