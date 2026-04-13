@@ -1,3 +1,5 @@
+"use client";
+
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "../_context/i18n-context";
 
