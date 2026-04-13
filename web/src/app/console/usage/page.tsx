@@ -1,3 +1,5 @@
+"use client";
+
 import { BarChart2Icon } from "lucide-react";
 import { ComingSoon } from "../_components/coming-soon";
 

@@ -1,3 +1,5 @@
+"use client";
+
 import { SquareTerminalIcon } from "lucide-react";
 import { ComingSoon } from "../_components/coming-soon";
 
