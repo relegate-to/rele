@@ -93,6 +93,18 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       setConnecting(false);
       setError(e instanceof Error ? e.message : "Failed to connect.");
+      // Auth fetch can fail transiently while the instance is starting up.
+      // Retry with the same strategy as ws.onclose so we keep trying.
+      if (!intentionalRef.current) {
+        const delay = everConnectedRef.current
+          ? Math.min(2000 * 2 ** retryCountRef.current, 30_000)
+          : 3_000;
+        retryCountRef.current += 1;
+        retryTimerRef.current = setTimeout(() => {
+          retryTimerRef.current = null;
+          connect();
+        }, delay);
+      }
       return;
     }
 
