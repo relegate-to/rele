@@ -7,10 +7,12 @@ import { AppSidebar } from "./_components/app-sidebar";
 import { MachinesProvider } from "./_context/machines-context";
 import { GatewayProvider } from "./_context/gateway-context";
 import { ChatProvider } from "./_context/chat-context";
+import { I18nProvider, useTranslation } from "./_context/i18n-context";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
 
 function ConsoleTrigger() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const { state, isMobile, openMobile, toggleSidebar } = useSidebar();
   const isControlUi = pathname === "/console/control-ui";
@@ -33,7 +35,7 @@ function ConsoleTrigger() {
         >
           <PanelLeftIcon className="size-3.5 text-[var(--muted)]" />
           <span className="font-[var(--font-dm-mono),monospace] text-[11px] tracking-wide text-[var(--muted)]">
-            Open sidebar
+            {t("sidebar.open-sidebar")}
           </span>
         </button>
       </div>
@@ -53,18 +55,20 @@ function ConsoleTrigger() {
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
   return (
-    <MachinesProvider>
-      <GatewayProvider>
-        <ChatProvider>
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <ConsoleTrigger />
-            {children}
-          </SidebarInset>
-        </SidebarProvider>
-        </ChatProvider>
-      </GatewayProvider>
-    </MachinesProvider>
+    <I18nProvider>
+      <MachinesProvider>
+        <GatewayProvider>
+          <ChatProvider>
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset>
+              <ConsoleTrigger />
+              {children}
+            </SidebarInset>
+          </SidebarProvider>
+          </ChatProvider>
+        </GatewayProvider>
+      </MachinesProvider>
+    </I18nProvider>
   );
 }

@@ -7,10 +7,12 @@ import { EASE } from "@/lib/theme";
 import { useChat } from "../_context/chat-context";
 import { TypingIndicator } from "@/components/ui/typing-indicator";
 import { MessageRow, ChatInput } from "./chat-components";
+import { useTranslation } from "../_context/i18n-context";
 
 const SPRING = { type: "spring", stiffness: 380, damping: 40 } as const;
 
 export function FloatingChat({ contextPrompt }: { contextPrompt?: string }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const { messages, connected, isThinking, sendMessage } = useChat();
   const send = useCallback(
@@ -69,7 +71,7 @@ export function FloatingChat({ contextPrompt }: { contextPrompt?: string }) {
           {/* ── Button icon — always rendered, fades out when open ── */}
           <button
             onClick={() => setOpen(true)}
-            aria-label="Open chat"
+            aria-label={t("chat.open")}
             className="absolute inset-0 flex items-center justify-center transition-opacity duration-150"
             style={{ opacity: open ? 0 : 1, pointerEvents: open ? "none" : "auto" }}
           >
@@ -85,13 +87,13 @@ export function FloatingChat({ contextPrompt }: { contextPrompt?: string }) {
             <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-[var(--border)]">
               <div className="flex items-center gap-2">
                 <span className="text-base leading-none text-[var(--accent)]">✦</span>
-                <span className="text-sm font-semibold text-[var(--text)]">Chat</span>
+                <span className="text-sm font-semibold text-[var(--text)]">{t("chat.title")}</span>
                 <span className={`size-1.5 rounded-full ${connected ? "bg-green-500" : "bg-[var(--muted)]"}`} />
               </div>
               <button
                 onClick={() => setOpen(false)}
                 className="flex items-center justify-center rounded-md p-1 text-[var(--muted)] transition-colors hover:text-[var(--text)]"
-                aria-label="Minimize chat"
+                aria-label={t("chat.minimize")}
               >
                 <ChevronDownIcon className="size-4" />
               </button>
@@ -112,9 +114,9 @@ export function FloatingChat({ contextPrompt }: { contextPrompt?: string }) {
                     <div className="size-8 rounded-xl bg-[var(--accent)]/10 flex items-center justify-center mb-1">
                       <span className="text-base">✦</span>
                     </div>
-                    <h2 className="text-sm font-semibold text-[var(--text)]">How can I help?</h2>
+                    <h2 className="text-sm font-semibold text-[var(--text)]">{t("chat.help-prompt")}</h2>
                     <p className="text-xs text-[var(--muted)] max-w-[220px] leading-relaxed">
-                      Send a message to start a conversation with your agent.
+                      {t("chat.start-conversation")}
                     </p>
                   </motion.div>
                 )}

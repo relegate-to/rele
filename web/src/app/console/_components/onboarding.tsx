@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 import { useGateway } from "../_context/gateway-context";
+import { useTranslation } from "../_context/i18n-context";
 
 // ─── Name + icon generation ───────────────────────────────────────────────────
 
@@ -50,19 +51,19 @@ type PanelContent = {
   extra?: React.ReactNode;
 };
 
-function getPanelContent(focus: Focus): PanelContent {
+function getPanelContent(focus: Focus, t: (key: string) => string): PanelContent {
   switch (focus) {
     case "name":
       return {
-        eyebrow: "Your instance",
-        title: "Make it yours",
-        body: "Give your sandbox a name you'll recognize. It'll appear in your console and anywhere you manage it.",
+        eyebrow: t("onboarding.panel.your-instance"),
+        title: t("onboarding.panel.make-yours.title"),
+        body: t("onboarding.panel.make-yours.body"),
       };
     case "managed":
       return {
         eyebrow: "Managed keys",
-        title: "No API account needed",
-        body: "We handle model access and bill you per use. Every major model available through a single connection.",
+        title: t("onboarding.panel.managed.title"),
+        body: t("onboarding.panel.managed.body"),
         extra: (
           <div className="mt-5 flex flex-wrap gap-2">
             {MODEL_PILLS.map((m) => (
@@ -71,7 +72,7 @@ function getPanelContent(focus: Focus): PanelContent {
               </span>
             ))}
             <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 font-[var(--font-dm-mono),monospace] text-[11px] text-[var(--muted)]">
-              +100 more
+              {t("onboarding.panel.managed.more")}
             </span>
           </div>
         ),
@@ -79,8 +80,8 @@ function getPanelContent(focus: Focus): PanelContent {
     case "byok":
       return {
         eyebrow: "Bring your own key",
-        title: "Use your OpenRouter account",
-        body: "OpenRouter gives you access to 100+ models through a single API key. Your key is injected at boot and never leaves your instance.",
+        title: t("onboarding.panel.byok.title"),
+        body: t("onboarding.panel.byok.body"),
         extra: (
           <a
             href="https://openrouter.ai"
@@ -98,6 +99,7 @@ function getPanelContent(focus: Focus): PanelContent {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function Onboarding() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { machines, loading, createMachine } = useMachinesContext();
   const { connected: gatewayConnected } = useGateway();
@@ -123,7 +125,7 @@ export function Onboarding() {
 
   async function handleCreate() {
     if (keyMode === "byok" && !apiKey.trim()) {
-      setError("Enter your OpenRouter API key to continue.");
+      setError(t("onboarding.api-key-placeholder"));
       return;
     }
 
@@ -138,7 +140,7 @@ export function Onboarding() {
           body: JSON.stringify({ provider: "openrouter", key: apiKey.trim() }),
         });
         if (!keyRes.ok) {
-          const err = await keyRes.json().catch(() => ({ error: "Failed to save API key" }));
+          const err = await keyRes.json().catch(() => ({ error: t("onboarding.error.save-key") }));
           throw new Error(err.error);
         }
       }
@@ -149,7 +151,7 @@ export function Onboarding() {
         icon,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create instance");
+      setError(err instanceof Error ? err.message : t("onboarding.error.create-instance"));
       setSubmitting(false);
     }
   }
@@ -159,7 +161,7 @@ export function Onboarding() {
     phase === "connecting" ||
     (submitting && phase !== "setup");
 
-  const panelContent = getPanelContent(focus);
+  const panelContent = getPanelContent(focus, t);
 
   return (
     <div className="flex min-h-[100svh] bg-[var(--bg)] text-[var(--text)]">
@@ -189,12 +191,12 @@ export function Onboarding() {
                 </div>
                 <div>
                   <p className="font-[var(--font-dm-mono),monospace] text-base font-medium text-[var(--text)]">
-                    {phase === "connecting" ? `Connecting to ${name}` : `Launching ${name}`}
+                    {phase === "connecting" ? t("onboarding.connecting-to").replace("{name}", name) : t("onboarding.launching").replace("{name}", name)}
                   </p>
                   <p className="mt-1.5 text-sm text-[var(--muted)]">
                     {phase === "connecting"
-                      ? "Instance is up — opening a secure connection."
-                      : "Allocating your container. Usually 1–2 minutes."}
+                      ? t("onboarding.instance-up")
+                      : t("onboarding.allocating")}
                   </p>
                 </div>
                 <svg
@@ -222,16 +224,16 @@ export function Onboarding() {
                 className="flex flex-col gap-7"
               >
                 <div>
-                  <h1 className="text-2xl font-semibold tracking-[-0.01em]">Get started</h1>
+                  <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t("onboarding.get-started")}</h1>
                   <p className="mt-1.5 text-[15px] leading-relaxed text-[var(--muted)]">
-                    Set up your instance in seconds.
+                    {t("onboarding.setup-desc")}
                   </p>
                 </div>
 
                 {/* Name + icon */}
                 <div className="flex flex-col gap-2">
                   <label className="font-[var(--font-dm-mono),monospace] text-xs font-medium text-[var(--text-dim)]">
-                    Instance name
+                    {t("onboarding.instance-name")}
                   </label>
                   <div className="flex gap-2">
                     <div className="relative">
@@ -278,7 +280,7 @@ export function Onboarding() {
                 {/* Key mode */}
                 <div className="flex flex-col gap-2">
                   <label className="font-[var(--font-dm-mono),monospace] text-xs font-medium text-[var(--text-dim)]">
-                    API access
+                    {t("onboarding.api-access")}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {(["managed", "byok"] as const).map((mode) => {
@@ -295,10 +297,10 @@ export function Onboarding() {
                           }`}
                         >
                           <span className="font-[var(--font-dm-mono),monospace] text-xs font-medium">
-                            {mode === "managed" ? "Let us handle it" : "Bring your own"}
+                            {mode === "managed" ? t("onboarding.managed.title") : t("onboarding.byok.title")}
                           </span>
                           <span className="text-xs leading-relaxed text-[var(--muted)]">
-                            {mode === "managed" ? "No account needed" : "Use your key"}
+                            {mode === "managed" ? t("onboarding.managed.subtitle") : t("onboarding.byok.subtitle")}
                           </span>
                         </button>
                       );
@@ -347,10 +349,10 @@ export function Onboarding() {
                       <svg viewBox="0 0 16 16" className="size-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <path d="M8 2a6 6 0 0 1 6 6" />
                       </svg>
-                      Creating...
+                      {t("onboarding.creating")}
                     </>
                   ) : (
-                    "Launch instance →"
+                    t("onboarding.launch-instance")
                   )}
                 </button>
               </motion.div>
@@ -399,15 +401,15 @@ export function Onboarding() {
                 </div>
                 <div>
                   <p className="font-[var(--font-dm-mono),monospace] text-[11px] font-medium uppercase tracking-widest text-[var(--accent)] mb-3">
-                    {phase === "connecting" ? "Connecting" : "Provisioning"}
+                    {phase === "connecting" ? t("onboarding.connecting") : t("onboarding.provisioning")}
                   </p>
                   <h2 className="text-2xl font-semibold leading-snug tracking-[-0.01em] text-[var(--text)]">
-                    {phase === "connecting" ? "Opening a secure connection" : "Spinning up your container"}
+                    {phase === "connecting" ? t("onboarding.secure-connection") : t("onboarding.spinning-up")}
                   </h2>
                   <p className="mt-3 text-[15px] leading-relaxed text-[var(--muted)]">
                     {phase === "connecting"
-                      ? "Your instance is running. Openclaw is starting up. This will take a minute."
-                      : "We're allocating a dedicated container and booting it up. This usually takes 1–2 minutes."}
+                      ? t("onboarding.starting-openclaw")
+                      : t("onboarding.allocating-container")}
                   </p>
                 </div>
               </motion.div>

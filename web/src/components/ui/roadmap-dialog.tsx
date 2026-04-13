@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { BookOpen, Layers, Link2, MessageSquare, Smartphone, Sparkles, ShieldCheck, RocketIcon, XIcon, Wrench, CheckCircle2, Cloud, Plug, MonitorSmartphone, BotMessageSquare, KeyRound, CreditCard, Zap, Monitor, Activity, Terminal, FileCode, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "@/app/console/_context/i18n-context";
 
 const metadata = {
   date: "April 9, 2026",
@@ -365,6 +366,7 @@ export function RoadmapDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const [view, setView] = useState<"planned" | "completed">("planned");
   const [selected, setSelected] = useState(0);
   const items = view === "planned" ? roadmapItems : completedItems;
@@ -399,8 +401,8 @@ export function RoadmapDialog({
           <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-5 py-3">
             <div className="flex items-center gap-2.5">
               <RocketIcon className="size-4 text-[var(--accent)]" />
-              <DialogTitle className="text-sm font-semibold">Roadmap</DialogTitle>
-              <DialogDescription className="sr-only">What we're building next</DialogDescription>
+              <DialogTitle className="text-sm font-semibold">{t("roadmap.title")}</DialogTitle>
+              <DialogDescription className="sr-only">{t("sidebar.roadmap.desc")}</DialogDescription>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center rounded-md bg-[var(--surface-hi)] p-0.5 text-xs">
@@ -408,13 +410,13 @@ export function RoadmapDialog({
                   onClick={() => { setView("planned"); setSelected(0); setShowTopFade(false); setShowBottomFade(true); }}
                   className={`rounded px-3 py-1 font-medium transition-colors ${view === "planned" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--muted)] hover:text-[var(--text-dim)]"}`}
                 >
-                  Planned
+                  {t("roadmap.planned")}
                 </button>
                 <button
                   onClick={() => { setView("completed"); setSelected(0); setShowTopFade(false); setShowBottomFade(false); }}
                   className={`rounded px-3 py-1 font-medium transition-colors ${view === "completed" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--muted)] hover:text-[var(--text-dim)]"}`}
                 >
-                  Completed
+                  {t("roadmap.completed")}
                 </button>
               </div>
               <DialogClose className="rounded-md p-1 text-[var(--muted)] hover:bg-[var(--surface-hi)] hover:text-[var(--text)] transition-colors">
@@ -491,11 +493,11 @@ export function RoadmapDialog({
                       <div className="flex items-center gap-2">
                       {"priority" in active ? (
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${priorityStyles[active.priority as keyof typeof priorityStyles]}`}>
-                          {active.priority as string} priority
+                          {t("roadmap.priority-label", { priority: t(`roadmap.priority.${active.priority}`) })}
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500">
-                          <CheckCircle2 className="size-3" /> Completed
+                          <CheckCircle2 className="size-3" /> {t("roadmap.completed-badge")}
                         </span>
                       )}
                       <a
@@ -505,7 +507,7 @@ export function RoadmapDialog({
                         className="flex items-center gap-1 text-[11px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
                       >
                         <ExternalLink className="size-3" />
-                        issues
+                        {t("roadmap.issues")}
                       </a>
                       </div>
                     </div>
@@ -534,8 +536,8 @@ export function RoadmapDialog({
 
           {/* footer */}
           <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] px-5 py-3">
-            <p className="text-xs text-[var(--muted)]">Updated {metadata.date}</p>
-            <p className="text-xs text-[var(--muted)]">by {metadata.author}</p>
+            <p className="text-xs text-[var(--muted)]">{t("roadmap.updated", { date: metadata.date })}</p>
+            <p className="text-xs text-[var(--muted)]">{t("roadmap.by", { author: metadata.author })}</p>
           </div>
 
         </div>

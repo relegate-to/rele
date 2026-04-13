@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "../_context/i18n-context"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -226,39 +227,40 @@ function InstanceIcon({ status, name, icon }: { status: InstanceStatus; name: st
 }
 
 function InstanceMeta({ instance }: { instance: Instance }) {
+  const { t } = useTranslation()
   const { status, uptime, lastActive } = instance
   const mono = "truncate font-[var(--font-dm-mono),monospace] text-xs"
 
   if (status === "running") {
     return (
       <p className={`${mono} text-sidebar-foreground/40`}>
-        {uptime ?? "running"}
+        {uptime ?? t("instance.status.running")}
       </p>
     )
   }
 
   if (status === "provisioning") {
-    return <p className={`${mono} text-status-info`}>provisioning…</p>
+    return <p className={`${mono} text-status-info`}>{t("instance.status.provisioning")}</p>
   }
 
   if (status === "connecting") {
-    return <p className={`${mono} text-status-warning`}>connecting…</p>
+    return <p className={`${mono} text-status-warning`}>{t("instance.status.connecting")}</p>
   }
 
   if (status === "stopping") {
-    return <p className={`${mono} text-status-warning`}>stopping…</p>
+    return <p className={`${mono} text-status-warning`}>{t("instance.status.stopping")}</p>
   }
 
   if (status === "stopped") {
     return (
       <p className={`${mono} text-sidebar-foreground/30`}>
-        {lastActive ?? "stopped"}
+        {lastActive ?? t("instance.status.stopped")}
       </p>
     )
   }
 
   if (status === "error") {
-    return <p className={`${mono} text-status-error`}>crashed · view logs</p>
+    return <p className={`${mono} text-status-error`}>{t("instance.crashed")}</p>
   }
 
   return null
@@ -272,6 +274,7 @@ function InstanceActions({
 }: Pick<InstanceItemProps, "onStop" | "onStart" | "onDelete"> & {
   instance: Instance
 }) {
+  const { t } = useTranslation()
   const [deleting, setDeleting] = useState(false)
 
   if (deleting) {
@@ -279,10 +282,10 @@ function InstanceActions({
   }
 
   if (instance.status === "running") {
-    return <ActionButton label="Stop" onClick={onStop}><StopIcon /></ActionButton>
+    return <ActionButton label={t("instance.action.stop")} onClick={onStop}><StopIcon /></ActionButton>
   }
   if (instance.status === "provisioning" || instance.status === "connecting") {
-    return <ActionButton label="Stop" onClick={onStop}><StopIcon /></ActionButton>
+    return <ActionButton label={t("instance.action.stop")} onClick={onStop}><StopIcon /></ActionButton>
   }
   if (instance.status === "stopping") {
     return <SpinnerIcon />
@@ -290,9 +293,9 @@ function InstanceActions({
   if (instance.status === "stopped" || instance.status === "error") {
     return (
       <>
-        <ActionButton label="Start" onClick={onStart}><PlayIcon /></ActionButton>
+        <ActionButton label={t("instance.action.start")} onClick={onStart}><PlayIcon /></ActionButton>
         <ActionButton
-          label="Delete"
+          label={t("instance.action.delete")}
           destructive
           onClick={async () => {
             setDeleting(true)
@@ -410,6 +413,7 @@ interface AddInstanceItemProps {
 }
 
 export function AddInstanceItem({ onClick }: AddInstanceItemProps) {
+  const { t } = useTranslation()
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -419,7 +423,7 @@ export function AddInstanceItem({ onClick }: AddInstanceItemProps) {
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-dashed border-sidebar-border">
           <PlusIcon />
         </div>
-        <span className="text-sm font-semibold">new instance</span>
+        <span className="text-sm font-semibold">{t("instance.new")}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   )

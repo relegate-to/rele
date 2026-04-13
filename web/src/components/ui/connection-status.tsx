@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { EASE } from "@/lib/theme";
+import { useTranslation } from "@/app/console/_context/i18n-context";
 
 interface ConnectionStatusProps {
   connected: boolean;
@@ -16,7 +17,8 @@ export function ConnectionStatus({
   connecting = false,
   label,
 }: ConnectionStatusProps) {
-  const displayLabel = label || (connected ? "Connected" : connecting ? "Connecting..." : "Disconnected");
+  const { t } = useTranslation();
+  const displayLabel = label || (connected ? t("connection.connected") : connecting ? t("connection.connecting") : t("connection.disconnected"));
 
   return (
     <motion.div

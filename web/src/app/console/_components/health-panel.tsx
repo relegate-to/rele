@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "../_context/i18n-context";
 
 const GATE_PROXY = "/api/gate";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type HealthCheck = {
-  label: string;
+  labelKey: string;
   endpoint: string;
   ok: boolean | null;
   latencyMs: number | null;
@@ -43,9 +44,10 @@ function CardHeader({ children, right }: { children: React.ReactNode; right?: Re
 // ── Health Panel ──────────────────────────────────────────────────────────────
 
 export function HealthPanel() {
+  const { t } = useTranslation();
   const [checks, setChecks] = useState<HealthCheck[]>([
-    { label: "API Gateway", endpoint: "/health", ok: null, latencyMs: null },
-    { label: "Auth Service", endpoint: "/me", ok: null, latencyMs: null },
+    { labelKey: "health.api-gateway", endpoint: "/health", ok: null, latencyMs: null },
+    { labelKey: "health.auth-service", endpoint: "/me", ok: null, latencyMs: null },
   ]);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [checking, setChecking] = useState(false);
@@ -123,13 +125,13 @@ export function HealthPanel() {
             disabled={checking}
             className="bg-transparent border border-[var(--border)] rounded-md text-[var(--muted)] font-[var(--font-dm-mono),monospace] text-xs px-3 py-1.5 tracking-wide transition-all hover:border-[var(--border-hi)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
           >
-            {checking ? "checking…" : "refresh"}
+            {checking ? t("health.checking") : t("health.refresh")}
           </button>
         }
       >
         <div className="flex items-center gap-3">
           <span className="font-[var(--font-dm-mono),monospace] text-sm font-medium text-[var(--text)]">
-            System Health
+            {t("health.title")}
           </span>
           <span
             className="font-[var(--font-dm-mono),monospace] text-xs tracking-widest px-2.5 py-0.5 rounded-full border"
@@ -139,7 +141,7 @@ export function HealthPanel() {
               borderColor: `var(--status-${statusKey}-border)`,
             }}
           >
-            {overallStatus}
+            {t(`health.status.${overallStatus}`)}
           </span>
         </div>
       </CardHeader>
@@ -156,7 +158,7 @@ export function HealthPanel() {
               style={{ background: dotColor(check.ok), boxShadow: dotShadow(check.ok) }}
             />
             <span className="font-[var(--font-dm-mono),monospace] text-sm text-[var(--text)]">
-              {check.label}
+              {t(check.labelKey)}
             </span>
             <span className="font-[var(--font-dm-mono),monospace] text-xs text-[var(--muted)]">
               {check.endpoint}
@@ -175,7 +177,7 @@ export function HealthPanel() {
               className="text-xs w-8 text-right"
               style={{ color: statusColor(check.ok) } as React.CSSProperties}
             >
-              {check.ok === null ? "—" : check.ok ? "ok" : "error"}
+              {check.ok === null ? "—" : check.ok ? t("health.ok") : t("health.error")}
             </Mono>
           </div>
         </div>
@@ -184,7 +186,7 @@ export function HealthPanel() {
       {lastChecked && (
         <div className="px-6 py-2.5 border-t border-[var(--border)] bg-[var(--bg)]">
           <Mono className="text-xs text-[var(--muted)]">
-            Last checked{" "}
+            {t("health.last-checked")}{" "}
             {lastChecked.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
           </Mono>
         </div>

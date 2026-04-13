@@ -9,8 +9,10 @@ import { useChat } from "../_context/chat-context";
 import { TypingIndicator } from "@/components/ui/typing-indicator";
 import { ConnectionStatus } from "@/components/ui/connection-status";
 import { MessageRow, ChatInput } from "../_components/chat-components";
+import { useTranslation } from "../_context/i18n-context";
 
 export default function ChatPage() {
+ const { t } = useTranslation();
  const { machines, loading } = useMachinesContext();
  const { messages, connected, connecting, isThinking, sendMessage } = useChat();
  const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -73,9 +75,9 @@ export default function ChatPage() {
        <div className="size-12 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center mb-1">
         <span className="text-2xl">✦</span>
        </div>
-       <h2 className="text-base font-semibold text-[var(--text)]">How can I help?</h2>
+       <h2 className="text-base font-semibold text-[var(--text)]">{t("console.chat.help")}</h2>
        <p className="text-sm text-[var(--muted)] max-w-xs leading-relaxed">
-        Send a message to start a conversation with your agent.
+        {t("console.chat.start")}
        </p>
       </motion.div>
      )}

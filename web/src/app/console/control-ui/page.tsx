@@ -2,17 +2,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMachinesContext } from "../_context/machines-context";
-
-const STATUSES = ["Connecting to instance", "Authenticating", "Loading interface"];
+import { useTranslation } from "../_context/i18n-context";
 
 function LoadingOverlay({ visible }: { visible: boolean }) {
+  const { t } = useTranslation();
+  const statuses = [
+    t("console.control-ui.connecting"),
+    t("console.control-ui.authenticating"), 
+    t("console.control-ui.loading")
+  ];
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
     if (!visible) return;
-    const id = setInterval(() => setIdx((i) => (i + 1) % STATUSES.length), 1800);
+    const id = setInterval(() => setIdx((i) => (i + 1) % statuses.length), 1800);
     return () => clearInterval(id);
-  }, [visible]);
+  }, [visible, statuses.length]);
 
   // r=22 → circumference ≈ 138.2; arc=55 fills ~144° (40%)
   const R = 22;
@@ -82,7 +87,7 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
               whiteSpace: "nowrap",
             }}
           >
-            {STATUSES[idx]}
+            {statuses[idx]}
             <span className="ctrl-blink" style={{ marginLeft: "2px" }}>_</span>
           </p>
         </div>
@@ -92,6 +97,7 @@ function LoadingOverlay({ visible }: { visible: boolean }) {
 }
 
 export default function ControlUiPage() {
+  const { t } = useTranslation();
   const { machines, loading } = useMachinesContext();
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +111,7 @@ export default function ControlUiPage() {
   useEffect(() => {
     if (loading) return;
     if (!machine) { router.replace("/console/chat"); return; }
-    if (!isRunning) { setError("Instance is not running."); return; }
+    if (!isRunning) { setError(t("console.control-ui.not-running")); return; }
     if (fetched.current) return;
     fetched.current = true;
 
@@ -115,7 +121,7 @@ export default function ControlUiPage() {
         const httpBase = url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
         setSrc(`${httpBase}/__openclaw__/?jwt=${encodeURIComponent(token)}&token=${encodeURIComponent(gatewayToken)}`);
       })
-      .catch((e: unknown) => setError(typeof e === "string" ? e : "Failed to get connection info."));
+      .catch((e: unknown) => setError(typeof e === "string" ? e : t("console.control-ui.connection-failed")));
   }, [loading, machine, isRunning, router]);
 
   if (error) {

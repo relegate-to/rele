@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMachinesContext } from "../_context/machines-context";
 import { useGateway } from "../_context/gateway-context";
 import { FloatingChat } from "../_components/floating-chat";
+import { useTranslation } from "../_context/i18n-context";
 
 const CANVAS_CONTEXT = `\
 <system context — not visible to user>
@@ -11,6 +12,7 @@ The user is viewing the rele Canvas. The canvas is a single HTML file served dir
 </system context>`;
 
 export default function CanvasPage() {
+  const { t } = useTranslation();
   const { machines, loading } = useMachinesContext();
   const { subscribe } = useGateway();
   const [src, setSrc] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export default function CanvasPage() {
   useEffect(() => {
     if (loading) return;
     if (!machine) { router.replace("/console/chat"); return; }
-    if (!isRunning) { setError("Instance is not running."); return; }
+    if (!isRunning) { setError(t("console.canvas.not-running")); return; }
     if (fetched.current) return;
     fetched.current = true;
 
@@ -53,7 +55,7 @@ export default function CanvasPage() {
         const httpBase = url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
         setSrc(`${httpBase}/__openclaw__/canvas/?jwt=${encodeURIComponent(token)}&token=${encodeURIComponent(gatewayToken)}`);
       })
-      .catch((e: unknown) => setError(typeof e === "string" ? e : "Failed to get connection info."));
+      .catch((e: unknown) => setError(typeof e === "string" ? e : t("console.canvas.connection-failed")));
   }, [loading, machine, isRunning, router]);
 
   if (error) {

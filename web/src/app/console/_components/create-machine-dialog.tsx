@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { useTranslation } from "../_context/i18n-context";
 
 const DEFAULT_IMAGE = "ghcr.io/relegate-to/openclaw-sandbox:latest";
 
@@ -20,15 +21,16 @@ interface CreateMachineDialogProps {
 }
 
 const REGIONS = [
-  { value: "sin", label: "Singapore" },
-  { value: "sjc", label: "San Jose" },
-  { value: "iad", label: "Ashburn" },
-  { value: "ams", label: "Amsterdam" },
-  { value: "nrt", label: "Tokyo" },
-  { value: "syd", label: "Sydney" },
+  { value: "sin", labelKey: "create-machine.region.singapore" },
+  { value: "sjc", labelKey: "create-machine.region.san-jose" },
+  { value: "iad", labelKey: "create-machine.region.ashburn" },
+  { value: "ams", labelKey: "create-machine.region.amsterdam" },
+  { value: "nrt", labelKey: "create-machine.region.tokyo" },
+  { value: "syd", labelKey: "create-machine.region.sydney" },
 ] as const;
 
 export function CreateMachineDialog({ open, onOpenChange, onCreate }: CreateMachineDialogProps) {
+  const { t } = useTranslation();
   const [region, setRegion] = useState("sin");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export function CreateMachineDialog({ open, onOpenChange, onCreate }: CreateMach
       await onCreate({ image: DEFAULT_IMAGE, region });
       setRegion("sin");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create machine");
+      setError(err instanceof Error ? err.message : t("create-machine.error"));
     } finally {
       setSubmitting(false);
     }
@@ -54,14 +56,14 @@ export function CreateMachineDialog({ open, onOpenChange, onCreate }: CreateMach
       <DialogContent className="sm:max-w-[420px] bg-[var(--surface)] border-[var(--border)] text-[var(--text)]">
         <DialogHeader>
           <DialogTitle className="font-semibold text-lg">
-            New Instance
+            {t("create-machine.title")}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="grid gap-4 py-2">
           <div className="grid gap-2">
             <Label htmlFor="region" className="font-[var(--font-dm-mono),monospace] text-xs text-[var(--muted)]">
-              Region
+              {t("create-machine.region")}
             </Label>
             <select
               id="region"
@@ -71,7 +73,7 @@ export function CreateMachineDialog({ open, onOpenChange, onCreate }: CreateMach
             >
               {REGIONS.map((r) => (
                 <option key={r.value} value={r.value}>
-                  {r.label} ({r.value})
+                  {t(r.labelKey)} ({r.value})
                 </option>
               ))}
             </select>
@@ -88,14 +90,14 @@ export function CreateMachineDialog({ open, onOpenChange, onCreate }: CreateMach
               onClick={() => onOpenChange(false)}
               className="border-[var(--border)] text-[var(--muted)]"
             >
-              Cancel
+              {t("create-machine.cancel")}
             </Button>
             <Button
               type="submit"
               disabled={submitting}
               className="bg-[var(--accent)] text-white hover:bg-[var(--accent-dim)]"
             >
-              {submitting ? "Creating…" : "Create"}
+              {submitting ? t("create-machine.creating") : t("create-machine.create")}
             </Button>
           </DialogFooter>
         </form>

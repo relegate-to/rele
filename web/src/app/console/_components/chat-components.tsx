@@ -7,8 +7,10 @@ import { EASE } from "@/lib/theme";
 import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
 import { ToolIcon } from "@/components/ui/tool-icon";
 import { MarkdownProse } from "@/components/ui/markdown-prose";
+import { useTranslation } from "../_context/i18n-context";
 
 export function AssistantMessage({ content, children }: { content: string; children: ReactNode }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -25,7 +27,7 @@ export function AssistantMessage({ content, children }: { content: string; child
         whileTap={{ scale: 0.78 }}
         transition={{ type: "spring", stiffness: 600, damping: 18 }}
         className={`absolute -bottom-6 left-0 flex size-6 items-center justify-center rounded-md text-[var(--muted)] transition-colors duration-100 hover:text-[var(--text)] ${copied ? "opacity-100" : "opacity-0 group-hover/msg:opacity-100"}`}
-        aria-label="Copy message"
+        aria-label={t("chat.copy-message")}
       >
         <AnimatePresence mode="wait" initial={false}>
           {copied ? (
@@ -85,6 +87,7 @@ export interface ChatInputProps {
 }
 
 export function ChatInput({ connected, onSend, compact = false }: ChatInputProps) {
+  const { t } = useTranslation();
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -121,7 +124,7 @@ export function ChatInput({ connected, onSend, compact = false }: ChatInputProps
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={connected ? "Message your agent..." : "Waiting for connection..."}
+        placeholder={connected ? t("chat.message-placeholder") : t("chat.waiting-connection")}
         disabled={!connected}
         rows={1}
         className={`${compact ? "max-h-[120px]" : "max-h-[200px]"} min-h-[28px] flex-1 resize-none bg-transparent py-1 font-[var(--font-dm-mono),monospace] text-sm leading-relaxed text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none disabled:cursor-not-allowed`}
@@ -154,7 +157,7 @@ export function ChatInput({ connected, onSend, compact = false }: ChatInputProps
       >
         {innerBox}
         <p className="mt-2 text-center font-[var(--font-dm-mono),monospace] text-[10px] tracking-wide text-[var(--muted)]">
-          Press Enter to send, Shift+Enter for a new line
+          {t("chat.send-help")}
         </p>
       </motion.div>
     </div>

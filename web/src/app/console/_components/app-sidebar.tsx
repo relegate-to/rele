@@ -24,30 +24,31 @@ import { useMachinesContext, type Machine } from "../_context/machines-context";
 import { useGateway } from "../_context/gateway-context";
 import { cn } from "@/lib/utils";
 import { RoadmapDialog } from "@/components/ui/roadmap-dialog";
+import { useTranslation } from "../_context/i18n-context";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
 const MAIN_NAV = [
-  { label: "Chat",   href: "/console/chat",   icon: MessageSquareIcon },
-  { label: "Canvas", href: "/console/canvas", icon: SquarePenIcon },
+  { labelKey: "sidebar.chat",   href: "/console/chat",   icon: MessageSquareIcon },
+  { labelKey: "sidebar.canvas", href: "/console/canvas", icon: SquarePenIcon },
 ] as const;
 
 const AUTOMATION_NAV = [
-  { label: "Skills",         href: "/console/skills",         icon: BlocksIcon },
-  { label: "Channels",       href: "/console/channels",       icon: Link2Icon },
-  { label: "Features",       href: "/console/features",       icon: ZapIcon },
-  { label: "Scheduled Jobs", href: "/console/scheduled-jobs", icon: ClockIcon },
-  { label: "Terminal",       href: "/console/terminal",       icon: SquareTerminalIcon },
+  { labelKey: "sidebar.skills",         href: "/console/skills",         icon: BlocksIcon },
+  { labelKey: "sidebar.channels",       href: "/console/channels",       icon: Link2Icon },
+  { labelKey: "sidebar.features",       href: "/console/features",       icon: ZapIcon },
+  { labelKey: "sidebar.scheduled-jobs", href: "/console/scheduled-jobs", icon: ClockIcon },
+  { labelKey: "sidebar.terminal",       href: "/console/terminal",       icon: SquareTerminalIcon },
 ] as const;
 
 const ACCOUNT_NAV = [
-  { label: "Usage",    href: "/console/usage",    icon: BarChart2Icon },
-  { label: "Settings", href: "/console/settings", icon: SettingsIcon },
+  { labelKey: "sidebar.usage",    href: "/console/usage",    icon: BarChart2Icon },
+  { labelKey: "sidebar.settings", href: "/console/settings", icon: SettingsIcon },
 ] as const;
 
 const TOOLS_NAV = [
-  { label: "Control UI", href: "/console/control-ui", icon: MonitorIcon, requiresInstance: true,  badge: "alpha" },
-  { label: "Status",     href: "/console/status",     icon: ActivityIcon, requiresInstance: false },
+  { labelKey: "sidebar.control-ui", href: "/console/control-ui", icon: MonitorIcon, requiresInstance: true,  badge: "alpha" },
+  { labelKey: "sidebar.status",     href: "/console/status",     icon: ActivityIcon, requiresInstance: false },
 ] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -101,10 +102,12 @@ function OnboardingSection({
   show,
   hasInstances,
   pathname,
+  t,
 }: {
   show: boolean;
   hasInstances: boolean;
   pathname: string;
+  t: (key: string) => string;
 }) {
   const [phase, setPhase] = useState<ExitPhase>(show ? "visible" : "gone");
   const prevShow = useRef(show);
@@ -145,7 +148,7 @@ function OnboardingSection({
             <SidebarMenuItem>
               <SidebarMenuButton
                 isActive={pathname === "/console/onboarding"}
-                tooltip="Set up your instance"
+                tooltip={t("sidebar.onboarding.view-setup")}
                 render={<Link href="/console/onboarding" />}
                 className={cn(
                   "h-auto gap-2.5 rounded-lg border px-2.5 py-2 transition-all duration-500",
@@ -161,14 +164,14 @@ function OnboardingSection({
                 )}
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold leading-tight">
-                    {phase === "completing" ? "All done!" : "Onboarding"}
+                    {phase === "completing" ? t("sidebar.onboarding.all-done") : t("sidebar.onboarding.title")}
                   </span>
                   <span className="text-xs font-normal opacity-60">
                     {phase === "completing"
-                      ? "Instance is ready"
+                      ? t("sidebar.onboarding.ready")
                       : hasInstances
-                        ? "View setup"
-                        : "Create your instance"}
+                        ? t("sidebar.onboarding.view-setup")
+                        : t("sidebar.onboarding.create")}
                   </span>
                 </div>
               </SidebarMenuButton>
@@ -183,6 +186,7 @@ function OnboardingSection({
 // ─── AppSidebar ───────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
   const { machines, loading, startMachine, stopMachine, deleteMachine } = useMachinesContext();
@@ -220,7 +224,7 @@ export function AppSidebar() {
           </span>
           <span className="text-xs text-sidebar-foreground/25">·</span>
           <span className="text-xs text-sidebar-foreground/30">
-            console
+            {t("sidebar.console")}
           </span>
         </div>
       </SidebarHeader>
@@ -262,7 +266,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Onboarding — animated exit when user has instance and navigates away */}
-        <OnboardingSection show={!hasInstances || pathname === "/console/onboarding"} hasInstances={hasInstances} pathname={pathname} />
+        <OnboardingSection show={!hasInstances || pathname === "/console/onboarding"} hasInstances={hasInstances} pathname={pathname} t={t} />
 
 
 
@@ -291,14 +295,14 @@ export function AppSidebar() {
                     const badge = (item as { badge?: string }).badge;
                     const disabled = (section.requiresInstance || itemRequiresInstance) && (!hasInstances || notReady);
                     const tooltip = section.requiresInstance && !hasInstances
-                      ? "Create an instance first"
+                      ? t("sidebar.tooltip.create-instance")
                       : section.requiresInstance && primaryStatus === "provisioning"
-                      ? "Instance is starting up…"
+                      ? t("sidebar.tooltip.starting")
                       : section.requiresInstance && primaryStatus === "connecting"
-                      ? "Connecting to instance…"
+                      ? t("sidebar.tooltip.connecting")
                       : section.requiresInstance && primaryStatus === "stopping"
-                      ? "Instance is stopping…"
-                      : item.label;
+                      ? t("sidebar.tooltip.stopping")
+                      : t((item as any).labelKey);
                     return (
                       <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
@@ -314,10 +318,10 @@ export function AppSidebar() {
                           )}
                         >
                           <item.icon className="size-4 shrink-0" />
-                          <span className="flex-1">{item.label}</span>
+                          <span className="flex-1">{t((item as any).labelKey)}</span>
                           {badge && (
                             <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-400">
-                              {badge}
+                              {t(`sidebar.badge.${badge}`)}
                             </span>
                           )}
                           {isExternal && (
@@ -357,8 +361,8 @@ export function AppSidebar() {
                   <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-[var(--accent)]/8 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
                   <RocketIcon className="size-4 shrink-0 text-[var(--accent)]" />
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-sm font-semibold text-[var(--text)]">Roadmap</span>
-                    <span className="text-xs text-[var(--muted)]">See what we're building</span>
+                    <span className="text-sm font-semibold text-[var(--text)]">{t("sidebar.roadmap")}</span>
+                    <span className="text-xs text-[var(--muted)]">{t("sidebar.roadmap.desc")}</span>
                   </div>
                   <button
                     onClick={dismissRoadmapBanner}

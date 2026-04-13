@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Copy, Check, X } from "lucide-react";
 import { prettyJson } from "@/lib/format";
+import { useTranslation } from "@/app/console/_context/i18n-context";
 
 interface JsonModalProps {
   data: string;
@@ -13,6 +14,7 @@ interface JsonModalProps {
  * Used in dashboard to preview object structures
  */
 export function JsonModal({ data, onClose }: JsonModalProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const formatted = useMemo(() => prettyJson(data), [data]);
@@ -46,7 +48,7 @@ export function JsonModal({ data, onClose }: JsonModalProps) {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3 shrink-0">
             <span className="font-[var(--font-dm-mono),monospace] text-[9px] uppercase tracking-[0.15em] text-[var(--muted)]">
-              Object Preview
+              {t("json-modal.title")}
             </span>
 
             <div className="flex items-center gap-2">
