@@ -1,6 +1,7 @@
 import { createServer, request as httpRequest } from "node:http";
 import { authenticate } from "./auth.mjs";
 import { proxyHttp, proxyWs } from "./proxy.mjs";
+import { handleSkillsApi } from "./skills.mjs";
 
 if (
   !process.env.NEON_AUTH_URL ||
@@ -40,6 +41,15 @@ const server = createServer(async (req, res) => {
   if (!authResult) {
     res.writeHead(401, { "Content-Type": "text/plain" });
     return res.end("Unauthorized");
+  }
+
+  // Skills / gateway management — handled locally, not proxied upstream.
+  const reqPath = new URL(req.url, "http://localhost").pathname;
+  if (
+    reqPath.startsWith("/api/skills") ||
+    reqPath.startsWith("/api/gateway")
+  ) {
+    return handleSkillsApi(req, res);
   }
 
   proxyHttp(req, res, authResult.sessionToken);
