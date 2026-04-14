@@ -21,7 +21,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/moonshotai/kimi-k2.5"
+        "primary": "openrouter/stepfun/step-3.5-flash"
       },
       "workspace": "/home/node/.openclaw/workspace"
     },
