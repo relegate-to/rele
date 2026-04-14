@@ -62,7 +62,7 @@ echo "Config ready at $CONFIG_FILE"
 
 # Start auth proxy (port 80 → OpenClaw on 18789, validates JWT)
 echo "Starting auth proxy..."
-node /opt/openclaw/auth-server.mjs &
+node /opt/openclaw/sidecar/index.mjs &
 
 echo "Launching Gateway..."
 while true; do

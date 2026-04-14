@@ -10,7 +10,6 @@ USER root
 COPY --from=deps /opt/openclaw/node_modules /opt/openclaw/node_modules
 COPY --from=deps /opt/openclaw/package.json /opt/openclaw/package.json
 
-COPY auth-server.mjs /opt/openclaw/auth-server.mjs
 COPY sidecar/ /opt/openclaw/sidecar/
 COPY openclaw-template.json /opt/openclaw/openclaw-template.json
 COPY canvas/index.html /opt/openclaw/canvas-placeholder.html
