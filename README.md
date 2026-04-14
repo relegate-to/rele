@@ -1,8 +1,18 @@
 # rele
 
-Control plane for OpenClaw instances Deploy and manage multiple instances from a single dashboard.
+Control plane for OpenClaw instances. Deploy and manage multiple instances from a single dashboard.
 
 Say hello for me.
+
+## Screenshots
+
+| Onboarding | Chat |
+|---|---|
+| ![Onboarding](screenshots/onboarding.png) | ![Chat](screenshots/chat.png) |
+
+| Canvas | Control UI |
+|---|---|
+| ![Canvas](screenshots/canvas.png) | ![Control UI](<screenshots/control ui.png>) |
 
 ## Stack
 
