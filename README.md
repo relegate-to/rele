@@ -1,51 +1,52 @@
 # rele
 
-Control plane for OpenClaw instances. Deploy and manage multiple instances from a single dashboard.
-
-Say hello for me.
+Deploy and manage OpenClaw instances from a single dashboard. Bring your own API keys or use managed keys — no setup required.
 
 ## Screenshots
 
-| Onboarding | Chat |
-|---|---|
-| ![Onboarding](screenshots/onboarding.png) | ![Chat](screenshots/chat.png) |
+**Onboarding** — create a new instance, choose managed keys or BYOK
 
-| Canvas | Control UI |
-|---|---|
-| ![Canvas](screenshots/canvas.png) | ![Control UI](<screenshots/control ui.png>) |
+![Onboarding](screenshots/onboarding.png)
+
+**Chat** — talk to your agent
+
+![Chat](screenshots/chat.png)
+
+**Canvas** — agents build and display live artifacts
+
+![Canvas](screenshots/canvas.png)
+
+**Control UI** — the underlying OpenClaw control panel
+
+![Control UI](<screenshots/control ui.png>)
 
 ## Stack
 
-- **web** — Next.js frontend + Neon Auth (port 3000)
-- **gate** — Hono/Bun API with JWT validation (port 3001)
+- **web** — Next.js + Neon Auth, hosted on Vercel
+- **gate** — Hono/Bun API with JWT validation, hosted on Fly.io
 - **db** — Drizzle ORM + Neon PostgreSQL
 
-## Setup
+## Development
 
 ```bash
 bun install
-bun run env:pull        # Pull secrets from config repo
-bun run dev             # Start web + gate
+bun run env:pull   # pull secrets from config repo
+bun run dev        # start web + gate
 ```
 
-## Commands
+Other commands:
 
 ```bash
-bun run dev             # Start everything
-bun run dev:gate        # Gate only
-bun run build:gate      # Build for production
-bun run --filter db push      # Sync schema to dev DB
-bun run --filter db push:prod # Sync schema to prod DB
+bun run dev:gate              # gate only
+bun run build:gate            # build for production
+bun run --filter db push      # sync schema to dev DB
+bun run --filter db push:prod # sync schema to prod DB
 ```
 
 ## How It Works
 
-The API manages OpenClaw instances via Fly.io Machines API. User instances are tracked in Neon with JWT-validated access. Real-time stats stream via WebSocket.
+Each user gets a dedicated OpenClaw instance running on Fly.io. The gate manages instance lifecycle via the Fly Machines API, tracks state in Neon, and streams real-time stats over WebSocket. A sidecar proxy on each instance handles JWT auth and injects rele branding into the OpenClaw UI.
 
 ## Database
 
-Two Neon branches: `main` (production) and `dev` (local). Push schema changes with the commands above before deploying.
-
----
-
-Built with Bun, Next.js, Hono, and Fly.io.
+Two Neon branches: `main` (production) and `dev` (local). Push schema changes before deploying.
