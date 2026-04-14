@@ -1,7 +1,8 @@
-export function buildInjection(url) {
+export function buildInjection(url: URL): string {
   const isCanvas = url.pathname.startsWith("/__openclaw__/canvas");
 
-  const canvasStyles = isCanvas ? `
+  const canvasStyles = isCanvas
+    ? `
           <style>
             /* rele branding: design tokens */
             :root {
@@ -45,7 +46,8 @@ export function buildInjection(url) {
               -webkit-font-smoothing: antialiased;
             }
           </style>
-` : "";
+`
+    : "";
 
   return `
           ${canvasStyles}
@@ -77,9 +79,9 @@ export function buildInjection(url) {
           </script>`;
 }
 
-export function injectIntoHtml(html, url) {
-  const script = buildInjection(url);
+export function injectIntoHtml(html: string, url: URL): string {
+  const snippet = buildInjection(url);
   return html.includes("<head>")
-    ? html.replace("<head>", `<head>${script}`)
-    : script + html;
+    ? html.replace("<head>", `<head>${snippet}`)
+    : snippet + html;
 }

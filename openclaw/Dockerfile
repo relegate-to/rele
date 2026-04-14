@@ -1,16 +1,18 @@
-FROM node:22-alpine AS deps
+FROM oven/bun:alpine AS deps
 WORKDIR /opt/openclaw
-RUN npm init -y && npm install jose
+RUN bun add jose hono
 
 FROM alpine/openclaw:2026.3.24
 
 USER root
 
-# jose for JWT validation in auth proxy
+# Bun runtime for the sidecar
+COPY --from=oven/bun:alpine /usr/local/bin/bun /usr/local/bin/bun
+
+# sidecar dependencies
 COPY --from=deps /opt/openclaw/node_modules /opt/openclaw/node_modules
 COPY --from=deps /opt/openclaw/package.json /opt/openclaw/package.json
 
-COPY auth-server.mjs /opt/openclaw/auth-server.mjs
 COPY sidecar/ /opt/openclaw/sidecar/
 COPY openclaw-template.json /opt/openclaw/openclaw-template.json
 COPY canvas/index.html /opt/openclaw/canvas-placeholder.html

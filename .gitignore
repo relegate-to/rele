@@ -4,3 +4,4 @@ node_modules/
 .env.production
 configuration/
 supabase/.temp/cli-latest
+.DS_Store
