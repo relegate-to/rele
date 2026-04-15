@@ -21,7 +21,7 @@ draw_status() {
   rows=$(tput lines)
   tput sc
   tput cup $((rows - 1)) 0
-  printf "${C_BAR_BG}${C_BAR_FG}  ${C_NAME}openclaw${C_RESET}${C_BAR_BG}${C_BAR_FG}  ${C_SEP}·${C_BAR_FG}  ${C_KEY}[R]${C_BAR_FG} Rebuild  ${C_KEY}[X]${C_BAR_FG} Delete image  ${C_KEY}[Q]${C_BAR_FG} Quit  \033[K${C_RESET}"
+  printf "${C_BAR_BG}${C_BAR_FG}  ${C_NAME}openclaw${C_RESET}${C_BAR_BG}${C_BAR_FG}  ${C_SEP}·${C_BAR_FG}  ${C_KEY}[R]${C_BAR_FG} Rebuild  ${C_KEY}[X]${C_BAR_FG} Delete containers  ${C_KEY}[Q]${C_BAR_FG} Quit  \033[K${C_RESET}"
   tput rc
 }
 
@@ -65,12 +65,16 @@ build() {
   draw_status
 }
 
-delete_image() {
+delete_containers() {
   setup_terminal
-  if docker rmi "$IMAGE" 2>&1 >/dev/null; then
-    printf "${C_WARN}Deleted ${IMAGE}.${C_RESET}\n"
+  local ids
+  ids=$(docker ps -aq --filter "ancestor=$IMAGE")
+  if [[ -n "$ids" ]]; then
+    docker stop $ids >/dev/null 2>&1
+    docker rm $ids >/dev/null 2>&1
+    printf "${C_WARN}Stopped and removed containers.${C_RESET}\n"
   else
-    printf "${C_DIM}Image not found.${C_RESET}\n"
+    printf "${C_DIM}No running containers.${C_RESET}\n"
   fi
   draw_status
 }
@@ -88,7 +92,7 @@ while true; do
   if IFS= read -r -s -n 1 key < /dev/tty 2>/dev/null; then
     case "$(echo "$key" | tr '[:lower:]' '[:upper:]')" in
       R) build ;;
-      X) delete_image ;;
+      X) delete_containers ;;
       Q) clear; exit 0 ;;
     esac
   fi
