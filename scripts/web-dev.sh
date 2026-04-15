@@ -77,6 +77,8 @@ trap cleanup EXIT INT TERM
 trap redraw WINCH
 
 start() {
+  pids=$(lsof -ti tcp:3000 2>/dev/null || true)
+  [[ -n "$pids" ]] && kill -9 $pids
   LOG_FILE=$(mktemp /tmp/rele-web-XXXXXX)
   setup_terminal
   set -m
