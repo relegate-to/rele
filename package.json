@@ -7,8 +7,8 @@
     "web"
   ],
   "scripts": {
-    "dev:gate": "bun run --filter gate dev",
-    "dev:web": "bun run --filter web dev",
+    "dev:gate": "bash scripts/gate-dev.sh",
+    "dev:web": "bash scripts/web-dev.sh",
     "dev:openclaw": "bash scripts/openclaw-dev.sh",
     "build:openclaw": "docker build -t rele-openclaw:latest ./openclaw",
     "build:gate": "bun run --filter gate build",
