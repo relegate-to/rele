@@ -12,7 +12,8 @@
     "dev:openclaw": "bash scripts/openclaw-dev.sh",
     "build:openclaw": "docker build -t rele-openclaw:latest ./openclaw",
     "build:gate": "bun run --filter gate build",
-    "start:gate": "bun run --filter gate start"
+    "start:gate": "bun run --filter gate start",
+    "dev": "bash dev.sh"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

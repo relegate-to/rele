@@ -28,6 +28,15 @@ WEB_UUID=$(gx split "$CLAUDE_UUID" -h | awk '{print $NF}')
 GATE_UUID=$(gx split "$WEB_UUID" -v | awk '{print $NF}')
 OPENCLAW_UUID=$(gx split "$GATE_UUID" -v | awk '{print $NF}')
 
+# Kill any processes holding ports 3000 or 3001
+for port in 3000 3001; do
+  pids=$(lsof -ti tcp:"$port" 2>/dev/null || true)
+  if [[ -n "$pids" ]]; then
+    echo "Killing processes on port $port: $pids"
+    kill -9 $pids
+  fi
+done
+
 # Fire commands
 gx send "$CLAUDE_UUID"   "cd '$REPO' && clear && claude"
 gx send "$WEB_UUID"      "cd '$REPO' && clear && bun run dev:web"
