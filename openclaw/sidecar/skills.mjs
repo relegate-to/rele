@@ -116,8 +116,13 @@ function parseFrontmatter(content) {
     name: scalar("name"),
     description: scalar("description"),
     emoji: openclaw?.emoji ?? null,
+    always: openclaw?.always ?? false,
+    os: openclaw?.os ?? null,
+    primaryEnv: openclaw?.primaryEnv ?? null,
     requires: {
       bins: openclaw?.requires?.bins ?? extractArray(fm, "bins"),
+      anyBins: openclaw?.requires?.anyBins ?? [],
+      env: openclaw?.requires?.env ?? [],
       config: openclaw?.requires?.config ?? extractArray(fm, "config"),
     },
     install: openclaw?.install ?? [],
@@ -179,44 +184,81 @@ async function loadSkill(skillId, dir, config) {
     return null;
   }
 
-  const bins = meta.requires?.bins ?? [];
-  const configPaths = meta.requires?.config ?? [];
+  const pluginConfig = getNestedValue(config, `plugins.entries.${skillId}`) ?? null;
+  const skillEntry  = getNestedValue(config, `skills.entries.${skillId}`) ?? {};
 
-  const [binResults] = await Promise.all([
-    Promise.all(bins.map(async (bin) => ({ bin, ok: await checkBin(bin) }))),
-  ]);
-
-  const configResults = configPaths.map((path) => ({
-    path,
-    ok: !!getNestedValue(config, path),
-  }));
-
-  const missingBins = binResults.filter((r) => !r.ok).map((r) => r.bin);
-  const missingConfig = configResults.filter((r) => !r.ok).map((r) => r.path);
-
-  let status = "ready";
-  if (missingBins.length > 0) status = "missing-deps";
-  else if (missingConfig.length > 0) status = "needs-config";
-
-  const pluginConfig =
-    getNestedValue(config, `plugins.entries.${skillId}`) ?? null;
-
-  // Only surface install entries that address at least one missing bin.
-  const installEntries = (meta.install ?? [])
-    .filter((e) => e.id && e.kind && e.label)
-    .map((e) => ({ id: e.id, kind: e.kind, label: e.label, bins: e.bins ?? [] }))
-    .filter((e) => e.bins.length === 0 || e.bins.some((b) => missingBins.includes(b)));
-
-  return {
+  const base = {
     id: skillId,
     name: meta.name ?? skillId,
     description: meta.description ?? null,
     emoji: meta.emoji ?? null,
+    pluginConfig,
+  };
+
+  // `always: true` — skip all gates, always ready.
+  if (meta.always) {
+    return { ...base, enabled: true, status: "ready", missingBins: [], missingAnyBins: [], missingEnv: [], missingConfig: [], installEntries: [] };
+  }
+
+  // OS gate — if the skill declares a target OS list and we're not in it, mark disabled.
+  if (meta.os && meta.os.length > 0 && !meta.os.includes(process.platform)) {
+    return { ...base, enabled: false, status: "disabled", missingBins: [], missingAnyBins: [], missingEnv: [], missingConfig: [], installEntries: [] };
+  }
+
+  // Config-level enabled flag (skills.entries.<id>.enabled === false).
+  if (skillEntry.enabled === false) {
+    return { ...base, enabled: false, status: "disabled", missingBins: [], missingAnyBins: [], missingEnv: [], missingConfig: [], installEntries: [] };
+  }
+
+  const bins     = meta.requires?.bins    ?? [];
+  const anyBins  = meta.requires?.anyBins ?? [];
+  const envVars  = meta.requires?.env     ?? [];
+  const configPaths = meta.requires?.config ?? [];
+
+  // Check required bins and anyBins in parallel.
+  const [binResults, anyBinResults] = await Promise.all([
+    Promise.all(bins.map(async (bin) => ({ bin, ok: await checkBin(bin) }))),
+    Promise.all(anyBins.map(async (bin) => ({ bin, ok: await checkBin(bin) }))),
+  ]);
+
+  const missingBins = binResults.filter((r) => !r.ok).map((r) => r.bin);
+
+  // anyBins: need at least one present; if none are found, surface all as candidates.
+  const anyBinMet   = anyBins.length === 0 || anyBinResults.some((r) => r.ok);
+  const missingAnyBins = anyBinMet ? [] : anyBinResults.map((r) => r.bin);
+
+  // Check env vars — satisfied if in process.env, skillEntry.env, or apiKey+primaryEnv.
+  const missingEnv = envVars.filter((varName) => {
+    if (process.env[varName]) return false;
+    if (skillEntry.env?.[varName]) return false;
+    if (meta.primaryEnv === varName && skillEntry.apiKey) return false;
+    return true;
+  });
+
+  // Check config paths.
+  const missingConfig = configPaths
+    .filter((path) => !getNestedValue(config, path))
+    .map((path) => path);
+
+  let status = "ready";
+  if (missingBins.length > 0 || missingAnyBins.length > 0) status = "missing-deps";
+  else if (missingConfig.length > 0 || missingEnv.length > 0) status = "needs-config";
+
+  // Only surface install entries that address at least one missing bin.
+  const allMissingBins = [...missingBins, ...missingAnyBins];
+  const installEntries = (meta.install ?? [])
+    .filter((e) => e.id && e.kind && e.label)
+    .map((e) => ({ id: e.id, kind: e.kind, label: e.label, bins: e.bins ?? [] }))
+    .filter((e) => e.bins.length === 0 || e.bins.some((b) => allMissingBins.includes(b)));
+
+  return {
+    ...base,
     enabled: true,
     status,
     missingBins,
+    missingAnyBins,
+    missingEnv,
     missingConfig,
-    pluginConfig,
     installEntries,
   };
 }
@@ -285,7 +327,7 @@ function buildInstallCommand(entry) {
   const pkg = entry.formula ?? entry.package ?? entry.name;
   if (!pkg) return null;
   switch (entry.kind) {
-    case "brew":    return `brew install ${pkg}`;
+    case "brew":    return `su linuxbrew -s /bin/bash -c "brew install ${pkg}"`;
     case "npm":
     case "node":    return `npm install -g ${pkg}`;
     case "pip":
@@ -293,6 +335,8 @@ function buildInstallCommand(entry) {
     case "apt":
     case "apt-get": return `apt-get install -y ${pkg}`;
     case "cargo":   return `cargo install ${pkg}`;
+    case "go":      return `go install ${pkg}`;
+    case "apk":     return `apk add --no-cache ${pkg}`;
     default:        return null;
   }
 }
