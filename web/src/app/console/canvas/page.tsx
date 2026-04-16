@@ -8,7 +8,7 @@ import { useTranslation } from "../_context/i18n-context";
 
 const CANVAS_CONTEXT = `\
 <system context — not visible to user>
-The user is viewing the rele Canvas. The canvas is a single HTML file served directly from the agent's filesystem at /home/node/.openclaw/canvas/index.html. When the user asks you to create, change, or update canvas content, edit that file in place using your file tools. Write clean, self-contained HTML — all styles inline or in a <style> block, no external dependencies. Make targeted edits and preserve anything the user hasn't asked to change. Respond briefly to confirm what you did.
+The user is viewing the rele Canvas. The canvas is a single HTML file served directly from the agent's filesystem at /home/node/.openclaw/canvas/index.html. When the user asks you to create, change, or update canvas content, edit that file in place using your file tools (Direct write to file - not APIs). Write clean, self-contained HTML — all styles inline or in a <style> block, no external dependencies. Make targeted edits and preserve anything the user hasn't asked to change. Respond briefly to confirm what you did.
 </system context>`;
 
 export default function CanvasPage() {
@@ -21,6 +21,7 @@ export default function CanvasPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const router = useRouter();
   const fetched = useRef(false);
+  const pendingCanvasEdits = useRef(new Set<string>());
 
   const machine = machines[0] ?? null;
   const isRunning = machine?.state === "started" || machine?.state === "running";
@@ -32,10 +33,24 @@ export default function CanvasPage() {
       const payload = data.payload as Record<string, unknown>;
       if (payload?.stream !== "tool") return;
       const d = payload.data as Record<string, unknown> | undefined;
-      if (d?.phase !== "result") return;
       const name = typeof d?.name === "string" ? d.name.toLowerCase() : "";
+      const toolCallId = typeof d?.toolCallId === "string" ? d.toolCallId : "";
+
+      if (d?.phase === "start" && name !== "read") {
+        const argsStr = JSON.stringify((d?.args as unknown) ?? "");
+        if (argsStr.includes("canvas/index.html")) {
+          pendingCanvasEdits.current.add(toolCallId);
+        }
+        return;
+      }
+      if (d?.phase !== "result") return;
+
       const meta = d?.meta;
-      if (typeof meta === "string" && meta.includes("canvas/index.html") && name !== "read") {
+      const metaHasCanvas = typeof meta === "string" && meta.includes("canvas/index.html");
+      const pendingHasCanvas = toolCallId !== "" && pendingCanvasEdits.current.has(toolCallId);
+      if (pendingHasCanvas) pendingCanvasEdits.current.delete(toolCallId);
+
+      if ((metaHasCanvas || pendingHasCanvas) && name !== "read") {
         setReloadKey((k) => k + 1);
         setIframeReady(false);
       }
