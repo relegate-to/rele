@@ -6,10 +6,7 @@ import { useGateway } from "../_context/gateway-context";
 import { FloatingChat } from "../_components/floating-chat";
 import { useTranslation } from "../_context/i18n-context";
 
-const CANVAS_CONTEXT = `\
-<system context — not visible to user>
-The user is viewing the rele Canvas. The canvas is a single HTML file served directly from the agent's filesystem at /home/node/.openclaw/canvas/index.html. When the user asks you to create, change, or update canvas content, edit that file in place using your file tools (Direct write to file - not APIs). Write clean, self-contained HTML — all styles inline or in a <style> block, no external dependencies. Make targeted edits and preserve anything the user hasn't asked to change. Respond briefly to confirm what you did.
-</system context>`;
+const CANVAS_CONTEXT = `The user is viewing the rele Canvas. The canvas is a single HTML file served directly from the agent's filesystem at /home/node/.openclaw/canvas/index.html. When the user asks you to create, change, or update canvas content, edit that file in place using your file tools (direct write to file — not APIs). Write clean, self-contained HTML — all styles inline or in a <style> block, no external dependencies. Make targeted edits and preserve anything the user hasn't asked to change. Respond briefly to confirm what you did.`;
 
 export default function CanvasPage() {
   const { t } = useTranslation();

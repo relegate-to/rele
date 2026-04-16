@@ -24,6 +24,18 @@ export function formatArgs(args: unknown): string {
   return "";
 }
 
+// Sentinel characters (Unicode Private Use Area — survive JSON, never user-typed).
+export const HIDDEN_START = "\uE001";
+export const HIDDEN_END = "\uE002";
+
+// Strip hidden system prefix: \uE001...\uE002\n\n
+export function stripHiddenPrefix(text: string): string {
+  if (!text.startsWith(HIDDEN_START)) return text;
+  const end = text.indexOf(HIDDEN_END);
+  if (end === -1) return text;
+  return text.slice(end + HIDDEN_END.length).replace(/^\n\n/, "");
+}
+
 export function extractText(content: unknown): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) return content.map(extractText).join("");
@@ -69,10 +81,11 @@ export function parseHistoryMessages(messages: any[]): ChatMessage[] {
       };
     }
 
+    const rawContent = extractText(m.content);
     return {
       id: baseId,
       role: m.role,
-      content: extractText(m.content),
+      content: m.role === "user" ? stripHiddenPrefix(rawContent) : rawContent,
       timestamp: m.timestamp ?? Date.now(),
     };
   });

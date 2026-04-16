@@ -7,6 +7,8 @@ import {
   parseHistoryMessages,
   parseToolEvent,
   parseChatEvent,
+  HIDDEN_START,
+  HIDDEN_END,
 } from "./sandbox-chat-protocol";
 
 export type { ChatMessage };
@@ -221,7 +223,7 @@ export function useSandboxChat() {
       setIsThinking(true);
 
       const gatewayMessage = hiddenPrefix
-        ? `${hiddenPrefix}\n\n${content}`
+        ? `${HIDDEN_START}${hiddenPrefix}${HIDDEN_END}\n\n${content}`
         : content;
 
       send({

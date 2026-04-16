@@ -5,19 +5,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpIcon, CopyIcon, CheckIcon, ChevronDownIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
+import { stripHiddenPrefix } from "@/hooks/sandbox-chat-protocol";
 import { ToolIcon } from "@/components/ui/tool-icon";
 import { MarkdownProse } from "@/components/ui/markdown-prose";
 import { useTranslation } from "../_context/i18n-context";
 
 export const MODELS = [
   { id: "openrouter/anthropic/claude-opus-4-6", label: "Opus 4.6" },
-  { id: "openrouter/anthropic/claude-sonnet-4-6", label: "Sonnet 4.6", default: true },
+  { id: "openrouter/anthropic/claude-sonnet-4-6", label: "Sonnet 4.6" },
   { id: "openrouter/anthropic/claude-haiku-4-5-20251001", label: "Haiku 4.5" },
   { id: "openrouter/openai/gpt-4o", label: "GPT-4o" },
   { id: "openrouter/openai/o3", label: "o3" },
   { id: "openrouter/google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
   { id: "openrouter/meta-llama/llama-4-scout", label: "Llama 4 Scout" },
-  { id: "openrouter/stepfun/step-3.5-flash:nitro", label: "Step 3.5 Flash" },
+  { id: "openrouter/stepfun/step-3.5-flash:nitro", label: "Step 3.5 Flash", default: true },
 ];
 
 const DEFAULT_MODEL = MODELS.find((m) => "default" in m && m.default)!;
@@ -74,7 +75,7 @@ export const MessageRow = memo(function MessageRow({ msg }: { msg: ChatMessage }
       {msg.role === "user" ? (
         <div className="flex justify-end">
           <div className="max-w-[80%] rounded-2xl rounded-br-md bg-[var(--accent)] px-4 py-2.5">
-            <MarkdownProse variant="user">{msg.content}</MarkdownProse>
+            <MarkdownProse variant="user">{stripHiddenPrefix(msg.content)}</MarkdownProse>
           </div>
         </div>
       ) : msg.role === "tool" ? (
