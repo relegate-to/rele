@@ -7,15 +7,29 @@
         <style>
             /* Base tokens — overridden by auth-server injection on the canvas route */
             :root {
-                --bg: #09090b;
-                --surface: #111113;
-                --surface-hi: #1e1e23;
-                --border: #27272a;
-                --text: #fafafa;
-                --text-dim: #a1a1aa;
-                --muted: #52525b;
-                --accent: #818cf8;
-                --accent-dim: #6366f1;
+                --bg: #ffffff;
+                --surface: #f4f4f5;
+                --surface-hi: #e4e4e7;
+                --border: #d4d4d8;
+                --text: #09090b;
+                --text-dim: #52525b;
+                --muted: #a1a1aa;
+                --accent: #6366f1;
+                --accent-dim: #818cf8;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #09090b;
+                    --surface: #111113;
+                    --surface-hi: #1e1e23;
+                    --border: #27272a;
+                    --text: #fafafa;
+                    --text-dim: #a1a1aa;
+                    --muted: #52525b;
+                    --accent: #818cf8;
+                    --accent-dim: #6366f1;
+                }
             }
 
             *,

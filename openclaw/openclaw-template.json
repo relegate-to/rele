@@ -21,7 +21,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/anthropic/claude-sonnet-4.6"
+        "primary": "openrouter/stepfun/step-3.5-flash:nitro"
       },
       "workspace": "/home/node/.openclaw/workspace"
     },

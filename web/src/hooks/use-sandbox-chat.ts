@@ -20,10 +20,13 @@ function dedupe(messages: ChatMessage[]): ChatMessage[] {
   });
 }
 
+export const SESSION_KEY = "agent:main:main";
+
 export function useSandboxChat() {
   const { connected, connecting, error, connect, send, subscribe } = useGateway();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
+  const [currentModel, setCurrentModel] = useState<string | null>(null);
 
   // Current segment index per runId. Increments on each tool result so the
   // next assistant stream event creates a fresh bubble.
@@ -45,7 +48,7 @@ export function useSandboxChat() {
       type: "req",
       id: "chat-hist-" + Date.now(),
       method: "chat.history",
-      params: { sessionKey: "agent:main:main" },
+      params: { sessionKey: SESSION_KEY },
     });
   }, [connected, send]);
 
@@ -191,6 +194,21 @@ export function useSandboxChat() {
     });
   }, [subscribe]);
 
+  const setModel = useCallback(
+    (model: string) => {
+      if (!connected) return;
+      const resolved = model || null;
+      setCurrentModel(resolved);
+      send({
+        type: "req",
+        id: "model-patch-" + Date.now(),
+        method: "sessions.patch",
+        params: { sessionKey: SESSION_KEY, model: resolved },
+      });
+    },
+    [connected, send]
+  );
+
   const sendMessage = useCallback(
     (content: string, hiddenPrefix?: string) => {
       if (!connected) return;
@@ -211,7 +229,7 @@ export function useSandboxChat() {
         id,
         method: "chat.send",
         params: {
-          sessionKey: "agent:main:main",
+          sessionKey: SESSION_KEY,
           message: gatewayMessage,
           idempotencyKey: id,
         },
@@ -228,5 +246,7 @@ export function useSandboxChat() {
     error,
     connect,
     sendMessage,
+    currentModel,
+    setModel,
   };
 }

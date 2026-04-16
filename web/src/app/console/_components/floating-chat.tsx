@@ -14,7 +14,7 @@ const SPRING = { type: "spring", stiffness: 380, damping: 40 } as const;
 export function FloatingChat({ contextPrompt }: { contextPrompt?: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const { messages, connected, isThinking, sendMessage } = useChat();
+  const { messages, connected, isThinking, sendMessage, currentModel, setModel } = useChat();
   const send = useCallback(
     (content: string) => sendMessage(content, contextPrompt),
     [sendMessage, contextPrompt],
@@ -133,7 +133,7 @@ export function FloatingChat({ contextPrompt }: { contextPrompt?: string }) {
 
             {/* Input */}
             <div className="border-t border-[var(--border)] shrink-0">
-              <ChatInput connected={connected} onSend={send} compact />
+              <ChatInput connected={connected} onSend={send} compact model={currentModel} onModelChange={setModel} />
             </div>
           </div>
         </motion.div>

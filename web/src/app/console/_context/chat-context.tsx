@@ -11,6 +11,8 @@ interface ChatContextValue {
   isThinking: boolean;
   error: string | null;
   sendMessage: (content: string, hiddenPrefix?: string) => void;
+  currentModel: string | null;
+  setModel: (model: string) => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);

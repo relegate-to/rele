@@ -3,82 +3,16 @@
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT=3000
-SERVER_PID=""
-LOG_FILE=""
-CURRENT_ROWS=0
+MENU_NAME="web"
+MENU_KEYS="  [R] Restart  [O] Open  [Q] Quit  "
 
-C_RESET='\033[0m'
-C_BAR_BG='\033[48;5;234m'
-C_BAR_FG='\033[38;5;244m'
-C_NAME='\033[1;38;5;255m'
-C_KEY='\033[38;5;75m'
-C_SEP='\033[38;5;238m'
-C_ERR='\033[38;5;203m'
-C_WARN='\033[38;5;221m'
-
-draw_status() {
-  local rows
-  rows=$(tput lines)
-  tput sc
-  tput cup $((rows - 1)) 0
-  printf "${C_BAR_BG}${C_BAR_FG}  ${C_NAME}web${C_RESET}${C_BAR_BG}${C_BAR_FG}  ${C_SEP}·${C_BAR_FG}  ${C_KEY}[R]${C_BAR_FG} Restart  ${C_KEY}[O]${C_BAR_FG} Open  ${C_KEY}[Q]${C_BAR_FG} Quit  \033[K${C_RESET}"
-  tput rc
-}
-
-colorize_line() {
-  local line="$1"
-  if [[ "$line" =~ [Ee][Rr][Rr][Oo][Rr]|[Ff][Aa][Ii][Ll][Ee][Dd] ]]; then
-    printf "${C_ERR}%s${C_RESET}\n" "$line"
-  elif [[ "$line" =~ [Ww][Aa][Rr][Nn] ]]; then
-    printf "${C_WARN}%s${C_RESET}\n" "$line"
-  else
-    printf '%s\n' "$line"
-  fi
-}
-
-setup_terminal() {
-  CURRENT_ROWS=$(tput lines)
-  tput csr 0 $((CURRENT_ROWS - 1))
-  clear
-  tput csr 0 $((CURRENT_ROWS - 2))
-  draw_status
-}
-
-redraw() {
-  CURRENT_ROWS=$(tput lines)
-  tput csr 0 $((CURRENT_ROWS - 1))
-  clear
-  tput csr 0 $((CURRENT_ROWS - 2))
-  if [[ -f "$LOG_FILE" ]]; then
-    tail -n $((CURRENT_ROWS - 2)) "$LOG_FILE" | while IFS= read -r line; do
-      colorize_line "$line"
-    done
-  fi
-  draw_status
-}
-
-cleanup() {
-  local rows
-  rows=$(tput lines)
-  tput csr 0 $((rows - 1))
-  tput cup $((rows - 1)) 0
-  printf '\033[0m\n'
-  [[ -n "$LOG_FILE" ]] && rm -f "$LOG_FILE"
-  kill 0
-}
-
-pipe_logs() {
-  while IFS= read -r line; do
-    colorize_line "$line"
-  done
-}
-
-trap cleanup EXIT INT TERM
-trap redraw WINCH
+source "$REPO/scripts/lib/menu.sh"
 
 start() {
-  pids=$(lsof -ti tcp:3000 2>/dev/null || true)
+  local pids
+  pids=$(lsof -ti tcp:$PORT 2>/dev/null || true)
   [[ -n "$pids" ]] && kill -9 $pids
+  [[ -n "$LOG_FILE" ]] && rm -f "$LOG_FILE"
   LOG_FILE=$(mktemp /tmp/rele-web-XXXXXX)
   setup_terminal
   set -m

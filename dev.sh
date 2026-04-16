@@ -29,9 +29,9 @@ GATE_UUID=$(gx split "$WEB_UUID" -v | awk '{print $NF}')
 OPENCLAW_UUID=$(gx split "$GATE_UUID" -v | awk '{print $NF}')
 
 # Fire commands
-gx send "$CLAUDE_UUID"   "cd '$REPO' && clear && claude"
-gx send "$WEB_UUID"      "cd '$REPO' && clear && bun run dev:web"
-gx send "$GATE_UUID"     "cd '$REPO' && clear && bun run dev:gate"
-gx send "$OPENCLAW_UUID" "cd '$REPO' && { docker info &>/dev/null || { echo 'Starting Docker...'; open -a Docker; until docker info &>/dev/null; do sleep 2; done; }; } && clear && bun run dev:openclaw"
+gx send "$CLAUDE_UUID"   "cd '$REPO' && printf '\033]0;claude\007' && clear && claude"
+gx send "$WEB_UUID"      "cd '$REPO' && printf '\033]0;web\007' && clear && bun run dev:web"
+gx send "$GATE_UUID"     "cd '$REPO' && printf '\033]0;gate\007' && clear && bun run dev:gate"
+gx send "$OPENCLAW_UUID" "cd '$REPO' && printf '\033]0;openclaw\007' && { docker info &>/dev/null || { echo 'Starting Docker...'; open -a Docker; until docker info &>/dev/null; do sleep 2; done; }; } && clear && bun run dev:openclaw"
 
 echo "rele dev launched — claude / web / gate / openclaw"

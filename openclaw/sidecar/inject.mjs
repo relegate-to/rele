@@ -3,45 +3,82 @@ export function buildInjection(url) {
 
   const canvasStyles = isCanvas ? `
           <style>
-            /* rele branding: design tokens */
+            /* rele branding: design tokens — light default, dark via media query */
             :root {
-              --bg:           #09090b;
-              --bg-warm:      #111113;
-              --surface:      #111113;
-              --surface-hi:   #1e1e23;
-              --border:       #27272a;
-              --border-hi:    #3f3f46;
-              --text:         #fafafa;
-              --text-dim:     #a1a1aa;
-              --muted:        #52525b;
-              --accent:       #818cf8;
-              --accent-dim:   #6366f1;
-              --accent-subtle: rgba(129, 140, 248, 0.1);
+              --bg:           #ffffff;
+              --bg-warm:      #fafafa;
+              --surface:      #f4f4f5;
+              --surface-hi:   #e4e4e7;
+              --border:       #d4d4d8;
+              --border-hi:    #a1a1aa;
+              --text:         #09090b;
+              --text-dim:     #52525b;
+              --muted:        #a1a1aa;
+              --accent:       #6366f1;
+              --accent-dim:   #818cf8;
+              --accent-subtle: rgba(99, 102, 241, 0.1);
 
-              --status-success:        #4ade80;
-              --status-success-bg:     rgba(74,  222, 128, 0.08);
-              --status-success-border: rgba(74,  222, 128, 0.3);
-              --status-success-text:   #86efac;
+              --status-success:        #16a34a;
+              --status-success-bg:     rgba(22,  163,  74, 0.08);
+              --status-success-border: rgba(22,  163,  74, 0.3);
+              --status-success-text:   #15803d;
 
-              --status-warning:        #fbbf24;
-              --status-warning-bg:     rgba(251, 191, 36,  0.08);
-              --status-warning-border: rgba(251, 191, 36,  0.3);
-              --status-warning-text:   #fde68a;
+              --status-warning:        #d97706;
+              --status-warning-bg:     rgba(217, 119,  6,  0.08);
+              --status-warning-border: rgba(217, 119,  6,  0.3);
+              --status-warning-text:   #b45309;
 
-              --status-error:          #f87171;
-              --status-error-bg:       rgba(248, 113, 113, 0.08);
-              --status-error-border:   rgba(248, 113, 113, 0.3);
-              --status-error-text:     #fca5a5;
+              --status-error:          #dc2626;
+              --status-error-bg:       rgba(220,  38,  38, 0.08);
+              --status-error-border:   rgba(220,  38,  38, 0.3);
+              --status-error-text:     #b91c1c;
 
-              --status-info:           #818cf8;
-              --status-info-bg:        rgba(129, 140, 248, 0.08);
-              --status-info-border:    rgba(129, 140, 248, 0.3);
-              --status-info-text:      #a5b4fc;
+              --status-info:           #6366f1;
+              --status-info-bg:        rgba(99,  102, 241, 0.08);
+              --status-info-border:    rgba(99,  102, 241, 0.3);
+              --status-info-text:      #4f46e5;
+            }
+
+            @media (prefers-color-scheme: dark) {
+              :root {
+                --bg:           #09090b;
+                --bg-warm:      #111113;
+                --surface:      #111113;
+                --surface-hi:   #1e1e23;
+                --border:       #27272a;
+                --border-hi:    #3f3f46;
+                --text:         #fafafa;
+                --text-dim:     #a1a1aa;
+                --muted:        #52525b;
+                --accent:       #818cf8;
+                --accent-dim:   #6366f1;
+                --accent-subtle: rgba(129, 140, 248, 0.1);
+
+                --status-success:        #4ade80;
+                --status-success-bg:     rgba(74,  222, 128, 0.08);
+                --status-success-border: rgba(74,  222, 128, 0.3);
+                --status-success-text:   #86efac;
+
+                --status-warning:        #fbbf24;
+                --status-warning-bg:     rgba(251, 191,  36, 0.08);
+                --status-warning-border: rgba(251, 191,  36, 0.3);
+                --status-warning-text:   #fde68a;
+
+                --status-error:          #f87171;
+                --status-error-bg:       rgba(248, 113, 113, 0.08);
+                --status-error-border:   rgba(248, 113, 113, 0.3);
+                --status-error-text:     #fca5a5;
+
+                --status-info:           #818cf8;
+                --status-info-bg:        rgba(129, 140, 248, 0.08);
+                --status-info-border:    rgba(129, 140, 248, 0.3);
+                --status-info-text:      #a5b4fc;
+              }
             }
 
             html, body {
-              background: #09090b !important;
-              color: #fafafa !important;
+              background: var(--bg) !important;
+              color: var(--text) !important;
               -webkit-font-smoothing: antialiased;
             }
           </style>

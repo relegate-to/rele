@@ -14,7 +14,7 @@ import { useTranslation } from "../_context/i18n-context";
 export default function ChatPage() {
  const { t } = useTranslation();
  const { machines, loading } = useMachinesContext();
- const { messages, connected, connecting, isThinking, sendMessage } = useChat();
+ const { messages, connected, connecting, isThinking, sendMessage, currentModel, setModel } = useChat();
  const scrollContainerRef = useRef<HTMLDivElement>(null);
  const pinnedToBottomRef = useRef(true);
  const rafRef = useRef<number | null>(null);
@@ -94,7 +94,7 @@ export default function ChatPage() {
     </div>
    </div>
 
-   <ChatInput connected={connected} onSend={sendMessage} />
+   <ChatInput connected={connected} onSend={sendMessage} model={currentModel} onModelChange={setModel} />
   </div>
  );
 }
