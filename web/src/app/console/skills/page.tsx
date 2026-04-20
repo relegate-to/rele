@@ -5,15 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
-  CircleDashedIcon,
   DownloadIcon,
-  PowerIcon,
   RefreshCwIcon,
-  RotateCcwIcon,
   SearchIcon,
   WrenchIcon,
   XCircleIcon,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -66,12 +64,16 @@ const FILTERS: { id: FilterTab; label: string }[] = [
   { id: "needs-setup", label: "Needs setup" },
 ];
 
+function hasAllDeps(s: Skill) {
+  return s.missingBins.length === 0 && (s.missingAnyBins ?? []).length === 0 && s.missingEnv.length === 0 && s.missingConfig.length === 0;
+}
+
 function filterSkills(skills: Skill[], filter: FilterTab): Skill[] {
   switch (filter) {
-    case "enabled":    return skills.filter((s) => s.enabled);
-    case "ready":      return skills.filter((s) => s.status === "ready");
+    case "enabled":     return skills.filter((s) => s.enabled && s.status !== "missing-deps" && s.status !== "needs-config");
+    case "ready":       return skills.filter((s) => !s.enabled && (s.status === "ready" || (s.status === "disabled" && hasAllDeps(s))));
     case "needs-setup": return skills.filter((s) => s.status === "missing-deps" || s.status === "needs-config");
-    default:           return skills;
+    default:            return skills;
   }
 }
 
@@ -180,16 +182,15 @@ function ConfigEditor({ skillId, initial, onSaved }: { skillId: string; initial:
 
 // ── Skill card ────────────────────────────────────────────────────────────────
 
-function SkillCard({ skill, onChanged }: { skill: Skill; onChanged: () => void }) {
+function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: () => void; onToggled: (skillId: string, lockedStatus: SkillStatus, newEnabled: boolean) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [toggling, setToggling] = useState(false);
 
-  const toggle = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const toggle = async () => {
     setToggling(true);
+    onToggled(skill.id, skill.status, !skill.enabled);
     try {
       await apiFetch(`/api/skills/${skill.id}/${skill.enabled ? "disable" : "enable"}`, { method: "POST" });
-      onChanged();
     } catch (err) {
       console.error("Toggle failed:", err);
     } finally {
@@ -203,86 +204,64 @@ function SkillCard({ skill, onChanged }: { skill: Skill; onChanged: () => void }
   const needsSetup = skill.status === "missing-deps" || skill.status === "needs-config";
   const hasDetails = skill.pluginConfig !== null || skill.missingBins.length > 0 || missingAnyBins.length > 0 || missingEnv.length > 0 || skill.missingConfig.length > 0 || skill.installEntries.length > 0;
 
-  const statusColor =
-    skill.status === "ready"         ? "text-[var(--status-success-text)]"
-    : needsSetup                     ? "text-[var(--status-warning-text)]"
-                                     : "text-[var(--muted)]";
-
-  const StatusIcon =
-    skill.status === "ready"         ? CheckCircle2Icon
-    : needsSetup                     ? AlertTriangleIcon
-                                     : CircleDashedIcon;
+  const dotColor =
+    skill.status === "ready"          ? "bg-[var(--status-success-text)]"
+    : needsSetup                      ? "bg-[var(--status-warning-text)]"
+                                      : "bg-[var(--border-hi)]";
 
   const statusLabel =
-    skill.status === "ready"         ? "Ready"
+    skill.status === "ready"          ? "Ready"
     : skill.status === "missing-deps" ? "Missing deps"
     : skill.status === "needs-config" ? "Needs config"
                                       : "Disabled";
 
+  const statusTextColor =
+    skill.status === "ready"          ? "text-[var(--status-success-text)]"
+    : needsSetup                      ? "text-[var(--status-warning-text)]"
+                                      : "text-[var(--muted)]";
+
   return (
     <div
       className={cn(
-        "group flex flex-col rounded-2xl border bg-[var(--surface)] transition-all duration-150",
+        "group flex flex-col rounded-xl border bg-[var(--surface)] transition-all duration-150",
         expanded
           ? "border-[var(--border-hi)] shadow-lg shadow-black/10"
           : needsSetup
             ? "border-[var(--status-warning-border)] hover:border-[var(--status-warning)] hover:shadow-md hover:shadow-black/10"
-            : skill.enabled
-              ? "border-[var(--border)] hover:border-[var(--border-hi)] hover:shadow-md hover:shadow-black/10"
-              : "border-[var(--border)] opacity-70 hover:opacity-100 hover:border-[var(--border-hi)]",
+            : "border-[var(--border)] hover:border-[var(--border-hi)] hover:shadow-sm hover:shadow-black/10",
+        !skill.enabled && !needsSetup && !expanded && "opacity-60 hover:opacity-100",
       )}
     >
       {/* Card top */}
-      <div className="flex flex-col gap-3 p-5 flex-1">
-        {/* Top row: emoji + toggle */}
+      <div className="flex flex-col p-4 flex-1 gap-3">
+        {/* Emoji + switch */}
         <div className="flex items-start justify-between">
-          <div
-            className={cn(
-              "flex size-14 items-center justify-center rounded-2xl border text-3xl",
-              needsSetup
-                ? "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)]"
-                : skill.enabled
-                  ? "border-[var(--border)] bg-[var(--surface-hi)]"
-                  : "border-[var(--border)] bg-[var(--bg)] opacity-60",
-            )}
-          >
+          <span className={cn("text-2xl leading-none", !skill.enabled && !needsSetup && "grayscale")}>
             {skill.emoji ?? "🔧"}
-          </div>
-
-          <button
-            onClick={toggle}
-            disabled={toggling}
-            title={skill.enabled ? "Disable" : "Enable"}
-            className={cn(
-              "flex size-8 items-center justify-center rounded-lg border transition-all disabled:cursor-not-allowed disabled:opacity-50",
-              skill.enabled
-                ? "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success)]"
-                : "border-[var(--border)] bg-[var(--surface-hi)] text-[var(--muted)] hover:border-[var(--border-hi)] hover:text-[var(--text)]",
-            )}
-          >
-            {toggling
-              ? <RefreshCwIcon className="size-3.5 animate-spin" />
-              : <PowerIcon className="size-3.5" />}
-          </button>
+          </span>
+          <Switch
+            checked={skill.enabled && !needsSetup}
+            onClick={() => { void toggle(); }}
+            disabled={toggling || needsSetup}
+            title={needsSetup ? "Fix issues before enabling" : skill.enabled ? "Disable" : "Enable"}
+          />
         </div>
 
-        {/* Name + status */}
-        <div>
-          <p className="text-sm font-semibold text-[var(--text)] leading-snug">
+        {/* Name + status + description */}
+        <div className="flex flex-col gap-1 flex-1">
+          <p className="text-sm font-medium text-[var(--text)] leading-snug">
             {skill.name}
           </p>
-          <div className={cn("mt-1 flex items-center gap-1 text-xs", statusColor)}>
-            <StatusIcon className="size-3 shrink-0" />
-            <span>{statusLabel}</span>
+          <div className={cn("flex items-center gap-1.5 text-[11px]", statusTextColor)}>
+            <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
+            {statusLabel}
           </div>
+          {skill.description && (
+            <p className="mt-1 text-xs text-[var(--text-dim)] leading-relaxed line-clamp-2">
+              {skill.description}
+            </p>
+          )}
         </div>
-
-        {/* Description */}
-        {skill.description && (
-          <p className="text-xs text-[var(--text-dim)] leading-relaxed line-clamp-3 flex-1">
-            {skill.description}
-          </p>
-        )}
       </div>
 
       {/* Details toggle */}
@@ -290,7 +269,7 @@ function SkillCard({ skill, onChanged }: { skill: Skill; onChanged: () => void }
         <button
           onClick={() => setExpanded((v) => !v)}
           className={cn(
-            "flex w-full items-center justify-between border-t px-5 py-3 text-xs transition-colors",
+            "flex w-full items-center justify-between border-t px-4 py-2.5 text-xs transition-colors",
             needsSetup
               ? "border-[var(--status-warning-border)] text-[var(--status-warning-text)] hover:bg-[var(--status-warning-bg)]"
               : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--text-dim)] hover:bg-[var(--surface-hi)]",
@@ -321,7 +300,7 @@ function SkillCard({ skill, onChanged }: { skill: Skill; onChanged: () => void }
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="space-y-4 px-5 pb-5 pt-4">
+            <div className="space-y-4 px-4 pb-4 pt-3">
               {skill.missingBins.length > 0 && (
                 <div>
                   <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">Missing binaries</p>
@@ -396,62 +375,95 @@ function SkillCard({ skill, onChanged }: { skill: Skill; onChanged: () => void }
 
 // ── Restart banner ────────────────────────────────────────────────────────────
 
-type RestartState = "idle" | "restarting" | "polling" | "done" | "error";
+type RestartState = "pending" | "restarting" | "done" | "timeout";
 
-function RestartBanner({ onRestarted }: { onRestarted: () => void }) {
-  const [state, setState] = useState<RestartState>("idle");
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+async function triggerRestart(
+  onStateChange: (s: RestartState) => void,
+  onRestarted: () => void,
+) {
+  onStateChange("restarting");
+  try { await apiFetch("/api/gateway/restart", { method: "POST" }); } catch {}
+  let attempts = 0;
+  const poll = setInterval(async () => {
+    attempts++;
+    if (attempts > 30) {
+      clearInterval(poll);
+      onStateChange("timeout");
+      return;
+    }
+    try {
+      const { ready } = await apiFetch("/api/gateway/restart/status");
+      if (ready) {
+        clearInterval(poll);
+        onStateChange("done");
+        setTimeout(() => { onRestarted(); }, 2_000);
+      }
+    } catch {}
+  }, 2_000);
+}
 
-  const stopPolling = () => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-  };
-  useEffect(() => () => stopPolling(), []);
-
-  const restart = async () => {
-    setState("restarting");
-    try { await apiFetch("/api/gateway/restart", { method: "POST" }); } catch {}
-    setState("polling");
-    let attempts = 0;
-    pollRef.current = setInterval(async () => {
-      attempts++;
-      if (attempts > 30) { stopPolling(); setState("error"); return; }
-      try {
-        const { ready } = await apiFetch("/api/gateway/restart/status");
-        if (ready) { stopPolling(); setState("done"); onRestarted(); }
-      } catch {}
-    }, 2_000);
-  };
+function RestartBanner({
+  state,
+  onRestart,
+  onDismiss,
+}: {
+  state: RestartState;
+  onRestart: () => void;
+  onDismiss: () => void;
+}) {
+  const isDone    = state === "done";
+  const isTimeout = state === "timeout";
+  const isActive  = state === "restarting";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.25, ease: EASE }}
-      className="mb-6 flex items-center gap-4 rounded-2xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-5 py-4"
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl shadow-black/20 text-sm backdrop-blur",
+        isDone
+          ? "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]"
+          : isTimeout
+            ? "border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]"
+            : "border-[var(--border-hi)] bg-[var(--surface)] text-[var(--text)]",
+      )}
     >
-      <AlertTriangleIcon className="size-4 shrink-0 text-[var(--status-warning)]" />
-      <p className="flex-1 text-sm text-[var(--status-warning-text)]">
-        {state === "polling"  ? "Restarting gateway…"
-         : state === "done"  ? "Gateway restarted."
-         : state === "error" ? "Restart timed out — gateway may still be starting."
-                             : "Changes require a gateway restart to take effect."}
-      </p>
-      {(state === "idle" || state === "error") && (
-        <button
-          onClick={restart}
-          className="flex items-center gap-1.5 rounded-lg border border-[var(--status-warning-border)] px-3.5 py-2 text-xs font-medium text-[var(--status-warning-text)] transition-colors hover:bg-[var(--status-warning)]/20"
-        >
-          <RotateCcwIcon className="size-3.5" />
-          Restart now
-        </button>
-      )}
-      {(state === "restarting" || state === "polling") && (
-        <RefreshCwIcon className="size-4 animate-spin text-[var(--status-warning)]" />
-      )}
-    </motion.div>
+        {isDone ? (
+          <CheckCircle2Icon className="size-4 shrink-0" />
+        ) : isTimeout ? (
+          <AlertTriangleIcon className="size-4 shrink-0" />
+        ) : isActive ? (
+          <RefreshCwIcon className="size-4 shrink-0 animate-spin" />
+        ) : (
+          <WrenchIcon className="size-4 shrink-0 text-[var(--muted)]" />
+        )}
+
+        <span className="whitespace-nowrap">
+          {isDone    ? "Gateway restarted"
+           : isTimeout ? "Restart timed out — gateway may still be starting"
+           : isActive  ? "Restarting gateway…"
+                       : "Restart required to apply changes"}
+        </span>
+
+        {!isDone && !isTimeout && !isActive && (
+          <button
+            onClick={onRestart}
+            className="ml-1 rounded-lg border border-[var(--border)] bg-[var(--surface-hi)] px-3 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-[var(--border-hi)] whitespace-nowrap"
+          >
+            Restart now
+          </button>
+        )}
+
+        {!isActive && (
+          <button
+            onClick={onDismiss}
+            className="ml-1 text-[var(--muted)] transition-colors hover:text-[var(--text)]"
+          >
+            <XCircleIcon className="size-4" />
+          </button>
+        )}
+    </div>
   );
 }
+
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -459,9 +471,11 @@ export default function SkillsPage() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pendingRestart, setPendingRestart] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
+  const [restartState, setRestartState] = useState<RestartState | null>(null);
+  const [lockedStatus, setLockedStatus] = useState<Record<string, SkillStatus>>({});
+  const [pendingEnabled, setPendingEnabled] = useState<Record<string, boolean>>({});
 
   const fetchSkills = useCallback(async () => {
     try {
@@ -477,125 +491,121 @@ export default function SkillsPage() {
 
   useEffect(() => { fetchSkills(); }, [fetchSkills]);
 
-  const handleChanged = useCallback(() => {
-    setPendingRestart(true);
-    fetchSkills();
-  }, [fetchSkills]);
-
   const handleRestarted = useCallback(() => {
-    setPendingRestart(false);
+    setRestartState(null);
+    setLockedStatus({});
+    setPendingEnabled({});
     setTimeout(fetchSkills, 1_000);
   }, [fetchSkills]);
 
-  const total      = skills.length;
-  const ready      = skills.filter((s) => s.status === "ready").length;
-  const needsSetup = skills.filter((s) => s.status === "missing-deps" || s.status === "needs-config").length;
+  const handleToggled = useCallback((skillId: string, status: SkillStatus, newEnabled: boolean) => {
+    setLockedStatus((prev) => ({ ...prev, [skillId]: status }));
+    setPendingEnabled((prev) => ({ ...prev, [skillId]: newEnabled }));
+    setRestartState((prev) => prev === null ? "pending" : prev);
+  }, []);
+
+  const handleChanged = useCallback(() => {
+    setRestartState((prev) => prev === null ? "pending" : prev);
+    fetchSkills();
+  }, [fetchSkills]);
+
+  // For filtering/counts: lock status to pre-toggle value, keep enabled unchanged
+  const skillsForFilter = skills.map((s) => ({
+    ...s,
+    ...(s.id in lockedStatus && { status: lockedStatus[s.id] }),
+  }));
+
+  // For display: also apply the new enabled state so the switch reflects the toggle
+  const skillsForDisplay = skillsForFilter.map((s) => ({
+    ...s,
+    ...(s.id in pendingEnabled && { enabled: pendingEnabled[s.id] }),
+  }));
+
+  const total      = skillsForFilter.length;
+  const ready      = skillsForFilter.filter((s) => !s.enabled && (s.status === "ready" || (s.status === "disabled" && hasAllDeps(s)))).length;
+  const needsSetup = skillsForFilter.filter((s) => s.status === "missing-deps" || s.status === "needs-config").length;
 
   const counts: Record<FilterTab, number> = {
     all: total,
-    enabled: skills.filter((s) => s.enabled).length,
+    enabled: skillsForFilter.filter((s) => s.enabled && s.status !== "missing-deps" && s.status !== "needs-config").length,
     ready,
     "needs-setup": needsSetup,
   };
 
-  const filtered = filterSkills(skills, activeFilter).filter((s) => {
+  const filteredIds = new Set(filterSkills(skillsForFilter, activeFilter).map((s) => s.id));
+  const filtered = skillsForDisplay.filter((s) => {
+    if (!filteredIds.has(s.id)) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return s.name.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q) || s.id.toLowerCase().includes(q);
   });
 
   return (
-    <div className="h-[100svh] overflow-y-auto">
+    <div className="h-[100svh] relative flex flex-col">
+      <div className="flex-1 overflow-y-auto stable-gutter">
       <div className="relative bg-[var(--bg)] text-[var(--text)]">
-        <div className="relative z-10 mx-auto max-w-[900px] px-8 py-16">
+        <div className="relative z-10 mx-auto max-w-[900px] px-8 py-8">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: EASE }}
           >
-            {/* Header */}
-            <div className="mb-8 flex items-end justify-between gap-6">
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight">Skills</h1>
-                <p className="mt-1.5 text-sm text-[var(--text-dim)]">
-                  Manage the capabilities available to your OpenClaw instance.
-                </p>
-              </div>
-              {!loading && total > 0 && (
-                <div className="flex items-center gap-3 shrink-0 text-xs text-[var(--muted)]">
-                  <span className="flex items-center gap-1.5 text-[var(--status-success-text)]">
-                    <CheckCircle2Icon className="size-3.5" />
-                    {ready} ready
-                  </span>
-                  {needsSetup > 0 && (
-                    <span className="flex items-center gap-1.5 text-[var(--status-warning-text)]">
-                      <WrenchIcon className="size-3.5" />
-                      {needsSetup} need setup
-                    </span>
-                  )}
+            {/* Toolbar */}
+            <div className="mb-4 flex items-center gap-4">
+              {/* Filter tabs */}
+              {!loading && !error && total > 0 && (
+                <div className="flex gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
+                  {FILTERS.map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => setActiveFilter(f.id)}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
+                        activeFilter === f.id
+                          ? "bg-[var(--surface-hi)] text-[var(--text)] shadow-sm"
+                          : "text-[var(--muted)] hover:text-[var(--text-dim)]",
+                      )}
+                    >
+                      {f.label}
+                      {counts[f.id] > 0 && (
+                        <span
+                          className={cn(
+                            "min-w-[16px] rounded-full px-1 py-px text-[10px] font-semibold tabular-nums text-center",
+                            f.id === "needs-setup" && needsSetup > 0
+                              ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]"
+                              : "bg-[var(--border)] text-[var(--muted)]",
+                          )}
+                        >
+                          {counts[f.id]}
+                        </span>
+                      )}
+                    </button>
+                  ))}
                 </div>
               )}
-            </div>
 
-            {/* Restart banner */}
-            <AnimatePresence>
-              {pendingRestart && <RestartBanner onRestarted={handleRestarted} />}
-            </AnimatePresence>
-
-            {/* Search + filters */}
-            {!loading && !error && total > 0 && (
-              <div className="mb-6 flex flex-col gap-3">
-                {/* Search */}
-                <div className="relative">
-                  <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--muted)]" />
-                  <input
-                    type="text"
-                    placeholder="Search skills…"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-9 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--border-hi)] focus:outline-none transition-colors"
-                  />
-                  {search && (
-                    <button
-                      onClick={() => setSearch("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
-                    >
-                      <XCircleIcon className="size-3.5" />
-                    </button>
-                  )}
-                </div>
-
-              {/* Filter tabs */}
-              <div className="flex gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1">
-                {FILTERS.map((f) => (
+              {/* Search */}
+              <div className="relative ml-auto w-48">
+                <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[var(--muted)]" />
+                <input
+                  type="text"
+                  placeholder="Search…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1.5 pl-8 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--border-hi)] focus:outline-none transition-colors"
+                />
+                {search && (
                   <button
-                    key={f.id}
-                    onClick={() => setActiveFilter(f.id)}
-                    className={cn(
-                      "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
-                      activeFilter === f.id
-                        ? "bg-[var(--surface-hi)] text-[var(--text)] shadow-sm"
-                        : "text-[var(--muted)] hover:text-[var(--text-dim)]",
-                    )}
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--text)] transition-colors"
                   >
-                    {f.label}
-                    {counts[f.id] > 0 && (
-                      <span
-                        className={cn(
-                          "min-w-[18px] rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums text-center",
-                          f.id === "needs-setup" && needsSetup > 0
-                            ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]"
-                            : "bg-[var(--border)] text-[var(--muted)]",
-                        )}
-                      >
-                        {counts[f.id]}
-                      </span>
-                    )}
+                    <XCircleIcon className="size-3.5" />
                   </button>
-                ))}
+                )}
               </div>
             </div>
-            )}
+
+
 
             {/* Loading skeleton grid */}
             {loading && (
@@ -647,7 +657,7 @@ export default function SkillsPage() {
                     className="grid grid-cols-2 gap-4 sm:grid-cols-3"
                   >
                     {filtered.map((skill) => (
-                      <SkillCard key={skill.id} skill={skill} onChanged={handleChanged} />
+                      <SkillCard key={skill.id} skill={skill} onChanged={handleChanged} onToggled={handleToggled} />
                     ))}
                   </motion.div>
                 )}
@@ -656,6 +666,24 @@ export default function SkillsPage() {
           </motion.div>
         </div>
       </div>
+      </div>
+      <AnimatePresence>
+        {restartState !== null && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute bottom-6 left-1/2 z-50 -translate-x-1/2"
+          >
+            <RestartBanner
+              state={restartState}
+              onRestart={() => triggerRestart(setRestartState, handleRestarted)}
+              onDismiss={() => setRestartState(null)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
