@@ -1,10 +1,7 @@
 import { readdir, readFile, rename, mkdir, cp, rm } from "node:fs/promises";
-import { exec, execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { spawn } from "node:child_process";
 import { request as httpRequest } from "node:http";
-
-const execAsync = promisify(exec);
-const execFileAsync = promisify(execFile);
+import { randomBytes } from "node:crypto";
 
 const SKILLS_DIR = process.env.SKILLS_DIR ?? "/app/skills";
 const DISABLED_DIR = `${SKILLS_DIR}/.disabled`;
@@ -144,14 +141,115 @@ export function invalidateCache() {
   _configCacheExpiry = 0;
 }
 
-// ── Gateway helpers ───────────────────────────────────────────────────────────
+// ── Gateway RPC ───────────────────────────────────────────────────────────────
+
+/**
+ * Call a gateway JSON-RPC method over a new WebSocket connection to port 18789.
+ * Resolves when a response frame is received, or when the socket closes (which
+ * is expected for methods like gateway.restart that drop the connection).
+ */
+function gatewayRpc(method, params = {}) {
+  return new Promise((resolve, reject) => {
+    const wsKey = randomBytes(16).toString("base64");
+    const reqId = Date.now();
+
+    console.log(`[rpc] → ${method}`, Object.keys(params).length ? params : "");
+
+    const req = httpRequest({
+      host: "127.0.0.1",
+      port: UPSTREAM_PORT,
+      path: "/",
+      method: "GET",
+      headers: {
+        Connection: "Upgrade",
+        Upgrade: "websocket",
+        "Sec-WebSocket-Key": wsKey,
+        "Sec-WebSocket-Version": "13",
+        Authorization: `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN}`,
+      },
+    });
+
+    const timer = setTimeout(() => {
+      console.error(`[rpc] timeout: ${method}`);
+      req.destroy();
+      reject(new Error(`gatewayRpc timeout: ${method}`));
+    }, 8_000);
+
+    req.on("upgrade", (_res, socket) => {
+      console.log(`[rpc] upgraded, sending ${method}`);
+      // Encode the JSON-RPC request as a masked WebSocket text frame.
+      const text = JSON.stringify({ id: reqId, method, params });
+      const payload = Buffer.from(text, "utf8");
+      const mask = randomBytes(4);
+      const len = payload.length;
+      const header = Buffer.from(
+        len < 126
+          ? [0x81, 0x80 | len, ...mask]
+          : [0x81, 0xFE, len >> 8, len & 0xFF, ...mask],
+      );
+      const body = Buffer.alloc(len);
+      for (let i = 0; i < len; i++) body[i] = payload[i] ^ mask[i % 4];
+      socket.write(Buffer.concat([header, body]));
+
+      let buf = Buffer.alloc(0);
+      const finish = (value) => {
+        console.log(`[rpc] ← ${method}`, JSON.stringify(value).slice(0, 200));
+        clearTimeout(timer);
+        socket.destroy();
+        resolve(value);
+      };
+
+      socket.on("data", (chunk) => {
+        buf = Buffer.concat([buf, chunk]);
+        if (buf.length < 2) return;
+        const isMasked = (buf[1] & 0x80) !== 0;
+        let pLen = buf[1] & 0x7F;
+        let offset = 2;
+        if (pLen === 126) {
+          if (buf.length < 4) return;
+          pLen = (buf[2] << 8) | buf[3];
+          offset = 4;
+        }
+        if (buf.length < offset + (isMasked ? 4 : 0) + pLen) return;
+        let data = buf.slice(offset + (isMasked ? 4 : 0), offset + (isMasked ? 4 : 0) + pLen);
+        if (isMasked) {
+          const mk = buf.slice(offset, offset + 4);
+          data = Buffer.from(data);
+          for (let i = 0; i < data.length; i++) data[i] ^= mk[i % 4];
+        }
+        try { finish(JSON.parse(data.toString("utf8"))); } catch { finish({}); }
+      });
+
+      socket.on("close", () => {
+        console.log(`[rpc] socket closed for ${method}`);
+        clearTimeout(timer);
+        resolve({});
+      });
+      socket.on("error", (err) => {
+        console.log(`[rpc] socket error for ${method}:`, err.message);
+        clearTimeout(timer);
+        resolve({});
+      });
+    });
+
+    req.on("error", (err) => {
+      console.error(`[rpc] connect error for ${method}:`, err.message);
+      clearTimeout(timer);
+      reject(err);
+    });
+    req.end();
+  });
+}
+
+// ── Gateway config helpers ────────────────────────────────────────────────────
 
 async function getConfig() {
   const now = Date.now();
   if (_configCache && now < _configCacheExpiry) return _configCache;
   try {
-    const { stdout } = await execAsync("gateway config.get");
-    _configCache = JSON.parse(stdout.trim());
+    const res = await gatewayRpc("config.get");
+    const config = res?.result ?? {};
+    _configCache = config;
     _configCacheExpiry = now + CACHE_TTL;
     return _configCache;
   } catch {
@@ -464,9 +562,10 @@ export async function handleSkillsApi(req, res) {
     try {
       const body = await readBody(req);
       const patch = { plugins: { entries: { [id]: body.config } } };
-      // execFile avoids shell injection — gateway receives the JSON as a
-      // single argument.
-      await execFileAsync("gateway", ["config.patch", JSON.stringify(patch)]);
+      // Fetch a fresh hash for the CAS write guard required by config.patch.
+      const current = await gatewayRpc("config.get");
+      const hash = current?.result?.hash;
+      await gatewayRpc("config.patch", { patch, ...(hash ? { hash } : {}) });
       invalidateCache();
       return jsonOk(res, { ok: true });
     } catch (err) {
@@ -494,14 +593,12 @@ export async function handleSkillsApi(req, res) {
       const job = { status: "running", output: "", error: null };
       installJobs.set(jobId, job);
 
-      execAsync(cmd).then(({ stdout, stderr }) => {
-        job.output = (stdout + stderr).trim();
-        job.status = "done";
-        invalidateCache();
-      }).catch((err) => {
-        job.output = ((err.stdout ?? "") + (err.stderr ?? "")).trim();
-        job.error = err.message;
-        job.status = "error";
+      const child = spawn("sh", ["-c", cmd], { env: process.env });
+      child.stdout.on("data", (chunk) => { job.output += chunk.toString(); });
+      child.stderr.on("data", (chunk) => { job.output += chunk.toString(); });
+      child.on("close", (code) => {
+        if (code === 0) { job.status = "done"; invalidateCache(); }
+        else { job.error = `exited with code ${code}`; job.status = "error"; }
       });
 
       return jsonOk(res, { jobId }, 202);
@@ -522,10 +619,11 @@ export async function handleSkillsApi(req, res) {
 
   // POST /api/gateway/restart
   if (method === "POST" && pathname === "/api/gateway/restart") {
-    // Fire-and-forget — the gateway process will restart and the sidecar
-    // will briefly lose the upstream connection, which is expected.
-    execAsync("gateway restart").catch((err) =>
-      console.error("[skills] restart error:", err),
+    console.log("[skills] restart requested");
+    // Fire-and-forget via WebSocket RPC. delayMs gives the frontend time to
+    // transition to "restarting" state before the connection actually drops.
+    gatewayRpc("gateway.restart", { delayMs: 2_000, note: "Skills page restart" }).catch(
+      (err) => console.error("[skills] restart error:", err),
     );
     invalidateCache();
     return jsonOk(res, { ok: true }, 202);
@@ -534,6 +632,7 @@ export async function handleSkillsApi(req, res) {
   // GET /api/gateway/restart/status
   if (method === "GET" && pathname === "/api/gateway/restart/status") {
     const ready = await probeGateway();
+    console.log(`[skills] restart/status → ready=${ready}`);
     return jsonOk(res, { ready });
   }
 

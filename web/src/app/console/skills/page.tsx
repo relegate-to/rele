@@ -12,6 +12,12 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -99,10 +105,11 @@ function InstallButton({ skillId, entry, onDone }: { skillId: string; entry: Ins
       pollRef.current = setInterval(async () => {
         try {
           const job = await apiFetch(`/api/skills/install/${jobId}`);
-          if (job.status === "done") { stopPolling(); setOutput(job.output || null); setState("done"); onDone(); }
+          if (job.output) setOutput(job.output);
+          if (job.status === "done") { stopPolling(); setState("done"); onDone(); }
           else if (job.status === "error") { stopPolling(); setOutput(job.output || job.error || null); setState("error"); }
         } catch {}
-      }, 2_000);
+      }, 500);
     } catch (err) {
       setOutput(err instanceof Error ? err.message : "Failed to start");
       setState("error");
@@ -126,9 +133,9 @@ function InstallButton({ skillId, entry, onDone }: { skillId: string; entry: Ins
                               : <DownloadIcon className="size-3.5" />}
         {state === "running" ? "Installing…" : state === "done" ? "Installed" : entry.label}
       </button>
-      {output && (
-        <pre className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 font-mono text-[11px] text-[var(--text-dim)] whitespace-pre-wrap break-all max-h-28 overflow-y-auto">
-          {output}
+      {(state === "running" || output) && (
+        <pre className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 font-mono text-[11px] text-[var(--text-dim)] whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+          {output ?? <span className="animate-pulse">…</span>}
         </pre>
       )}
     </div>
@@ -183,10 +190,10 @@ function ConfigEditor({ skillId, initial, onSaved }: { skillId: string; initial:
 // ── Skill card ────────────────────────────────────────────────────────────────
 
 function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: () => void; onToggled: (skillId: string, lockedStatus: SkillStatus, newEnabled: boolean) => void }) {
-  const [expanded, setExpanded] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  const toggle = async () => {
+  const doToggle = async () => {
     setToggling(true);
     onToggled(skill.id, skill.status, !skill.enabled);
     try {
@@ -215,143 +222,170 @@ function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: (
     : skill.status === "needs-config" ? "Needs config"
                                       : "Disabled";
 
-  const statusTextColor =
-    skill.status === "ready"          ? "text-[var(--status-success-text)]"
-    : needsSetup                      ? "text-[var(--status-warning-text)]"
-                                      : "text-[var(--muted)]";
+
+  const statusBadgeClass =
+    skill.status === "ready"          ? "bg-[var(--status-success-bg)] text-[var(--status-success-text)] ring-1 ring-[var(--status-success-border)]"
+    : needsSetup                      ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] ring-1 ring-[var(--status-warning-border)]"
+                                      : "bg-[var(--surface-hi)] text-[var(--muted)] ring-1 ring-[var(--border)]";
 
   return (
-    <div
-      className={cn(
-        "group flex flex-col rounded-xl border bg-[var(--surface)] transition-all duration-150",
-        expanded
-          ? "border-[var(--border-hi)] shadow-lg shadow-black/10"
-          : needsSetup
+    <>
+      <div
+        onClick={() => setOpen(true)}
+        className={cn(
+          "group flex flex-col gap-3 rounded-xl border bg-[var(--surface)] p-4 transition-all duration-150 cursor-pointer",
+          needsSetup
             ? "border-[var(--status-warning-border)] hover:border-[var(--status-warning)] hover:shadow-md hover:shadow-black/10"
             : "border-[var(--border)] hover:border-[var(--border-hi)] hover:shadow-sm hover:shadow-black/10",
-        !skill.enabled && !needsSetup && !expanded && "opacity-60 hover:opacity-100",
-      )}
-    >
-      {/* Card top */}
-      <div className="flex flex-col p-4 flex-1 gap-3">
-        {/* Emoji + switch */}
+          !skill.enabled && !needsSetup && "opacity-50 hover:opacity-100",
+        )}
+      >
+        {/* Icon + switch */}
         <div className="flex items-start justify-between">
-          <span className={cn("text-2xl leading-none", !skill.enabled && !needsSetup && "grayscale")}>
+          <div className={cn(
+            "flex size-10 items-center justify-center rounded-xl text-xl leading-none",
+            needsSetup ? "bg-[var(--status-warning-bg)]" : "bg-[var(--surface-hi)]",
+            !skill.enabled && !needsSetup && "grayscale",
+          )}>
             {skill.emoji ?? "🔧"}
-          </span>
-          <Switch
-            checked={skill.enabled && !needsSetup}
-            onClick={() => { void toggle(); }}
-            disabled={toggling || needsSetup}
-            title={needsSetup ? "Fix issues before enabling" : skill.enabled ? "Disable" : "Enable"}
-          />
+          </div>
+          <div onClick={(e) => e.stopPropagation()}>
+            <Switch
+              checked={skill.enabled && !needsSetup}
+              onClick={() => { void doToggle(); }}
+              disabled={toggling || needsSetup}
+              title={needsSetup ? "Fix issues before enabling" : skill.enabled ? "Disable" : "Enable"}
+            />
+          </div>
         </div>
 
-        {/* Name + status + description */}
+        {/* Name + description */}
         <div className="flex flex-col gap-1 flex-1">
-          <p className="text-sm font-medium text-[var(--text)] leading-snug">
+          <p className="text-sm font-semibold text-[var(--text)] leading-snug">
             {skill.name}
           </p>
-          <div className={cn("flex items-center gap-1.5 text-[11px]", statusTextColor)}>
-            <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
-            {statusLabel}
-          </div>
           {skill.description && (
-            <p className="mt-1 text-xs text-[var(--text-dim)] leading-relaxed line-clamp-2">
+            <p className="text-xs text-[var(--text-dim)] leading-relaxed line-clamp-2">
               {skill.description}
             </p>
           )}
         </div>
+
+        {/* Status badge */}
+        <div>
+          <span className={cn(
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+            statusBadgeClass,
+          )}>
+            <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
+            {statusLabel}
+          </span>
+        </div>
       </div>
 
-      {/* Details toggle */}
-      {hasDetails && (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className={cn(
-            "flex w-full items-center justify-between border-t px-4 py-2.5 text-xs transition-colors",
-            needsSetup
-              ? "border-[var(--status-warning-border)] text-[var(--status-warning-text)] hover:bg-[var(--status-warning-bg)]"
-              : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--text-dim)] hover:bg-[var(--surface-hi)]",
-          )}
-        >
-          <span className="flex items-center gap-1.5">
-            {needsSetup && <WrenchIcon className="size-3" />}
-            {expanded ? "Hide details" : needsSetup ? "Fix issues" : "Configure"}
-          </span>
-          <motion.span
-            animate={{ rotate: expanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-            className="text-[var(--muted)]"
-          >
-            ▾
-          </motion.span>
-        </button>
-      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md overflow-y-auto max-h-[90svh]">
 
-      {/* Expanded details */}
-      <AnimatePresence initial={false}>
-        {expanded && hasDetails && (
-          <motion.div
-            key="detail"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-4 px-4 pb-4 pt-3">
-              {skill.missingBins.length > 0 && (
-                <div>
-                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">Missing binaries</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {skill.missingBins.map((bin) => (
-                      <code key={bin} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
-                        {bin}
-                      </code>
-                    ))}
-                  </div>
-                </div>
+          {/* Header: icon + name + status + description */}
+          <div className="flex items-start gap-4">
+            <div className={cn(
+              "flex size-14 shrink-0 items-center justify-center rounded-2xl text-3xl leading-none",
+              needsSetup ? "bg-[var(--status-warning-bg)]" : "bg-[var(--surface-hi)]",
+            )}>
+              {skill.emoji ?? "🔧"}
+            </div>
+            <div className="flex flex-col gap-1.5 min-w-0 pt-0.5">
+              <DialogTitle className="text-base font-semibold leading-tight">
+                {skill.name}
+              </DialogTitle>
+              <span className={cn(
+                "inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                statusBadgeClass,
+              )}>
+                <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
+                {statusLabel}
+              </span>
+              {skill.description && (
+                <p className="text-xs text-[var(--text-dim)] leading-relaxed">
+                  {skill.description}
+                </p>
               )}
-              {missingAnyBins.length > 0 && (
-                <div>
-                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">Needs one of</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {missingAnyBins.map((bin) => (
-                      <code key={bin} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
-                        {bin}
-                      </code>
-                    ))}
-                  </div>
-                </div>
+            </div>
+          </div>
+
+          {/* Enable row */}
+          <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
+            <div>
+              <p className="text-sm font-medium text-[var(--text)]">Enable skill</p>
+              {needsSetup && (
+                <p className="text-xs text-[var(--status-warning-text)]">Fix issues before enabling</p>
               )}
-              {missingEnv.length > 0 && (
-                <div>
-                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">Missing env vars</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {missingEnv.map((v) => (
-                      <code key={v} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
-                        {v}
-                      </code>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {skill.missingConfig.length > 0 && (
-                <div>
-                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">Missing config</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {skill.missingConfig.map((path) => (
-                      <code key={path} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
-                        {path}
-                      </code>
-                    ))}
-                  </div>
+            </div>
+            <Switch
+              checked={skill.enabled && !needsSetup}
+              onClick={() => { void doToggle(); }}
+              disabled={toggling || needsSetup}
+            />
+          </div>
+
+          {/* Details */}
+          {hasDetails && (
+            <div className="space-y-4 border-t border-[var(--border)] pt-4">
+              {(skill.missingBins.length > 0 || missingAnyBins.length > 0 || missingEnv.length > 0 || skill.missingConfig.length > 0) && (
+                <div className="rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 space-y-3">
+                  {skill.missingBins.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--status-warning-text)]">Missing binaries</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {skill.missingBins.map((bin) => (
+                          <code key={bin} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
+                            {bin}
+                          </code>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {missingAnyBins.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--status-warning-text)]">Needs one of</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {missingAnyBins.map((bin) => (
+                          <code key={bin} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
+                            {bin}
+                          </code>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {missingEnv.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--status-warning-text)]">Missing env vars</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {missingEnv.map((v) => (
+                          <code key={v} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
+                            {v}
+                          </code>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {skill.missingConfig.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--status-warning-text)]">Missing config keys</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {skill.missingConfig.map((path) => (
+                          <code key={path} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
+                            {path}
+                          </code>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               {skill.installEntries.length > 0 && (
                 <div>
-                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">Install</p>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Install</p>
                   <div className="space-y-2">
                     {skill.installEntries.map((entry) => (
                       <InstallButton key={entry.id} skillId={skill.id} entry={entry} onDone={onChanged} />
@@ -361,15 +395,16 @@ function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: (
               )}
               {skill.pluginConfig !== null && (
                 <div>
-                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">Config</p>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Config</p>
                   <ConfigEditor skillId={skill.id} initial={skill.pluginConfig} onSaved={onChanged} />
                 </div>
               )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          )}
+
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -383,6 +418,10 @@ async function triggerRestart(
 ) {
   onStateChange("restarting");
   try { await apiFetch("/api/gateway/restart", { method: "POST" }); } catch {}
+  // Wait briefly so the gateway has time to go down before we start probing.
+  // Without this, the first poll can race in while the gateway is still up
+  // and falsely report "done" before the restart actually occurs.
+  await new Promise((r) => setTimeout(r, 3_000));
   let attempts = 0;
   const poll = setInterval(async () => {
     attempts++;

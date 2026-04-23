@@ -3,6 +3,7 @@ import { Lora, DM_Mono, Crimson_Pro, Geist } from "next/font/google";
 import { NeonAuthUIProvider } from "@neondatabase/auth/react";
 import { authClient } from "@/lib/auth-client";
 import { PageTransitionProvider } from "@/components/ui/page-transition";
+import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "next-themes";
 
 import "./globals.css";
@@ -62,7 +63,7 @@ export default function RootLayout({
             providers: ["github", "google"],
           }}
         >
-          <PageTransitionProvider><ThemeProvider attribute="class" defaultTheme="system" enableSystem>{children}</ThemeProvider></PageTransitionProvider>
+          <PageTransitionProvider><ThemeProvider attribute="class" defaultTheme="system" enableSystem>{children}<Toaster position="bottom-center" /></ThemeProvider></PageTransitionProvider>
         </NeonAuthUIProvider>
       </body>
     </html>
