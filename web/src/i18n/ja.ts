@@ -31,6 +31,7 @@ export default {
   "sidebar.sessions.main": "メイン",
   "sidebar.sessions.new": "新しいセッション",
   "sidebar.sessions.delete": "セッションを削除",
+  "sidebar.sessions.show-hidden": "非表示セッションの切り替え",
 
   // Sidebar misc
   "sidebar.badge.alpha": "alpha",

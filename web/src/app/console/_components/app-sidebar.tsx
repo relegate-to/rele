@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useRef, useState, useEffect } from "react";
-import { ActivityIcon, ArrowRightIcon, BarChart2Icon, BlocksIcon, BookOpenIcon, CheckCircle2Icon, ChevronRightIcon, ClockIcon, ExternalLinkIcon, Link2Icon, MessageCircleIcon, MessageSquareIcon, MonitorIcon, PlusIcon, RocketIcon, SettingsIcon, SparklesIcon, SquarePenIcon, SquareTerminalIcon, Trash2Icon, XIcon, ZapIcon } from "lucide-react";
+import { ActivityIcon, ArrowRightIcon, BarChart2Icon, BlocksIcon, BookOpenIcon, CheckCircle2Icon, ChevronRightIcon, ClockIcon, EyeIcon, EyeOffIcon, ExternalLinkIcon, Link2Icon, MessageCircleIcon, MessageSquareIcon, MonitorIcon, PlusIcon, RocketIcon, SettingsIcon, SparklesIcon, SquarePenIcon, SquareTerminalIcon, Trash2Icon, XIcon, ZapIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Sidebar,
@@ -183,6 +183,80 @@ function OnboardingSection({
   );
 }
 
+// ─── SessionItem ─────────────────────────────────────────────────────────────
+
+function SessionItem({
+  session,
+  isActive,
+  isEditing,
+  editingLabel,
+  onSelect,
+  onStartEdit,
+  onEditChange,
+  onEditEnd,
+  onEditCancel,
+  onDelete,
+  deleteLabel,
+}: {
+  session: { key: string; displayName: string };
+  isActive: boolean;
+  isEditing: boolean;
+  editingLabel: string;
+  onSelect: () => void;
+  onStartEdit: () => void;
+  onEditChange: (val: string) => void;
+  onEditEnd: (val: string) => void;
+  onEditCancel: () => void;
+  onDelete: () => void;
+  deleteLabel: string;
+}) {
+  return (
+    <SidebarMenuItem className="group/session">
+      {isEditing ? (
+        <div className="flex h-8 items-center gap-2.5 rounded-lg pl-9 pr-2 [&_svg]:size-4 [&_svg]:shrink-0">
+          <MessageCircleIcon className="text-sidebar-foreground/45" />
+          <input
+            autoFocus
+            value={editingLabel}
+            onChange={(e) => onEditChange(e.target.value)}
+            onBlur={() => onEditEnd(editingLabel)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              else if (e.key === "Escape") onEditCancel();
+            }}
+            className="flex-1 min-w-0 bg-transparent text-sm text-sidebar-foreground outline-none border-b border-sidebar-foreground/15 mx-1"
+          />
+        </div>
+      ) : (
+        <SidebarMenuButton
+          isActive={isActive}
+          render={<Link href="/console/chat" />}
+          onClick={onSelect}
+          onDoubleClick={(e) => { e.preventDefault(); onStartEdit(); }}
+          className={cn(
+            "h-8 gap-2.5 rounded-lg pl-9 pr-2 text-sm font-normal transition-colors",
+            "data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary",
+            !isActive && "text-sidebar-foreground/45 hover:bg-sidebar-accent hover:text-sidebar-foreground/70",
+          )}
+        >
+          <MessageCircleIcon className="size-3.5 shrink-0" />
+          <span className="flex-1 truncate">{session.displayName}</span>
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onDelete(); } }}
+            className="flex size-5 items-center justify-center rounded text-sidebar-foreground/0 transition-colors group-hover/session:text-sidebar-foreground/30 hover:!text-red-400"
+            aria-label={deleteLabel}
+          >
+            <Trash2Icon className="size-3" />
+          </span>
+        </SidebarMenuButton>
+      )}
+    </SidebarMenuItem>
+  );
+}
+
 // ─── AppSidebar ───────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
@@ -209,6 +283,7 @@ export function AppSidebar() {
   const [editingSessionKey, setEditingSessionKey] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
   const [sessionsExpanded, setSessionsExpanded] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false);
   const [showRoadmapBanner, setShowRoadmapBanner] = useState(true);
   const dismissRoadmapBanner = (e: React.MouseEvent) => {
@@ -280,6 +355,9 @@ export function AppSidebar() {
           const isOnChat = pathname === "/console/chat";
           const isMainActive = isOnChat && activeSessionKey === "agent:main:main";
           const nonMainSessions = sessions.filter((s) => s.key !== "agent:main:main");
+          const normalSessions = nonMainSessions.filter((s) => !s.displayName.startsWith("."));
+          const hiddenSessions = nonMainSessions.filter((s) => s.displayName.startsWith("."));
+          const hasHidden = hiddenSessions.length > 0;
 
           return (
             <SidebarGroup className="px-2 py-1">
@@ -304,6 +382,21 @@ export function AppSidebar() {
                     >
                       <MessageSquareIcon className="size-4 shrink-0" />
                       <span className="flex-1">{t("sidebar.chat")}</span>
+                      {!chatDisabled && hasHidden && sessionsExpanded && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowHidden((v) => !v); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setShowHidden((v) => !v); } }}
+                          className={cn(
+                            "-mr-2.5 flex size-5 items-center justify-center rounded transition-colors hover:text-sidebar-foreground/60",
+                            showHidden ? "text-sidebar-foreground/50" : "text-sidebar-foreground/25",
+                          )}
+                          aria-label={t("sidebar.sessions.show-hidden")}
+                        >
+                          {showHidden ? <EyeOffIcon className="!size-3.5" /> : <EyeIcon className="!size-3.5" />}
+                        </span>
+                      )}
                       {!chatDisabled && (
                         <span
                           role="button"
@@ -324,86 +417,90 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  {/* Sessions list */}
-                  {sessionsExpanded && !chatDisabled && (
-                    <>
-                      {nonMainSessions.map((session) => {
-                        const isActive = isOnChat && activeSessionKey === session.key;
-                        const isEditing = editingSessionKey === session.key;
-                        return (
-                          <SidebarMenuItem key={session.key} className="group/session">
-                            {isEditing ? (
-                              <div className="flex h-8 items-center gap-2.5 rounded-lg pl-9 pr-2 [&_svg]:size-4 [&_svg]:shrink-0">
-                                <MessageCircleIcon className="text-sidebar-foreground/45" />
-                                <input
-                                  autoFocus
-                                  value={editingLabel}
-                                  onChange={(e) => setEditingLabel(e.target.value)}
-                                  onBlur={() => {
-                                    const trimmed = editingLabel.trim();
-                                    if (trimmed && trimmed !== session.displayName) {
-                                      renameSession(session.key, trimmed);
-                                    }
-                                    setEditingSessionKey(null);
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.currentTarget.blur();
-                                    } else if (e.key === "Escape") {
-                                      setEditingSessionKey(null);
-                                    }
-                                  }}
-                                  className="flex-1 min-w-0 bg-transparent text-sm text-sidebar-foreground outline-none border-b border-sidebar-foreground/15 mx-1"
-                                />
-                              </div>
-                            ) : (
-                              <SidebarMenuButton
-                                isActive={isActive}
-                                render={<Link href="/console/chat" />}
-                                onClick={() => setActiveSessionKey(session.key)}
-                                onDoubleClick={(e) => {
-                                  e.preventDefault();
-                                  setEditingSessionKey(session.key);
-                                  setEditingLabel(session.displayName);
-                                }}
-                                className={cn(
-                                  "h-8 gap-2.5 rounded-lg pl-9 pr-2 text-sm font-normal transition-colors",
-                                  "data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary",
-                                  !isActive && "text-sidebar-foreground/45 hover:bg-sidebar-accent hover:text-sidebar-foreground/70",
-                                )}
-                              >
-                                <MessageCircleIcon className="size-3.5 shrink-0" />
-                                <span className="flex-1 truncate">{session.displayName}</span>
-                                <span
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteSession(session.key); }}
-                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); deleteSession(session.key); } }}
-                                  className="flex size-5 items-center justify-center rounded text-sidebar-foreground/0 transition-colors group-hover/session:text-sidebar-foreground/30 hover:!text-red-400"
-                                  aria-label={t("sidebar.sessions.delete")}
-                                >
-                                  <Trash2Icon className="size-3" />
-                                </span>
-                              </SidebarMenuButton>
-                            )}
-                          </SidebarMenuItem>
-                        );
-                      })}
+                  {/* Sessions list — animated expand/collapse */}
+                  {!chatDisabled && (
+                    <li
+                      className="grid transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                      style={{
+                        gridTemplateRows: sessionsExpanded ? "1fr" : "0fr",
+                        opacity: sessionsExpanded ? 1 : 0,
+                      }}
+                    >
+                      <div className="overflow-hidden">
+                        <ul className="flex flex-col">
+                          {normalSessions.map((session) => (
+                            <SessionItem
+                              key={session.key}
+                              session={session}
+                              isActive={isOnChat && activeSessionKey === session.key}
+                              isEditing={editingSessionKey === session.key}
+                              editingLabel={editingLabel}
+                              onSelect={() => setActiveSessionKey(session.key)}
+                              onStartEdit={() => { setEditingSessionKey(session.key); setEditingLabel(session.displayName); }}
+                              onEditChange={setEditingLabel}
+                              onEditEnd={(val) => {
+                                const trimmed = val.trim();
+                                if (trimmed && trimmed !== session.displayName) renameSession(session.key, trimmed);
+                                setEditingSessionKey(null);
+                              }}
+                              onEditCancel={() => setEditingSessionKey(null)}
+                              onDelete={() => deleteSession(session.key)}
+                              deleteLabel={t("sidebar.sessions.delete")}
+                            />
+                          ))}
 
-                      {/* New session button */}
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          onClick={() => {
-                            const name = `Session ${nonMainSessions.length + 1}`;
-                            createSession(name).then(() => router.push("/console/chat"));
-                          }}
-                          className="h-8 gap-2.5 rounded-lg pl-9 pr-3 text-sm font-normal text-sidebar-foreground/35 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground/60"
-                        >
-                          <PlusIcon className="size-3.5 shrink-0" />
-                          <span>{t("sidebar.sessions.new")}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    </>
+                          {/* Hidden sessions — animated */}
+                          {hasHidden && (
+                            <li
+                              className="grid transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                              style={{
+                                gridTemplateRows: showHidden ? "1fr" : "0fr",
+                                opacity: showHidden ? 1 : 0,
+                              }}
+                            >
+                              <div className="overflow-hidden">
+                                <ul className="flex flex-col">
+                                  {hiddenSessions.map((session) => (
+                                    <SessionItem
+                                      key={session.key}
+                                      session={session}
+                                      isActive={isOnChat && activeSessionKey === session.key}
+                                      isEditing={editingSessionKey === session.key}
+                                      editingLabel={editingLabel}
+                                      onSelect={() => setActiveSessionKey(session.key)}
+                                      onStartEdit={() => { setEditingSessionKey(session.key); setEditingLabel(session.displayName); }}
+                                      onEditChange={setEditingLabel}
+                                      onEditEnd={(val) => {
+                                        const trimmed = val.trim();
+                                        if (trimmed && trimmed !== session.displayName) renameSession(session.key, trimmed);
+                                        setEditingSessionKey(null);
+                                      }}
+                                      onEditCancel={() => setEditingSessionKey(null)}
+                                      onDelete={() => deleteSession(session.key)}
+                                      deleteLabel={t("sidebar.sessions.delete")}
+                                    />
+                                  ))}
+                                </ul>
+                              </div>
+                            </li>
+                          )}
+
+                          {/* New session */}
+                          <SidebarMenuItem>
+                            <SidebarMenuButton
+                              onClick={() => {
+                                const name = `Session ${normalSessions.length + 1}`;
+                                createSession(name).then(() => router.push("/console/chat"));
+                              }}
+                              className="h-8 gap-2.5 rounded-lg pl-9 pr-2 text-sm font-normal text-sidebar-foreground/35 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground/60"
+                            >
+                              <PlusIcon className="size-3.5 shrink-0" />
+                              <span>{t("sidebar.sessions.new")}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        </ul>
+                      </div>
+                    </li>
                   )}
                 </SidebarMenu>
               </SidebarGroupContent>

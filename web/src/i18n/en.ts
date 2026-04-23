@@ -31,6 +31,7 @@ export default {
   "sidebar.sessions.main": "Main",
   "sidebar.sessions.new": "New session",
   "sidebar.sessions.delete": "Delete session",
+  "sidebar.sessions.show-hidden": "Toggle hidden sessions",
 
   // Sidebar misc
   "sidebar.badge.alpha": "alpha",
