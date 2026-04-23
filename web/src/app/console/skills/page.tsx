@@ -2,6 +2,7 @@
 
 // TODO: Restore skill log when exiting and returning to modal.
 // Improve status at end of install.
+// Fix messages not showing in log.
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -223,7 +224,7 @@ function AskAiInstallButton({ skill, onChanged }: { skill: Skill; onChanged: () 
     const cleaned = stripMarkers(m.content);
     if (cleaned === m.content) return m;
     return { ...m, content: cleaned };
-  })
+  }).filter((m) => m.role !== "assistant" || m.content.length > 0);
 
   // Refresh skills list on completion
   useEffect(() => {
