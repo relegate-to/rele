@@ -8,8 +8,11 @@ USER root
 
 # Install package managers and runtimes for skill installation
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    golang nodejs npm curl git build-essential \
+    nodejs npm curl git build-essential \
   && rm -rf /var/lib/apt/lists/*
+# Install Go from official tarball (apt version is too old for many modules)
+RUN curl -fsSL https://go.dev/dl/go1.24.2.linux-amd64.tar.gz | tar -C /usr/local -xz
+ENV PATH="/usr/local/go/bin:${PATH}"
 # Install Homebrew (Linuxbrew) as a non-root user — brew refuses to run as root
 RUN useradd -m linuxbrew
 RUN su linuxbrew -s /bin/bash -c 'NONINTERACTIVE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'

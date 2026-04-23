@@ -8,6 +8,7 @@ import {
   DownloadIcon,
   RefreshCwIcon,
   SearchIcon,
+  SparklesIcon,
   WrenchIcon,
   XCircleIcon,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import {
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { useGateway } from "../_context/gateway-context";
+import { useChat } from "../_context/chat-context";
 
 const INSTANCE_PROXY = "/api/instance";
 
@@ -140,6 +142,30 @@ function InstallButton({ skillId, entry, onDone }: { skillId: string; entry: Ins
         </pre>
       )}
     </div>
+  );
+}
+
+function AskAiInstallButton({ skill, onClose }: { skill: Skill; onClose: () => void }) {
+  const { sendMessage } = useChat();
+
+  const handleClick = () => {
+    const allMissing = [...skill.missingBins, ...(skill.missingAnyBins ?? [])];
+    const bins = allMissing.length > 0 ? allMissing.join(", ") : "its dependencies";
+    sendMessage(
+      `Install ${bins} for the "${skill.name}" skill`,
+      `The user is asking you to install dependencies for the skill "${skill.name}" (id: ${skill.id}) in their OpenClaw instance. The missing binaries are: ${allMissing.join(", ") || "unknown"}. Install them using whatever package manager is available (apt-get, brew, npm, pip3, cargo, go, etc). After installing, verify the binary is on PATH.`,
+    );
+    onClose();
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className="flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-xs font-medium text-[var(--text)] transition-all hover:border-[var(--border-hi)]"
+    >
+      <SparklesIcon className="size-3.5" />
+      Ask AI to install
+    </button>
   );
 }
 
@@ -386,13 +412,14 @@ function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: (
                   )}
                 </div>
               )}
-              {skill.installEntries.length > 0 && (
+              {(skill.installEntries.length > 0 || skill.missingBins.length > 0 || missingAnyBins.length > 0) && (
                 <div>
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Install</p>
                   <div className="space-y-2">
                     {skill.installEntries.map((entry) => (
                       <InstallButton key={entry.id} skillId={skill.id} entry={entry} onDone={onChanged} />
                     ))}
+                    <AskAiInstallButton skill={skill} onClose={() => setOpen(false)} />
                   </div>
                 </div>
               )}

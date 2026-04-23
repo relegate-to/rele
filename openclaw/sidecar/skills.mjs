@@ -298,7 +298,7 @@ async function listSkills(config) {
 const installJobs = new Map();
 
 function buildInstallCommand(entry) {
-  const pkg = entry.formula ?? entry.package ?? entry.name;
+  const pkg = entry.formula ?? entry.package ?? entry.module ?? entry.name;
   if (!pkg) return null;
   switch (entry.kind) {
     case "brew":    return `su linuxbrew -s /bin/bash -c "brew install ${pkg}"`;
@@ -309,7 +309,7 @@ function buildInstallCommand(entry) {
     case "apt":
     case "apt-get": return `apt-get install -y ${pkg}`;
     case "cargo":   return `cargo install ${pkg}`;
-    case "go":      return `go install ${pkg}`;
+    case "go":      return `go install ${pkg.includes("@") ? pkg : `${pkg}@latest`}`;
     case "apk":     return `apk add --no-cache ${pkg}`;
     default:        return null;
   }
