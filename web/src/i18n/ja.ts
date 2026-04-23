@@ -26,6 +26,12 @@ export default {
   "sidebar.tooltip.connecting": "インスタンスに接続中…",
   "sidebar.tooltip.stopping": "インスタンスを停止中…",
   
+  // Sidebar sessions
+  "sidebar.sessions": "セッション",
+  "sidebar.sessions.main": "メイン",
+  "sidebar.sessions.new": "新しいセッション",
+  "sidebar.sessions.delete": "セッションを削除",
+
   // Sidebar misc
   "sidebar.badge.alpha": "alpha",
   "sidebar.roadmap": "ロードマップ",

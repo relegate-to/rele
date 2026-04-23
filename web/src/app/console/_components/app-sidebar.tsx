@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useRef, useState, useEffect } from "react";
-import { ActivityIcon, ArrowRightIcon, BarChart2Icon, BlocksIcon, BookOpenIcon, CheckCircle2Icon, ClockIcon, ExternalLinkIcon, Link2Icon, MessageSquareIcon, MonitorIcon, RocketIcon, SettingsIcon, SparklesIcon, SquarePenIcon, SquareTerminalIcon, XIcon, ZapIcon } from "lucide-react";
+import { ActivityIcon, ArrowRightIcon, BarChart2Icon, BlocksIcon, BookOpenIcon, CheckCircle2Icon, ChevronRightIcon, ClockIcon, ExternalLinkIcon, Link2Icon, MessageCircleIcon, MessageSquareIcon, MonitorIcon, PlusIcon, RocketIcon, SettingsIcon, SparklesIcon, SquarePenIcon, SquareTerminalIcon, Trash2Icon, XIcon, ZapIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Sidebar,
@@ -25,11 +25,11 @@ import { useGateway } from "../_context/gateway-context";
 import { cn } from "@/lib/utils";
 import { RoadmapDialog } from "@/components/ui/roadmap-dialog";
 import { useTranslation } from "../_context/i18n-context";
+import { useSessions } from "../_context/sessions-context";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
 const MAIN_NAV = [
-  { labelKey: "sidebar.chat",   href: "/console/chat",   icon: MessageSquareIcon },
   { labelKey: "sidebar.canvas", href: "/console/canvas", icon: SquarePenIcon },
 ] as const;
 
@@ -205,6 +205,10 @@ export function AppSidebar() {
     }
   }, [anyMachineRunning, loading, connectGateway, disconnectGateway]);
 
+  const { sessions, activeSessionKey, setActiveSessionKey, createSession, deleteSession, renameSession } = useSessions();
+  const [editingSessionKey, setEditingSessionKey] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState("");
+  const [sessionsExpanded, setSessionsExpanded] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false);
   const [showRoadmapBanner, setShowRoadmapBanner] = useState(true);
   const dismissRoadmapBanner = (e: React.MouseEvent) => {
@@ -268,7 +272,144 @@ export function AppSidebar() {
         {/* Onboarding — animated exit when user has instance and navigates away */}
         <OnboardingSection show={!hasInstances || pathname === "/console/onboarding"} hasInstances={hasInstances} pathname={pathname} t={t} />
 
+        {/* Chat + Sessions */}
+        {(() => {
+          const primaryStatus = machines[0] ? flyStateToStatus(machines[0].state, gatewayConnected) : null;
+          const notReady = primaryStatus === "provisioning" || primaryStatus === "connecting" || primaryStatus === "stopping";
+          const chatDisabled = !hasInstances || notReady;
+          const isOnChat = pathname === "/console/chat";
+          const isMainActive = isOnChat && activeSessionKey === "agent:main:main";
+          const nonMainSessions = sessions.filter((s) => s.key !== "agent:main:main");
 
+          return (
+            <SidebarGroup className="px-2 py-1">
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {/* Chat row with expand toggle inside */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      isActive={isMainActive}
+                      tooltip={chatDisabled ? t("sidebar.tooltip.create-instance") : t("sidebar.chat")}
+                      render={chatDisabled ? <span /> : <Link href="/console/chat" />}
+                      aria-disabled={chatDisabled}
+                      onClick={() => {
+                        if (!chatDisabled) setActiveSessionKey("agent:main:main");
+                      }}
+                      className={cn(
+                        "h-9 gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
+                        "data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary data-[active]:ring-sidebar-primary/40 data-[active]:shadow-[0_1px_6px_rgba(0,0,0,0.18)]",
+                        !isMainActive && "text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                        chatDisabled && "pointer-events-none opacity-35",
+                      )}
+                    >
+                      <MessageSquareIcon className="size-4 shrink-0" />
+                      <span className="flex-1">{t("sidebar.chat")}</span>
+                      {!chatDisabled && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSessionsExpanded((v) => !v); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setSessionsExpanded((v) => !v); } }}
+                          className="flex size-5 items-center justify-center rounded text-sidebar-foreground/30 transition-colors hover:text-sidebar-foreground/60"
+                          aria-label={t("sidebar.sessions")}
+                        >
+                          <ChevronRightIcon
+                            className={cn(
+                              "size-3.5 transition-transform duration-200",
+                              sessionsExpanded && "rotate-90",
+                            )}
+                          />
+                        </span>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  {/* Sessions list */}
+                  {sessionsExpanded && !chatDisabled && (
+                    <>
+                      {nonMainSessions.map((session) => {
+                        const isActive = isOnChat && activeSessionKey === session.key;
+                        const isEditing = editingSessionKey === session.key;
+                        return (
+                          <SidebarMenuItem key={session.key} className="group/session">
+                            {isEditing ? (
+                              <div className="flex h-8 items-center gap-2.5 rounded-lg pl-9 pr-2 [&_svg]:size-4 [&_svg]:shrink-0">
+                                <MessageCircleIcon className="text-sidebar-foreground/45" />
+                                <input
+                                  autoFocus
+                                  value={editingLabel}
+                                  onChange={(e) => setEditingLabel(e.target.value)}
+                                  onBlur={() => {
+                                    const trimmed = editingLabel.trim();
+                                    if (trimmed && trimmed !== session.displayName) {
+                                      renameSession(session.key, trimmed);
+                                    }
+                                    setEditingSessionKey(null);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    } else if (e.key === "Escape") {
+                                      setEditingSessionKey(null);
+                                    }
+                                  }}
+                                  className="flex-1 min-w-0 bg-transparent text-sm text-sidebar-foreground outline-none border-b border-sidebar-foreground/15 mx-1"
+                                />
+                              </div>
+                            ) : (
+                              <SidebarMenuButton
+                                isActive={isActive}
+                                render={<Link href="/console/chat" />}
+                                onClick={() => setActiveSessionKey(session.key)}
+                                onDoubleClick={(e) => {
+                                  e.preventDefault();
+                                  setEditingSessionKey(session.key);
+                                  setEditingLabel(session.displayName);
+                                }}
+                                className={cn(
+                                  "h-8 gap-2.5 rounded-lg pl-9 pr-2 text-sm font-normal transition-colors",
+                                  "data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary",
+                                  !isActive && "text-sidebar-foreground/45 hover:bg-sidebar-accent hover:text-sidebar-foreground/70",
+                                )}
+                              >
+                                <MessageCircleIcon className="size-3.5 shrink-0" />
+                                <span className="flex-1 truncate">{session.displayName}</span>
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteSession(session.key); }}
+                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); deleteSession(session.key); } }}
+                                  className="flex size-5 items-center justify-center rounded text-sidebar-foreground/0 transition-colors group-hover/session:text-sidebar-foreground/30 hover:!text-red-400"
+                                  aria-label={t("sidebar.sessions.delete")}
+                                >
+                                  <Trash2Icon className="size-3" />
+                                </span>
+                              </SidebarMenuButton>
+                            )}
+                          </SidebarMenuItem>
+                        );
+                      })}
+
+                      {/* New session button */}
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          onClick={() => {
+                            const name = `Session ${nonMainSessions.length + 1}`;
+                            createSession(name).then(() => router.push("/console/chat"));
+                          }}
+                          className="h-8 gap-2.5 rounded-lg pl-9 pr-3 text-sm font-normal text-sidebar-foreground/35 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground/60"
+                        >
+                          <PlusIcon className="size-3.5 shrink-0" />
+                          <span>{t("sidebar.sessions.new")}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </>
+                  )}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          );
+        })()}
 
         {/* Navigation */}
         {(

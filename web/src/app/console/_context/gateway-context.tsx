@@ -220,7 +220,7 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
             clearTimeout(timer);
             unsub();
             if (d.ok) resolve((d.payload ?? {}) as Record<string, unknown>);
-            else reject(new Error(String((d as any).payload?.error ?? `RPC failed: ${method}`)));
+            else reject(new Error(String((d as any).error?.message ?? (d as any).error?.code ?? `RPC failed: ${method}`)));
           }
         });
         send({ type: "req", id, method, params });

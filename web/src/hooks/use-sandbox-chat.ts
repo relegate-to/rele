@@ -24,7 +24,7 @@ function dedupe(messages: ChatMessage[]): ChatMessage[] {
 
 export const SESSION_KEY = "agent:main:main";
 
-export function useSandboxChat() {
+export function useSandboxChat(sessionKey: string = SESSION_KEY) {
   const { connected, connecting, error, connect, send, subscribe } = useGateway();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
@@ -35,24 +35,33 @@ export function useSandboxChat() {
   const segCounterRef = useRef<Record<string, number>>({});
   // ID of the last assistant bubble we created/updated, for lifecycle:end.
   const currentStreamIdRef = useRef<string | null>(null);
-  // Prevent re-requesting history on every reconnect within the same mount.
-  const historyRequestedRef = useRef(false);
+  // Track which session key we last requested history for.
+  const lastHistoryKeyRef = useRef<string | null>(null);
 
-  // Request chat history once per connection.
+  // Reset state when session key changes.
+  useEffect(() => {
+    setMessages([]);
+    setIsThinking(false);
+    segCounterRef.current = {};
+    currentStreamIdRef.current = null;
+    lastHistoryKeyRef.current = null;
+  }, [sessionKey]);
+
+  // Request chat history once per connection per session key.
   useEffect(() => {
     if (!connected) {
-      historyRequestedRef.current = false;
+      lastHistoryKeyRef.current = null;
       return;
     }
-    if (historyRequestedRef.current) return;
-    historyRequestedRef.current = true;
+    if (lastHistoryKeyRef.current === sessionKey) return;
+    lastHistoryKeyRef.current = sessionKey;
     send({
       type: "req",
       id: "chat-hist-" + Date.now(),
       method: "chat.history",
-      params: { sessionKey: SESSION_KEY },
+      params: { sessionKey },
     });
-  }, [connected, send]);
+  }, [connected, send, sessionKey]);
 
   // Subscribe to gateway messages and route them.
   useEffect(() => {
@@ -205,10 +214,10 @@ export function useSandboxChat() {
         type: "req",
         id: "model-patch-" + Date.now(),
         method: "sessions.patch",
-        params: { sessionKey: SESSION_KEY, model: resolved },
+        params: { sessionKey, model: resolved },
       });
     },
-    [connected, send]
+    [connected, send, sessionKey]
   );
 
   const sendMessage = useCallback(
@@ -231,13 +240,13 @@ export function useSandboxChat() {
         id,
         method: "chat.send",
         params: {
-          sessionKey: SESSION_KEY,
+          sessionKey,
           message: gatewayMessage,
           idempotencyKey: id,
         },
       });
     },
-    [connected, send]
+    [connected, send, sessionKey]
   );
 
   return {

@@ -7,6 +7,7 @@ import { AppSidebar } from "./_components/app-sidebar";
 import { MachinesProvider } from "./_context/machines-context";
 import { GatewayProvider } from "./_context/gateway-context";
 import { ChatProvider } from "./_context/chat-context";
+import { SessionsProvider } from "./_context/sessions-context";
 import { I18nProvider, useTranslation } from "./_context/i18n-context";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
@@ -58,6 +59,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
     <I18nProvider>
       <MachinesProvider>
         <GatewayProvider>
+          <SessionsProvider>
           <ChatProvider>
           <SidebarProvider>
             <AppSidebar />
@@ -67,6 +69,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
             </SidebarInset>
           </SidebarProvider>
           </ChatProvider>
+          </SessionsProvider>
         </GatewayProvider>
       </MachinesProvider>
     </I18nProvider>

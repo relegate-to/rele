@@ -26,6 +26,12 @@ export default {
   "sidebar.tooltip.connecting": "Connecting to instance…",
   "sidebar.tooltip.stopping": "Instance is stopping…",
   
+  // Sidebar sessions
+  "sidebar.sessions": "Sessions",
+  "sidebar.sessions.main": "Main",
+  "sidebar.sessions.new": "New session",
+  "sidebar.sessions.delete": "Delete session",
+
   // Sidebar misc
   "sidebar.badge.alpha": "alpha",
   "sidebar.roadmap": "Roadmap",

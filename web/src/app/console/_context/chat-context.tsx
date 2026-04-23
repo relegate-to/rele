@@ -2,6 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import { useSandboxChat } from "@/hooks/use-sandbox-chat";
+import { useSessions } from "./sessions-context";
 import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
 
 interface ChatContextValue {
@@ -18,7 +19,8 @@ interface ChatContextValue {
 const ChatContext = createContext<ChatContextValue | null>(null);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const chat = useSandboxChat();
+  const { activeSessionKey } = useSessions();
+  const chat = useSandboxChat(activeSessionKey);
   return <ChatContext.Provider value={chat}>{children}</ChatContext.Provider>;
 }
 
