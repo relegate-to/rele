@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, memo, type KeyboardEvent, typ
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpIcon, CopyIcon, CheckIcon, ChevronDownIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
 import { stripHiddenPrefix } from "@/hooks/sandbox-chat-protocol";
 import { ToolIcon } from "@/components/ui/tool-icon";
@@ -64,13 +65,13 @@ export function AssistantMessage({ content, children }: { content: string; child
   );
 }
 
-export const MessageRow = memo(function MessageRow({ msg }: { msg: ChatMessage }) {
+export const MessageRow = memo(function MessageRow({ msg, compact }: { msg: ChatMessage; compact?: boolean }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{ duration: 0.35, ease: EASE }}
-      className={msg.role === "tool" ? "-my-2" : ""}
+      className={cn("min-w-0", msg.role === "tool" && !compact && "-my-2")}
     >
       {msg.role === "user" ? (
         <div className="flex justify-end">
@@ -79,8 +80,8 @@ export const MessageRow = memo(function MessageRow({ msg }: { msg: ChatMessage }
           </div>
         </div>
       ) : msg.role === "tool" ? (
-        <div className="flex min-w-0 items-center">
-          <div className="flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs">
+        <div className="min-w-0">
+          <div className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs">
             <ToolIcon name={msg.toolName ?? ""} isError={msg.toolError} />
             <span className="shrink-0">{msg.toolName}</span>
             {msg.toolMeta && (
@@ -88,6 +89,10 @@ export const MessageRow = memo(function MessageRow({ msg }: { msg: ChatMessage }
             )}
           </div>
         </div>
+      ) : compact ? (
+        <MarkdownProse isStreaming={msg.isStreaming}>
+          {msg.content}
+        </MarkdownProse>
       ) : (
         <AssistantMessage content={msg.content}>
           <MarkdownProse isStreaming={msg.isStreaming}>

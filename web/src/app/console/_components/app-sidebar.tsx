@@ -308,44 +308,44 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
-
-        {/* Instance */}
-        <SidebarGroup className="px-2.5 py-2.5">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {loading && machines.length === 0 && (
-                <SidebarMenuItem>
-                  <div className="flex h-auto items-center gap-3 rounded-lg border border-sidebar-border px-3 py-2">
-                    <div className="flex size-6 shrink-0 items-center justify-center rounded-md border border-sidebar-border bg-sidebar-accent/50 animate-pulse">
-                      <span className="text-xs italic text-sidebar-foreground/30">r</span>
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                      <span className="h-3.5 w-20 rounded bg-sidebar-accent/60 animate-pulse" />
-                      <span className="h-2.5 w-14 rounded bg-sidebar-accent/40 animate-pulse" />
-                    </div>
+      {/* Instance — pinned above scrollable content */}
+      <SidebarGroup className="px-2.5 py-2.5">
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {loading && machines.length === 0 && (
+              <SidebarMenuItem>
+                <div className="flex h-auto items-center gap-3 rounded-lg border border-sidebar-border px-3 py-2">
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded-md border border-sidebar-border bg-sidebar-accent/50 animate-pulse">
+                    <span className="text-xs italic text-sidebar-foreground/30">r</span>
                   </div>
-                </SidebarMenuItem>
-              )}
-              {machines.map((m) => (
-                <InstanceItem
-                  key={m.id}
-                  instance={machineToInstance(m, gatewayConnected)}
-                  isActive={pathname === "/console/status"}
-                  onStop={() => stopMachine(m.id)}
-                  onStart={() => startMachine(m.id)}
-                  onDelete={() => deleteMachine(m.id)}
-                />
-              ))}
-              {!loading && machines.length === 0 && (
-                <AddInstanceItem onClick={() => router.push("/console/onboarding")} />
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <span className="h-3.5 w-20 rounded bg-sidebar-accent/60 animate-pulse" />
+                    <span className="h-2.5 w-14 rounded bg-sidebar-accent/40 animate-pulse" />
+                  </div>
+                </div>
+              </SidebarMenuItem>
+            )}
+            {machines.map((m) => (
+              <InstanceItem
+                key={m.id}
+                instance={machineToInstance(m, gatewayConnected)}
+                isActive={pathname === "/console/status"}
+                onStop={() => stopMachine(m.id)}
+                onStart={() => startMachine(m.id)}
+                onDelete={() => deleteMachine(m.id)}
+              />
+            ))}
+            {!loading && machines.length === 0 && (
+              <AddInstanceItem onClick={() => router.push("/console/onboarding")} />
+            )}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
 
-        {/* Onboarding — animated exit when user has instance and navigates away */}
-        <OnboardingSection show={!hasInstances || pathname === "/console/onboarding"} hasInstances={hasInstances} pathname={pathname} t={t} />
+      {/* Onboarding — animated exit when user has instance and navigates away */}
+      <OnboardingSection show={!hasInstances || pathname === "/console/onboarding"} hasInstances={hasInstances} pathname={pathname} t={t} />
+
+      <SidebarContent>
 
         {/* Chat + Sessions */}
         {(() => {

@@ -12,6 +12,10 @@ interface ChatContextValue {
   isThinking: boolean;
   error: string | null;
   sendMessage: (content: string, hiddenPrefix?: string) => void;
+  sendToSession: (targetKey: string, content: string, hiddenPrefix?: string) => void;
+  observeSession: (key: string, cb: () => void) => () => void;
+  getSessionMessages: (key: string) => ChatMessage[];
+  getSessionThinking: (key: string) => boolean;
   currentModel: string | null;
   setModel: (model: string) => void;
 }

@@ -1,10 +1,14 @@
 "use client";
 
+// TODO: Restore skill log when exiting and returning to modal.
+// Improve status at end of install.
+
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
+  ChevronDownIcon,
   DownloadIcon,
   RefreshCwIcon,
   SearchIcon,
@@ -23,6 +27,11 @@ import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { useGateway } from "../_context/gateway-context";
 import { useChat } from "../_context/chat-context";
+import { useSessions } from "../_context/sessions-context";
+import { MessageRow } from "../_components/chat-components";
+import { TypingIndicator } from "@/components/ui/typing-indicator";
+import { FadeScroll } from "@/components/ui/fade-scroll";
+import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
 
 const INSTANCE_PROXY = "/api/instance";
 
@@ -145,27 +154,192 @@ function InstallButton({ skillId, entry, onDone }: { skillId: string; entry: Ins
   );
 }
 
-function AskAiInstallButton({ skill, onClose }: { skill: Skill; onClose: () => void }) {
-  const { sendMessage } = useChat();
+function useSessionObserver(sessionKey: string | null) {
+  const { observeSession, getSessionMessages, getSessionThinking } = useChat();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isThinking, setIsThinking] = useState(false);
 
-  const handleClick = () => {
+  useEffect(() => {
+    if (!sessionKey) { setMessages([]); setIsThinking(false); return; }
+    setMessages(getSessionMessages(sessionKey));
+    setIsThinking(getSessionThinking(sessionKey));
+    return observeSession(sessionKey, () => {
+      setMessages(getSessionMessages(sessionKey));
+      setIsThinking(getSessionThinking(sessionKey));
+    });
+  }, [sessionKey, observeSession, getSessionMessages, getSessionThinking]);
+
+  return { messages, isThinking };
+}
+
+type InstallResult = "ok" | "fail" | "attention" | null;
+
+function detectResult(messages: ChatMessage[]): InstallResult {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== "assistant") continue;
+    if (m.content.includes("INSTALL_OK")) return "ok";
+    if (m.content.includes("INSTALL_FAIL")) return "fail";
+    if (m.content.includes("INSTALL_ATTENTION")) return "attention";
+    break; // only check the last assistant message
+  }
+  return null;
+}
+
+const STATUS_RE = /^STATUS:\s*(.+)$/m;
+const CODEWORD_RE = /\n?INSTALL_(OK|FAIL|ATTENTION)\b.*$/s;
+
+function latestStatus(messages: ChatMessage[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== "assistant") continue;
+    const match = m.content.match(STATUS_RE);
+    if (match) return match[1].trim();
+    const text = m.content.replace(CODEWORD_RE, "").trim();
+    return text || null;
+  }
+  return null;
+}
+
+function stripMarkers(content: string): string {
+  return content.replace(STATUS_RE, "").replace(CODEWORD_RE, "").trim();
+}
+
+function AskAiInstallButton({ skill, onChanged }: { skill: Skill; onChanged: () => void }) {
+  const { sendToSession } = useChat();
+  const { createSession } = useSessions();
+  const [sessionKey, setSessionKey] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const { messages, isThinking } = useSessionObserver(sessionKey);
+
+  const result = detectResult(messages);
+  const running = sessionKey !== null && result === null;
+  const latestLine = latestStatus(messages);
+  const visibleMessages = messages.filter((m) => m.role !== "user");
+
+  // Strip STATUS lines and codewords from displayed messages
+  const displayMessages = visibleMessages.map((m) => {
+    if (m.role !== "assistant") return m;
+    const cleaned = stripMarkers(m.content);
+    if (cleaned === m.content) return m;
+    return { ...m, content: cleaned };
+  })
+
+  // Refresh skills list on completion
+  useEffect(() => {
+    if (result) onChanged();
+  }, [result, onChanged]);
+
+  const handleClick = async () => {
     const allMissing = [...skill.missingBins, ...(skill.missingAnyBins ?? [])];
     const bins = allMissing.length > 0 ? allMissing.join(", ") : "its dependencies";
-    sendMessage(
+    const key = await createSession(`.tmp install ${bins}`, false);
+    setSessionKey(key);
+    sendToSession(
+      key,
       `Install ${bins} for the "${skill.name}" skill`,
-      `The user is asking you to install dependencies for the skill "${skill.name}" (id: ${skill.id}) in their OpenClaw instance. The missing binaries are: ${allMissing.join(", ") || "unknown"}. Install them using whatever package manager is available (apt-get, brew, npm, pip3, cargo, go, etc). After installing, verify the binary is on PATH.`,
+      `You are running inside a headless install session in the rele console. The user is asking you to install dependencies for the skill "${skill.name}" (id: ${skill.id}). The missing binaries are: ${allMissing.join(", ") || "unknown"}. Install them using whatever package manager is available (apt-get, brew, npm, pip3, cargo, go, etc). After installing, verify each binary is on PATH. Be concise — the output is shown in a small UI panel.\n\nSTATUS LINE: Start each assistant message with "STATUS: <short phrase>" on its own line (e.g. "STATUS: Installing ffmpeg via apt"). This is shown to the user as a progress indicator. Keep it short, friendly, and descriptive of what you're doing right now. The STATUS line is stripped from the message body.\n\nCOMPLETION: When you are done, end your final message with exactly one of these codewords on its own line:\n\nINSTALL_OK — all binaries installed and verified on PATH\nINSTALL_FAIL — one or more binaries could not be installed\nINSTALL_ATTENTION — installed but something needs the user's attention (e.g. PATH not persisted, version mismatch, manual step required)`,
     );
-    onClose();
   };
 
+  // Idle state
+  if (!sessionKey) {
+    return (
+      <button
+        onClick={handleClick}
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-medium text-white transition-all hover:bg-[var(--accent-dim)] active:scale-[0.98]"
+      >
+        <SparklesIcon className="size-3.5" />
+        Install with OpenClaw
+      </button>
+    );
+  }
+
+  // Result state
+  if (result) {
+    const config = {
+      ok:        { icon: CheckCircle2Icon, label: "Installed successfully", border: "border-[var(--status-success-border)]", bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]" },
+      fail:      { icon: XCircleIcon,      label: "Installation failed",    border: "border-[var(--status-error-border)]",   bg: "bg-[var(--status-error-bg)]",   text: "text-[var(--status-error-text)]" },
+      attention: { icon: AlertTriangleIcon, label: "Needs attention",        border: "border-[var(--status-warning-border)]", bg: "bg-[var(--status-warning-bg)]", text: "text-[var(--status-warning-text)]" },
+    }[result];
+    const Icon = config.icon;
+
+    return (
+      <div className="space-y-2">
+        <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-2", config.border, config.bg)}>
+          <Icon className={cn("size-3.5 shrink-0", config.text)} />
+          <span className={cn("flex-1 text-xs font-medium", config.text)}>{config.label}</span>
+          {displayMessages.length > 0 && (
+            <button onClick={() => setExpanded((v) => !v)} className={cn("transition-colors", config.text)}>
+              <ChevronDownIcon className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
+            </button>
+          )}
+        </div>
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: EASE }}
+              className="overflow-hidden"
+            >
+              <FadeScroll
+                className="rounded-lg border border-[var(--border)] bg-[var(--bg)]"
+                innerClassName="max-h-60 p-3"
+              >
+                <div className="flex flex-col gap-3">
+                  {displayMessages.map((msg) => (
+                    <MessageRow key={msg.id} msg={msg} compact />
+                  ))}
+                </div>
+              </FadeScroll>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // Running state
   return (
-    <button
-      onClick={handleClick}
-      className="flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-xs font-medium text-[var(--text)] transition-all hover:border-[var(--border-hi)]"
-    >
-      <SparklesIcon className="size-3.5" />
-      Ask AI to install
-    </button>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+        <RefreshCwIcon className="size-3.5 shrink-0 animate-spin text-[var(--accent)]" />
+        <span className="flex-1 min-w-0 truncate text-xs text-[var(--text-dim)]">
+          {latestLine ?? "Installing…"}
+        </span>
+        {displayMessages.length > 0 && (
+          <button onClick={() => setExpanded((v) => !v)} className="text-[var(--muted)] hover:text-[var(--text)] transition-colors">
+            <ChevronDownIcon className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
+          </button>
+        )}
+      </div>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: EASE }}
+            className="overflow-hidden"
+          >
+            <FadeScroll
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg)]"
+              innerClassName="max-h-60 p-3"
+              pinToBottom
+            >
+              <div className="flex flex-col gap-3">
+                {displayMessages.map((msg) => (
+                  <MessageRow key={msg.id} msg={msg} compact />
+                ))}
+                {isThinking && <TypingIndicator />}
+              </div>
+            </FadeScroll>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -313,7 +487,7 @@ function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: (
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md overflow-y-auto max-h-[90svh]">
+        <DialogContent className="sm:max-w-md max-h-[90svh] overflow-y-auto overflow-x-hidden">
 
           {/* Header: icon + name + status + description */}
           <div className="flex items-start gap-4">
@@ -359,7 +533,7 @@ function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: (
 
           {/* Details */}
           {hasDetails && (
-            <div className="space-y-4 border-t border-[var(--border)] pt-4">
+            <div className="min-w-0 space-y-4 border-t border-[var(--border)] pt-4">
               {(skill.missingBins.length > 0 || missingAnyBins.length > 0 || missingEnv.length > 0 || skill.missingConfig.length > 0) && (
                 <div className="rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 space-y-3">
                   {skill.missingBins.length > 0 && (
@@ -419,7 +593,7 @@ function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: (
                     {skill.installEntries.map((entry) => (
                       <InstallButton key={entry.id} skillId={skill.id} entry={entry} onDone={onChanged} />
                     ))}
-                    <AskAiInstallButton skill={skill} onClose={() => setOpen(false)} />
+                    <AskAiInstallButton skill={skill} onChanged={onChanged} />
                   </div>
                 </div>
               )}

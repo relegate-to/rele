@@ -23,7 +23,7 @@ interface SessionsContextValue {
   sessions: Session[];
   activeSessionKey: string;
   setActiveSessionKey: (key: string) => void;
-  createSession: (label: string) => Promise<string>;
+  createSession: (label: string, activate?: boolean) => Promise<string>;
   deleteSession: (key: string) => Promise<void>;
   renameSession: (key: string, label: string) => Promise<void>;
   refreshSessions: () => Promise<void>;
@@ -51,11 +51,12 @@ function parseSessions(raw: any[]): Session[] {
 }
 
 export function SessionsProvider({ children }: { children: ReactNode }) {
-  const { connected, rpc } = useGateway();
+  const { connected, rpc, subscribe } = useGateway();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionKey, setActiveSessionKey] = useState(MAIN_SESSION_KEY);
   const [loading, setLoading] = useState(false);
   const fetchedRef = useRef(false);
+  const sessionsRef = useRef<Session[]>([]);
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
@@ -65,7 +66,9 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
         includeDerivedTitles: true,
         limit: 100,
       });
-      setSessions(parseSessions((payload.sessions as any[]) ?? []));
+      const list = parseSessions((payload.sessions as any[]) ?? []);
+      sessionsRef.current = list;
+      setSessions(list);
     } catch {
       // Non-critical
     } finally {
@@ -85,11 +88,11 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
   }, [connected, fetchSessions]);
 
   const createSession = useCallback(
-    async (label: string): Promise<string> => {
+    async (label: string, activate = true): Promise<string> => {
       const key = `agent:main:webui-${Date.now()}`;
       await rpc("sessions.create", { key, label });
       await fetchSessions();
-      setActiveSessionKey(key);
+      if (activate) setActiveSessionKey(key);
       return key;
     },
     [rpc, fetchSessions],
@@ -117,6 +120,24 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
     },
     [rpc, fetchSessions],
   );
+
+  // Clean up dot-prefixed sessions on lifecycle:end.
+  useEffect(() => {
+    return subscribe((raw) => {
+      const data = raw as Record<string, unknown>;
+      if (data.type !== "event" || data.event !== "agent") return;
+      const payload = data.payload as Record<string, unknown>;
+      if (payload?.stream !== "lifecycle") return;
+      if ((payload.data as Record<string, unknown> | undefined)?.phase !== "end") return;
+      const key = payload.sessionKey as string | undefined;
+      if (!key) return;
+      const session = sessionsRef.current.find((s) => s.key === key);
+      if (!session || !session.displayName.startsWith(".tmp ")) return;
+      setActiveSessionKey((cur) => (cur === key ? MAIN_SESSION_KEY : cur));
+      rpc("sessions.delete", { key }).catch(() => {});
+      fetchSessions();
+    });
+  }, [subscribe, rpc, fetchSessions]);
 
   return (
     <SessionsContext.Provider

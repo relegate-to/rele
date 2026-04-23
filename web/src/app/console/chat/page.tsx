@@ -83,7 +83,7 @@ export default function ChatPage() {
      )}
     </AnimatePresence>
     <div className="mx-auto max-w-4xl px-6 py-6">
-     <div className="flex flex-col gap-5">
+     <div className="flex min-w-0 flex-col gap-5">
       {messages.map((msg) => (
        <MessageRow key={msg.id} msg={msg} />
       ))}

@@ -24,46 +24,82 @@ function dedupe(messages: ChatMessage[]): ChatMessage[] {
 
 export const SESSION_KEY = "agent:main:main";
 
+// Per-session state stored in a ref so background sessions keep accumulating.
+interface SessionStore {
+  messages: ChatMessage[];
+  isThinking: boolean;
+  segCounter: Record<string, number>;
+  currentStreamId: string | null;
+  historyFetched: boolean;
+}
+
+function emptyStore(): SessionStore {
+  return { messages: [], isThinking: false, segCounter: {}, currentStreamId: null, historyFetched: false };
+}
+
 export function useSandboxChat(sessionKey: string = SESSION_KEY) {
   const { connected, connecting, error, connect, send, subscribe } = useGateway();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const [currentModel, setCurrentModel] = useState<string | null>(null);
 
-  // Current segment index per runId. Increments on each tool result so the
-  // next assistant stream event creates a fresh bubble.
-  const segCounterRef = useRef<Record<string, number>>({});
-  // ID of the last assistant bubble we created/updated, for lifecycle:end.
-  const currentStreamIdRef = useRef<string | null>(null);
-  // Track which session key we last requested history for.
-  const lastHistoryKeyRef = useRef<string | null>(null);
+  const storeRef = useRef<Record<string, SessionStore>>({});
+  const sessionKeyRef = useRef(sessionKey);
+  sessionKeyRef.current = sessionKey;
+  const listenersRef = useRef<Map<string, Set<() => void>>>(new Map());
 
-  // Reset state when session key changes.
+  const getStore = useCallback((key: string): SessionStore => {
+    if (!storeRef.current[key]) storeRef.current[key] = emptyStore();
+    return storeRef.current[key];
+  }, []);
+
+  // Flush active session to React state + notify any observers for the key.
+  const flush = useCallback((key: string) => {
+    if (key === sessionKeyRef.current) {
+      const s = getStore(key);
+      setMessages([...s.messages]);
+      setIsThinking(s.isThinking);
+    }
+    const cbs = listenersRef.current.get(key);
+    if (cbs) for (const cb of cbs) cb();
+  }, [getStore]);
+
+  // Observe a specific session's store changes (for background sessions).
+  const observeSession = useCallback((key: string, cb: () => void) => {
+    if (!listenersRef.current.has(key)) listenersRef.current.set(key, new Set());
+    listenersRef.current.get(key)!.add(cb);
+    return () => { listenersRef.current.get(key)?.delete(cb); };
+  }, []);
+
+  const getSessionMessages = useCallback((key: string) => getStore(key).messages, [getStore]);
+  const getSessionThinking = useCallback((key: string) => getStore(key).isThinking, [getStore]);
+
+  // When session key changes, sync React state from the store.
   useEffect(() => {
-    setMessages([]);
-    setIsThinking(false);
-    segCounterRef.current = {};
-    currentStreamIdRef.current = null;
-    lastHistoryKeyRef.current = null;
-  }, [sessionKey]);
+    const s = getStore(sessionKey);
+    setMessages([...s.messages]);
+    setIsThinking(s.isThinking);
+  }, [sessionKey, getStore]);
 
   // Request chat history once per connection per session key.
   useEffect(() => {
     if (!connected) {
-      lastHistoryKeyRef.current = null;
+      // Reset history-fetched flags on disconnect so we re-fetch on reconnect.
+      for (const s of Object.values(storeRef.current)) s.historyFetched = false;
       return;
     }
-    if (lastHistoryKeyRef.current === sessionKey) return;
-    lastHistoryKeyRef.current = sessionKey;
+    const store = getStore(sessionKey);
+    if (store.historyFetched) return;
+    store.historyFetched = true;
     send({
       type: "req",
-      id: "chat-hist-" + Date.now(),
+      id: `chat-hist-${sessionKey}-${Date.now()}`,
       method: "chat.history",
       params: { sessionKey },
     });
-  }, [connected, send, sessionKey]);
+  }, [connected, send, sessionKey, getStore]);
 
-  // Subscribe to gateway messages and route them.
+  // Subscribe to gateway messages and route them to the correct session store.
   useEffect(() => {
     return subscribe((raw) => {
       const data = raw as Record<string, unknown>;
@@ -76,134 +112,127 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
       ) {
         const payload = data.payload as Record<string, unknown> | undefined;
         if (data.ok && payload?.messages) {
-          const history = parseHistoryMessages(
-            payload.messages as unknown[]
-          );
-          // History takes priority over any stale in-memory state (e.g. a
-          // streaming bubble that never got a lifecycle:end due to disconnect).
-          setMessages((prev) => dedupe([...history, ...prev]));
+          // Extract the session key from the request id: "chat-hist-<sessionKey>-<timestamp>"
+          const idStr = data.id as string;
+          const afterPrefix = idStr.slice("chat-hist-".length);
+          const lastDash = afterPrefix.lastIndexOf("-");
+          const histKey = lastDash > 0 ? afterPrefix.slice(0, lastDash) : sessionKeyRef.current;
+
+          const store = getStore(histKey);
+          const history = parseHistoryMessages(payload.messages as unknown[]);
+          store.messages = dedupe([...history, ...store.messages]);
+          flush(histKey);
         }
         return;
       }
 
       if (data.type === "event" && data.event === "agent") {
         const payload = data.payload as Record<string, unknown>;
+        const evtKey = (payload?.sessionKey as string) || sessionKeyRef.current;
+        const store = getStore(evtKey);
         const stream = payload?.stream;
 
         if (stream === "assistant") {
-          // Handles stream:"assistant" agent events.
-          // data.text is the segment-local cumulative text (resets after each
-          // tool call), so we use segment counters to give each segment its own bubble.
           const runId = payload.runId as string | undefined;
           const text = (payload.data as Record<string, unknown> | undefined)?.text;
           if (!runId || !text) return;
 
-          const seg = segCounterRef.current[runId] ?? 0;
+          const seg = store.segCounter[runId] ?? 0;
           const messageId = `run:${runId}:${seg}`;
-          currentStreamIdRef.current = messageId;
-          setIsThinking(false);
+          store.currentStreamId = messageId;
+          store.isThinking = false;
 
-          setMessages((prev) => {
-            const idx = prev.findIndex((m) => m.id === messageId);
-            if (idx !== -1) {
-              const updated = [...prev];
-              updated[idx] = { ...updated[idx], content: text as string, isStreaming: true };
-              return updated;
-            }
-            return [
-              ...prev,
-              {
-                id: messageId,
-                role: "assistant" as const,
-                content: text as string,
-                isStreaming: true,
-                timestamp: (payload.ts as number | undefined) ?? Date.now(),
-              },
-            ];
-          });
+          const idx = store.messages.findIndex((m) => m.id === messageId);
+          if (idx !== -1) {
+            store.messages[idx] = { ...store.messages[idx], content: text as string, isStreaming: true };
+          } else {
+            store.messages.push({
+              id: messageId,
+              role: "assistant" as const,
+              content: text as string,
+              isStreaming: true,
+              timestamp: (payload.ts as number | undefined) ?? Date.now(),
+            });
+          }
+          flush(evtKey);
           return;
         }
 
         if (stream === "tool") {
-          // Tool start: mark the current segment bubble as no longer streaming,
-          // then append the chip in arrival order.
-          // Tool result: increment the segment counter so the next assistant stream
-          // event creates a new bubble.
           const event = parseToolEvent(payload);
           if (!event) return;
 
           if (event.type === "start") {
             const runId = payload.runId as string | undefined;
-            const seg = runId != null ? (segCounterRef.current[runId] ?? 0) : -1;
+            const seg = runId != null ? (store.segCounter[runId] ?? 0) : -1;
             const segId = runId != null ? `run:${runId}:${seg}` : null;
 
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === event.message.id)) return prev;
-              const next = segId
-                ? prev.map((m) => (m.id === segId ? { ...m, isStreaming: false } : m))
-                : [...prev];
-              return [...next, event.message];
-            });
+            if (!store.messages.some((m) => m.id === event.message.id)) {
+              if (segId) {
+                store.messages = store.messages.map((m) =>
+                  m.id === segId ? { ...m, isStreaming: false } : m
+                );
+              }
+              store.messages.push(event.message);
+            }
           } else {
             const runId = payload.runId as string | undefined;
             if (runId != null) {
-              segCounterRef.current[runId] = (segCounterRef.current[runId] ?? 0) + 1;
+              store.segCounter[runId] = (store.segCounter[runId] ?? 0) + 1;
             }
 
-            setMessages((prev) => {
-              const idx = prev.findIndex((m) => m.id === event.chipId);
-              if (idx !== -1) {
-                if (!event.isError) return prev;
-                const updated = [...prev];
-                updated[idx] = { ...updated[idx], toolError: true };
-                return updated;
+            const idx = store.messages.findIndex((m) => m.id === event.chipId);
+            if (idx !== -1) {
+              if (event.isError) {
+                store.messages[idx] = { ...store.messages[idx], toolError: true };
               }
-              return [...prev, event.fallback];
-            });
+            } else {
+              store.messages.push(event.fallback);
+            }
           }
+          flush(evtKey);
           return;
         }
 
         if (stream === "lifecycle") {
-          // Handles stream:"lifecycle" agent events.
           if ((payload.data as Record<string, unknown> | undefined)?.phase !== "end") return;
-          const msgId = currentStreamIdRef.current;
+          const msgId = store.currentStreamId;
           if (msgId) {
-            setMessages((prev) => {
-              const idx = prev.findIndex((m) => m.id === msgId);
-              if (idx === -1) return prev;
-              const updated = [...prev];
-              updated[idx] = { ...updated[idx], isStreaming: false };
-              return updated;
-            });
-            currentStreamIdRef.current = null;
+            const idx = store.messages.findIndex((m) => m.id === msgId);
+            if (idx !== -1) {
+              store.messages[idx] = { ...store.messages[idx], isStreaming: false };
+            }
+            store.currentStreamId = null;
           }
-          setIsThinking(false);
+          store.isThinking = false;
           const runId = payload.runId as string | undefined;
-          if (runId != null) delete segCounterRef.current[runId];
+          if (runId != null) delete store.segCounter[runId];
+          flush(evtKey);
           return;
         }
       }
 
       // Chat events used for error reporting only.
       if (data.type === "event" && data.event === "chat") {
-        const event = parseChatEvent(data.payload as Record<string, unknown>);
+        const chatPayload = data.payload as Record<string, unknown>;
+        const evtKey = (chatPayload?.sessionKey as string) || sessionKeyRef.current;
+        const store = getStore(evtKey);
+        const event = parseChatEvent(chatPayload);
         if (!event || event.state !== "error") return;
-        setIsThinking(false);
-        setMessages((prev) =>
-          dedupe([
-            ...prev,
-            {
-              id: `error:${event.messageId}:${Date.now()}`,
-              role: "assistant",
-              content: event.text || "Agent error",
-              timestamp: Date.now(),
-            },
-          ])
-        );
+        store.isThinking = false;
+        store.messages = dedupe([
+          ...store.messages,
+          {
+            id: `error:${event.messageId}:${Date.now()}`,
+            role: "assistant",
+            content: event.text || "Agent error",
+            timestamp: Date.now(),
+          },
+        ]);
+        flush(evtKey);
       }
     });
-  }, [subscribe]);
+  }, [subscribe, getStore, flush]);
 
   const setModel = useCallback(
     (model: string) => {
@@ -225,11 +254,11 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
       if (!connected) return;
 
       const id = crypto.randomUUID();
+      const store = getStore(sessionKey);
 
-      setMessages((prev) =>
-        dedupe([...prev, { id, role: "user", content, timestamp: Date.now() }])
-      );
-      setIsThinking(true);
+      store.messages = dedupe([...store.messages, { id, role: "user", content, timestamp: Date.now() }]);
+      store.isThinking = true;
+      flush(sessionKey);
 
       const gatewayMessage = hiddenPrefix
         ? `${HIDDEN_START}${hiddenPrefix}${HIDDEN_END}\n\n${content}`
@@ -246,7 +275,36 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
         },
       });
     },
-    [connected, send, sessionKey]
+    [connected, send, sessionKey, getStore, flush]
+  );
+
+  const sendToSession = useCallback(
+    (targetKey: string, content: string, hiddenPrefix?: string) => {
+      if (!connected) return;
+
+      const id = crypto.randomUUID();
+      const store = getStore(targetKey);
+
+      store.messages = dedupe([...store.messages, { id, role: "user", content, timestamp: Date.now() }]);
+      store.isThinking = true;
+      flush(targetKey);
+
+      const gatewayMessage = hiddenPrefix
+        ? `${HIDDEN_START}${hiddenPrefix}${HIDDEN_END}\n\n${content}`
+        : content;
+
+      send({
+        type: "req",
+        id,
+        method: "chat.send",
+        params: {
+          sessionKey: targetKey,
+          message: gatewayMessage,
+          idempotencyKey: id,
+        },
+      });
+    },
+    [connected, send, getStore, flush]
   );
 
   return {
@@ -257,6 +315,10 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
     error,
     connect,
     sendMessage,
+    sendToSession,
+    observeSession,
+    getSessionMessages,
+    getSessionThinking,
     currentModel,
     setModel,
   };

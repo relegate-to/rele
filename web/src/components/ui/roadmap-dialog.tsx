@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogClose,
@@ -11,6 +11,7 @@ import {
 import { BookOpen, Layers, Link2, MessageSquare, Smartphone, Sparkles, ShieldCheck, RocketIcon, XIcon, Wrench, CheckCircle2, Cloud, Plug, MonitorSmartphone, BotMessageSquare, KeyRound, CreditCard, Zap, Monitor, Activity, Terminal, FileCode, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "@/app/console/_context/i18n-context";
+import { FadeScroll } from "@/components/ui/fade-scroll";
 
 const metadata = {
   date: "April 9, 2026",
@@ -371,23 +372,6 @@ export function RoadmapDialog({
   const [selected, setSelected] = useState(0);
   const items = view === "planned" ? roadmapItems : completedItems;
   const active = items[selected];
-  const [showTopFade, setShowTopFade] = useState(false);
-  const [showBottomFade, setShowBottomFade] = useState(true);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  const checkFades = useCallback(() => {
-    const el = listRef.current;
-    if (!el) return;
-    setShowTopFade(el.scrollTop > 8);
-    setShowBottomFade(el.scrollTop + el.clientHeight < el.scrollHeight - 8);
-  }, []);
-
-  const handleScroll = checkFades;
-
-  useEffect(() => {
-    checkFades();
-  }, [items, checkFades]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -430,8 +414,12 @@ export function RoadmapDialog({
           <div className="grid min-h-0 flex-1 grid-cols-[260px_1fr] divide-x divide-[var(--border)]">
 
             {/* left — scrollable item list */}
-            <div className="relative h-full min-h-0">
-            <div ref={listRef} onScroll={handleScroll} className="absolute inset-0 flex flex-col gap-0.5 overflow-y-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <FadeScroll
+              className="h-full min-h-0"
+              innerClassName="absolute inset-0 flex flex-col gap-0.5 p-2"
+              fadeFrom="from-[var(--surface)]"
+              fadeHeight="h-10"
+            >
               {items.map((item, index) => (
                 <motion.button
                   key={item.title}
@@ -468,10 +456,7 @@ export function RoadmapDialog({
                   </div>
                 </motion.button>
               ))}
-            </div>
-            <div className={`pointer-events-none absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-[var(--surface)] to-transparent transition-opacity duration-200 ${showTopFade ? "opacity-100" : "opacity-0"}`} />
-            <div className={`pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[var(--surface)] to-transparent transition-opacity duration-200 ${showBottomFade ? "opacity-100" : "opacity-0"}`} />
-            </div>
+            </FadeScroll>
 
             {/* right — detail panel */}
             <div className="h-full overflow-y-auto p-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
