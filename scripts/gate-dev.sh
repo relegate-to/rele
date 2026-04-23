@@ -2,6 +2,7 @@
 # Interactive gate dev runner
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PORT=3001
 MENU_NAME="gate"
 MENU_KEYS="  [R] Restart  [Q] Quit  "
 
@@ -9,7 +10,7 @@ source "$REPO/scripts/lib/menu.sh"
 
 start() {
   local pids
-  pids=$(lsof -ti tcp:3001 2>/dev/null || true)
+  pids=$(lsof -ti tcp:$PORT 2>/dev/null || true)
   [[ -n "$pids" ]] && kill -9 $pids
   [[ -n "$LOG_FILE" ]] && rm -f "$LOG_FILE"
   LOG_FILE=$(mktemp /tmp/rele-gate-XXXXXX)
