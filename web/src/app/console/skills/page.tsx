@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { useGateway } from "../_context/gateway-context";
 
 const INSTANCE_PROXY = "/api/instance";
 
@@ -145,6 +146,7 @@ function InstallButton({ skillId, entry, onDone }: { skillId: string; entry: Ins
 // ── Config editor ─────────────────────────────────────────────────────────────
 
 function ConfigEditor({ skillId, initial, onSaved }: { skillId: string; initial: Record<string, unknown> | null; onSaved: () => void }) {
+  const { rpc } = useGateway();
   const [value, setValue] = useState(initial ? JSON.stringify(initial, null, 2) : "{}");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -153,10 +155,11 @@ function ConfigEditor({ skillId, initial, onSaved }: { skillId: string; initial:
     setSaving(true); setError(null);
     try {
       const parsed = JSON.parse(value);
-      await apiFetch(`/api/skills/${skillId}/config`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: parsed }),
+      const config = await rpc("config.get");
+      const hash = (config as Record<string, unknown>)?.hash as string | undefined;
+      await rpc("config.patch", {
+        patch: { plugins: { entries: { [skillId]: parsed } } },
+        ...(hash ? { hash } : {}),
       });
       onSaved();
     } catch (err) {
@@ -412,35 +415,6 @@ function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: (
 
 type RestartState = "pending" | "restarting" | "done" | "timeout";
 
-async function triggerRestart(
-  onStateChange: (s: RestartState) => void,
-  onRestarted: () => void,
-) {
-  onStateChange("restarting");
-  try { await apiFetch("/api/gateway/restart", { method: "POST" }); } catch {}
-  // Wait briefly so the gateway has time to go down before we start probing.
-  // Without this, the first poll can race in while the gateway is still up
-  // and falsely report "done" before the restart actually occurs.
-  await new Promise((r) => setTimeout(r, 3_000));
-  let attempts = 0;
-  const poll = setInterval(async () => {
-    attempts++;
-    if (attempts > 30) {
-      clearInterval(poll);
-      onStateChange("timeout");
-      return;
-    }
-    try {
-      const { ready } = await apiFetch("/api/gateway/restart/status");
-      if (ready) {
-        clearInterval(poll);
-        onStateChange("done");
-        setTimeout(() => { onRestarted(); }, 2_000);
-      }
-    } catch {}
-  }, 2_000);
-}
-
 function RestartBanner({
   state,
   onRestart,
@@ -507,6 +481,7 @@ function RestartBanner({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SkillsPage() {
+  const { connected, rpc } = useGateway();
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -515,10 +490,18 @@ export default function SkillsPage() {
   const [restartState, setRestartState] = useState<RestartState | null>(null);
   const [lockedStatus, setLockedStatus] = useState<Record<string, SkillStatus>>({});
   const [pendingEnabled, setPendingEnabled] = useState<Record<string, boolean>>({});
+  const sawDisconnectRef = useRef(false);
+  const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSkills = useCallback(async () => {
     try {
-      const { skills } = await apiFetch("/api/skills");
+      let config = {};
+      try { config = await rpc("config.get"); } catch {}
+      const { skills } = await apiFetch("/api/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config }),
+      });
       setSkills(skills);
       setError(null);
     } catch (err) {
@@ -526,21 +509,48 @@ export default function SkillsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [rpc]);
 
-  useEffect(() => { fetchSkills(); }, [fetchSkills]);
+  // Fetch skills when gateway connects (and on reconnect after restart).
+  useEffect(() => {
+    if (connected) fetchSkills();
+  }, [connected, fetchSkills]);
 
-  const handleRestarted = useCallback(() => {
-    setRestartState(null);
-    setLockedStatus({});
-    setPendingEnabled({});
-    setTimeout(fetchSkills, 1_000);
-  }, [fetchSkills]);
+  // Watch gateway connection for restart completion.
+  useEffect(() => {
+    if (restartState !== "restarting") {
+      sawDisconnectRef.current = false;
+      return;
+    }
+    if (!connected) sawDisconnectRef.current = true;
+    if (connected && sawDisconnectRef.current) {
+      if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
+      setRestartState("done");
+      sawDisconnectRef.current = false;
+      setTimeout(() => {
+        setRestartState(null);
+        setLockedStatus({});
+        setPendingEnabled({});
+      }, 2_000);
+    }
+  }, [connected, restartState]);
+
+  // Timeout if restart takes too long.
+  useEffect(() => {
+    if (restartState !== "restarting") return;
+    restartTimeoutRef.current = setTimeout(() => setRestartState("timeout"), 60_000);
+    return () => { if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current); };
+  }, [restartState]);
 
   const handleToggled = useCallback((skillId: string, status: SkillStatus, newEnabled: boolean) => {
     setLockedStatus((prev) => ({ ...prev, [skillId]: status }));
     setPendingEnabled((prev) => ({ ...prev, [skillId]: newEnabled }));
     setRestartState((prev) => prev === null ? "pending" : prev);
+  }, []);
+
+  const handleRestart = useCallback(async () => {
+    setRestartState("restarting");
+    try { await apiFetch("/api/gateway/restart", { method: "POST" }); } catch {}
   }, []);
 
   const handleChanged = useCallback(() => {
@@ -717,7 +727,7 @@ export default function SkillsPage() {
           >
             <RestartBanner
               state={restartState}
-              onRestart={() => triggerRestart(setRestartState, handleRestarted)}
+              onRestart={handleRestart}
               onDismiss={() => setRestartState(null)}
             />
           </motion.div>

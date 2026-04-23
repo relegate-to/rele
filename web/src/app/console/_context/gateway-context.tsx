@@ -19,6 +19,7 @@ interface GatewayContextValue {
   disconnect: () => void;
   send: (msg: object) => void;
   subscribe: (listener: Listener) => () => void;
+  rpc: (method: string, params?: Record<string, unknown>) => Promise<Record<string, unknown>>;
 }
 
 const GatewayContext = createContext<GatewayContextValue | null>(null);
@@ -205,6 +206,29 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     };
   }, [emit]);
 
+  const rpc = useCallback(
+    (method: string, params: Record<string, unknown> = {}): Promise<Record<string, unknown>> => {
+      return new Promise((resolve, reject) => {
+        const id = `rpc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const timer = setTimeout(() => {
+          unsub();
+          reject(new Error(`RPC timeout: ${method}`));
+        }, 15_000);
+        const unsub = subscribe((data) => {
+          const d = data as Record<string, unknown>;
+          if (d.type === "res" && d.id === id) {
+            clearTimeout(timer);
+            unsub();
+            if (d.ok) resolve((d.payload ?? {}) as Record<string, unknown>);
+            else reject(new Error(String((d as any).payload?.error ?? `RPC failed: ${method}`)));
+          }
+        });
+        send({ type: "req", id, method, params });
+      });
+    },
+    [send, subscribe],
+  );
+
   const disconnect = useCallback(() => {
     intentionalRef.current = true;
     if (retryTimerRef.current !== null) {
@@ -240,7 +264,7 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <GatewayContext.Provider
-      value={{ connected, connecting, error, connect, disconnect, send, subscribe }}
+      value={{ connected, connecting, error, connect, disconnect, send, subscribe, rpc }}
     >
       {children}
     </GatewayContext.Provider>
