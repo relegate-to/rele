@@ -28,24 +28,35 @@ export function FadeScroll({
     if (!el) return;
     setShowTopFade(el.scrollTop > 8);
     setShowBottomFade(el.scrollTop + el.clientHeight < el.scrollHeight - 8);
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    checkFades();
     if (pinToBottom) {
+      const el = scrollRef.current;
+      if (!el) return;
       pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
     }
-  }, [pinToBottom]);
+  }, [pinToBottom, checkFades]);
 
+  // Auto-scroll when content changes, only if pinned
+  const prevScrollHeight = useRef(0);
   useEffect(() => {
-    checkFades();
-    if (pinToBottom && pinnedRef.current) {
-      const el = scrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
+    const el = scrollRef.current;
+    if (!el) return;
+    const grew = el.scrollHeight > prevScrollHeight.current;
+    prevScrollHeight.current = el.scrollHeight;
+    if (pinToBottom && pinnedRef.current && grew) {
+      el.scrollTop = el.scrollHeight;
     }
+    checkFades();
   });
 
   return (
     <div className={cn("relative", className)}>
       <div
         ref={scrollRef}
-        onScroll={checkFades}
+        onScroll={handleScroll}
         className={cn("overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", innerClassName)}
       >
         {children}

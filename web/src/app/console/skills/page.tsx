@@ -102,7 +102,7 @@ function filterSkills(skills: Skill[], filter: FilterTab): Skill[] {
 
 type InstallState = "idle" | "running" | "done" | "error";
 
-function InstallButton({ skillId, entry, onDone }: { skillId: string; entry: InstallEntry; onDone: () => void }) {
+function InstallButton({ skillId, entry, onDone, onStateChange }: { skillId: string; entry: InstallEntry; onDone: () => void; onStateChange?: (state: InstallState) => void }) {
   const [state, setState] = useState<InstallState>("idle");
   const [output, setOutput] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -112,8 +112,13 @@ function InstallButton({ skillId, entry, onDone }: { skillId: string; entry: Ins
   };
   useEffect(() => () => stopPolling(), []);
 
+  const setStateAndNotify = (s: InstallState) => {
+    setState(s);
+    onStateChange?.(s);
+  };
+
   const install = async () => {
-    setState("running");
+    setStateAndNotify("running");
     setOutput(null);
     try {
       const { jobId } = await apiFetch(`/api/skills/${skillId}/install/${entry.id}`, { method: "POST" });
@@ -121,13 +126,13 @@ function InstallButton({ skillId, entry, onDone }: { skillId: string; entry: Ins
         try {
           const job = await apiFetch(`/api/skills/install/${jobId}`);
           if (job.output) setOutput(job.output);
-          if (job.status === "done") { stopPolling(); setState("done"); onDone(); }
-          else if (job.status === "error") { stopPolling(); setOutput(job.output || job.error || null); setState("error"); }
+          if (job.status === "done") { stopPolling(); setStateAndNotify("done"); onDone(); }
+          else if (job.status === "error") { stopPolling(); setOutput(job.output || job.error || null); setStateAndNotify("error"); }
         } catch {}
       }, 500);
     } catch (err) {
       setOutput(err instanceof Error ? err.message : "Failed to start");
-      setState("error");
+      setStateAndNotify("error");
     }
   };
 
@@ -148,11 +153,21 @@ function InstallButton({ skillId, entry, onDone }: { skillId: string; entry: Ins
                               : <DownloadIcon className="size-3.5" />}
         {state === "running" ? "Installing…" : state === "done" ? "Installed" : entry.label}
       </button>
-      {(state === "running" || output) && (
-        <pre className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 font-mono text-[11px] text-[var(--text-dim)] whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
-          {output ?? <span className="animate-pulse">…</span>}
-        </pre>
-      )}
+      <AnimatePresence>
+        {(state === "running" || output) && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: EASE }}
+            className="overflow-hidden"
+          >
+            <pre className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 font-mono text-[11px] text-[var(--text-dim)] whitespace-pre-wrap break-all h-40 overflow-y-auto">
+              {output ?? <span className="animate-pulse">…</span>}
+            </pre>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -214,7 +229,15 @@ function AskAiInstallButton({ skill, onChanged, initialSessionKey, initialSessio
   const [sessionLabel, setSessionLabel] = useState<string | null>(initialSessionLabel ?? null);
   const [expanded, setExpanded] = useState(false);
   const [latchedResult, setLatchedResult] = useState<InstallResult>(null);
+  const [logReady, setLogReady] = useState(false);
   const { messages, isThinking } = useSessionObserver(sessionKey);
+
+  // Pre-render log content once idle so expand animation doesn't lag
+  useEffect(() => {
+    if (!sessionKey || logReady) return;
+    const id = requestIdleCallback(() => setLogReady(true));
+    return () => cancelIdleCallback(id);
+  }, [sessionKey, logReady]);
 
   const liveResult = detectResult(messages);
   const result = latchedResult ?? liveResult;
@@ -260,56 +283,117 @@ function AskAiInstallButton({ skill, onChanged, initialSessionKey, initialSessio
     router.push("/console/chat");
   };
 
-  // Idle state — hide if no missing deps (e.g. after a successful install refreshed the skill)
   const hasMissing = skill.missingBins.length > 0 || (skill.missingAnyBins ?? []).length > 0;
-  if (!sessionKey) {
-    if (!hasMissing) return null;
-    return (
-      <button
-        onClick={handleClick}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-medium text-white transition-all hover:bg-[var(--accent-dim)] active:scale-[0.98]"
-      >
-        <SparklesIcon className="size-3.5" />
-        Install with OpenClaw
-      </button>
-    );
-  }
+  const stateKey = !sessionKey ? "idle" : result ? "result" : "running";
 
-  // Result state
-  if (result) {
-    const config = {
-      ok:        { icon: CheckCircle2Icon, label: "Installed successfully", border: "border-[var(--status-success-border)]", bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]" },
-      fail:      { icon: XCircleIcon,      label: "Installation failed",    border: "border-[var(--status-error-border)]",   bg: "bg-[var(--status-error-bg)]",   text: "text-[var(--status-error-text)]" },
-      attention: { icon: AlertTriangleIcon, label: "Needs attention",        border: "border-[var(--status-warning-border)]", bg: "bg-[var(--status-warning-bg)]", text: "text-[var(--status-warning-text)]" },
-    }[result];
-    const Icon = config.icon;
+  // Hide entirely when idle with no missing deps
+  if (!sessionKey && !hasMissing) return null;
 
-    return (
-      <div className="space-y-2">
-        <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-2", config.border, config.bg)}>
-          <Icon className={cn("size-3.5 shrink-0", config.text)} />
-          <span className={cn("flex-1 text-xs font-medium", config.text)}>{config.label}</span>
-          {displayMessages.length > 0 && (
-            <button onClick={() => setExpanded((v) => !v)} className={cn("transition-colors", config.text)}>
-              <ChevronDownIcon className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
-            </button>
-          )}
-        </div>
-        <AnimatePresence>
-          {expanded && (
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {stateKey === "idle" && (
+        <motion.div
+          key="idle"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.2, ease: EASE }}
+        >
+          <button
+            onClick={handleClick}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-medium text-white transition-all hover:bg-[var(--accent-dim)] active:scale-[0.98]"
+          >
+            <SparklesIcon className="size-3.5" />
+            Install with OpenClaw
+          </button>
+        </motion.div>
+      )}
+
+      {stateKey === "result" && result && (() => {
+        const config = {
+          ok:        { icon: CheckCircle2Icon, label: "Installed successfully", border: "border-[var(--status-success-border)]", bg: "bg-[var(--status-success-bg)]", text: "text-[var(--status-success-text)]" },
+          fail:      { icon: XCircleIcon,      label: "Installation failed",    border: "border-[var(--status-error-border)]",   bg: "bg-[var(--status-error-bg)]",   text: "text-[var(--status-error-text)]" },
+          attention: { icon: AlertTriangleIcon, label: "Needs attention",        border: "border-[var(--status-warning-border)]", bg: "bg-[var(--status-warning-bg)]", text: "text-[var(--status-warning-text)]" },
+        }[result];
+        const Icon = config.icon;
+
+        return (
+          <motion.div
+            key="result"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: EASE }}
+            className="space-y-2"
+          >
+            <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-2", config.border, config.bg)}>
+              <Icon className={cn("size-3.5 shrink-0", config.text)} />
+              <span className={cn("flex-1 text-xs font-medium", config.text)}>{config.label}</span>
+              {displayMessages.length > 0 && (
+                <button onClick={() => setExpanded((v) => !v)} className={cn("transition-colors", config.text)}>
+                  <ChevronDownIcon className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
+                </button>
+              )}
+            </div>
+            {logReady && (
+              <motion.div
+                initial={false}
+                animate={{ height: expanded ? "auto" : 0, opacity: expanded ? 1 : 0 }}
+                transition={{ duration: 0.2, ease: EASE }}
+                className="overflow-hidden rounded-lg"
+              >
+                <div className="relative rounded-lg border border-[var(--border)] bg-[var(--bg)]">
+                  <FadeScroll className="rounded-lg" innerClassName="h-60 p-3">
+                    <div className="flex flex-col gap-3">
+                      {displayMessages.map((msg) => (
+                        <MessageRow key={msg.id} msg={msg} compact />
+                      ))}
+                    </div>
+                  </FadeScroll>
+                  {sessionLabel && (
+                    <CornerTab onClick={goToSession}>{sessionLabel}</CornerTab>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        );
+      })()}
+
+      {stateKey === "running" && (
+        <motion.div
+          key="running"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.2, ease: EASE }}
+          className="space-y-2"
+        >
+          <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+            <RefreshCwIcon className="size-3.5 shrink-0 animate-spin text-[var(--accent)]" />
+            <span className="flex-1 min-w-0 truncate text-xs text-[var(--text-dim)]">
+              {latestLine ?? "Installing…"}
+            </span>
+            {displayMessages.length > 0 && (
+              <button onClick={() => setExpanded((v) => !v)} className="text-[var(--muted)] hover:text-[var(--text)] transition-colors">
+                <ChevronDownIcon className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
+              </button>
+            )}
+          </div>
+          {logReady && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              initial={false}
+              animate={{ height: expanded ? "auto" : 0, opacity: expanded ? 1 : 0 }}
               transition={{ duration: 0.2, ease: EASE }}
-              className="overflow-hidden"
+              className="overflow-hidden rounded-lg"
             >
               <div className="relative rounded-lg border border-[var(--border)] bg-[var(--bg)]">
-                <FadeScroll innerClassName="max-h-60 p-3">
+                <FadeScroll className="rounded-lg" innerClassName="h-60 p-3" pinToBottom>
                   <div className="flex flex-col gap-3">
                     {displayMessages.map((msg) => (
                       <MessageRow key={msg.id} msg={msg} compact />
                     ))}
+                    {isThinking && <TypingIndicator />}
                   </div>
                 </FadeScroll>
                 {sessionLabel && (
@@ -318,53 +402,9 @@ function AskAiInstallButton({ skill, onChanged, initialSessionKey, initialSessio
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
-      </div>
-    );
-  }
-
-  // Running state
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
-        <RefreshCwIcon className="size-3.5 shrink-0 animate-spin text-[var(--accent)]" />
-        <span className="flex-1 min-w-0 truncate text-xs text-[var(--text-dim)]">
-          {latestLine ?? "Installing…"}
-        </span>
-        {displayMessages.length > 0 && (
-          <button onClick={() => setExpanded((v) => !v)} className="text-[var(--muted)] hover:text-[var(--text)] transition-colors">
-            <ChevronDownIcon className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
-          </button>
-        )}
-      </div>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: EASE }}
-            className="overflow-hidden"
-          >
-            <div className="relative rounded-lg border border-[var(--border)] bg-[var(--bg)]">
-              <FadeScroll innerClassName="max-h-60 p-3" pinToBottom>
-                <div className="flex flex-col gap-3">
-                  {displayMessages.map((msg) => (
-                    <MessageRow key={msg.id} msg={msg} compact />
-                  ))}
-                  {isThinking && <TypingIndicator />}
-                </div>
-              </FadeScroll>
-              {sessionLabel && (
-                <button onClick={goToSession} className="absolute bottom-0 right-0 rounded-tl-lg rounded-br-lg bg-[var(--surface)] border-t border-l border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors truncate max-w-[200px]">
-                  {sessionLabel}
-                </button>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -420,6 +460,7 @@ function ConfigEditor({ skillId, initial, onSaved }: { skillId: string; initial:
 function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSessionLabel, onInstallSessionStart }: { skill: Skill; onChanged: () => void; onToggled: (skillId: string, lockedStatus: SkillStatus, newEnabled: boolean) => void; installSessionKey?: string; installSessionLabel?: string; onInstallSessionStart: (skillId: string, sessionKey: string, label: string) => void }) {
   const [toggling, setToggling] = useState(false);
   const [open, setOpen] = useState(false);
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
 
   const doToggle = async () => {
     setToggling(true);
@@ -463,68 +504,66 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
       <div
         onClick={() => setOpen(true)}
         className={cn(
-          "group flex flex-col gap-3 rounded-xl border bg-[var(--surface)] p-4 transition-all duration-150 cursor-pointer",
+          "group flex items-center gap-4 rounded-xl border bg-[var(--surface)] px-4 py-3 transition-all duration-150 cursor-pointer",
           needsSetup
             ? "border-[var(--status-warning-border)] hover:border-[var(--status-warning)] hover:shadow-md hover:shadow-black/10"
             : "border-[var(--border)] hover:border-[var(--border-hi)] hover:shadow-sm hover:shadow-black/10",
           !skill.enabled && !needsSetup && "opacity-50 hover:opacity-100",
         )}
       >
-        {/* Icon + switch */}
-        <div className="flex items-start justify-between">
-          <div className={cn(
-            "flex size-10 items-center justify-center rounded-xl text-xl leading-none",
-            needsSetup ? "bg-[var(--status-warning-bg)]" : "bg-[var(--surface-hi)]",
-            !skill.enabled && !needsSetup && "grayscale",
-          )}>
-            {skill.emoji ?? "🔧"}
-          </div>
-          <div onClick={(e) => e.stopPropagation()}>
-            <Switch
-              checked={skill.enabled && !needsSetup}
-              onClick={() => { void doToggle(); }}
-              disabled={toggling || needsSetup}
-              title={needsSetup ? "Fix issues before enabling" : skill.enabled ? "Disable" : "Enable"}
-            />
-          </div>
+        {/* Icon */}
+        <div className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-lg text-lg leading-none",
+          needsSetup ? "bg-[var(--status-warning-bg)]" : "bg-[var(--surface-hi)]",
+          !skill.enabled && !needsSetup && "grayscale",
+        )}>
+          {skill.emoji ?? "🔧"}
         </div>
 
         {/* Name + description */}
-        <div className="flex flex-col gap-1 flex-1">
-          <p className="text-sm font-semibold text-[var(--text)] leading-snug">
+        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+          <p className="text-sm font-semibold text-[var(--text)] leading-snug truncate">
             {skill.name}
           </p>
           {skill.description && (
-            <p className="text-xs text-[var(--text-dim)] leading-relaxed line-clamp-2">
+            <p className="text-xs text-[var(--text-dim)] leading-relaxed truncate">
               {skill.description}
             </p>
           )}
         </div>
 
         {/* Status badge */}
-        <div>
-          <span className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-            statusBadgeClass,
-          )}>
-            <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
-            {statusLabel}
-          </span>
+        <span className={cn(
+          "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+          statusBadgeClass,
+        )}>
+          <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
+          {statusLabel}
+        </span>
+
+        {/* Switch */}
+        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+          <Switch
+            checked={skill.enabled && !needsSetup}
+            onClick={() => { void doToggle(); }}
+            disabled={toggling || needsSetup}
+            title={needsSetup ? "Fix issues before enabling" : skill.enabled ? "Disable" : "Enable"}
+          />
         </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md max-h-[90svh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="sm:max-w-lg max-h-[90svh] overflow-y-auto overflow-x-hidden">
 
-          {/* Header: icon + name + status + description */}
-          <div className="flex items-start gap-4">
+          {/* Header: icon + name + status */}
+          <div className="flex items-center gap-4">
             <div className={cn(
-              "flex size-14 shrink-0 items-center justify-center rounded-2xl text-3xl leading-none",
+              "flex size-12 shrink-0 items-center justify-center rounded-xl text-2xl leading-none",
               needsSetup ? "bg-[var(--status-warning-bg)]" : "bg-[var(--surface-hi)]",
             )}>
               {skill.emoji ?? "🔧"}
             </div>
-            <div className="flex flex-col gap-1.5 min-w-0 pt-0.5">
+            <div className="flex flex-col gap-1.5 min-w-0">
               <DialogTitle className="text-base font-semibold leading-tight">
                 {skill.name}
               </DialogTitle>
@@ -535,13 +574,13 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
                 <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
                 {statusLabel}
               </span>
-              {skill.description && (
-                <p className="text-xs text-[var(--text-dim)] leading-relaxed">
-                  {skill.description}
-                </p>
-              )}
             </div>
           </div>
+          {skill.description && (
+            <p className="text-xs text-[var(--text-dim)] leading-relaxed">
+              {skill.description}
+            </p>
+          )}
 
           {/* Enable row */}
           <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
@@ -560,76 +599,118 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
 
           {/* Details */}
           {hasDetails && (
-            <div className="min-w-0 space-y-4 border-t border-[var(--border)] pt-4">
-              {(skill.missingBins.length > 0 || missingAnyBins.length > 0 || missingEnv.length > 0 || skill.missingConfig.length > 0) && (
-                <div className="rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 space-y-3">
-                  {skill.missingBins.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--status-warning-text)]">Missing binaries</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {skill.missingBins.map((bin) => (
-                          <code key={bin} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
-                            {bin}
-                          </code>
-                        ))}
+            <div className="min-w-0 border-t border-[var(--border)] pt-4">
+              <AnimatePresence mode="sync">
+                {(skill.missingBins.length > 0 || missingAnyBins.length > 0 || missingEnv.length > 0 || skill.missingConfig.length > 0) && (
+                  <motion.div
+                    key="warnings"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25, ease: EASE }}
+                    className="overflow-hidden"
+                  >
+                    <div className="rounded-lg border border-[var(--accent)]/30 bg-[var(--surface)] p-3 space-y-3 mb-4">
+                      {skill.missingBins.length > 0 && (
+                        <div>
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Missing binaries</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {skill.missingBins.map((bin) => (
+                              <code key={bin} className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text-dim)]">
+                                {bin}
+                              </code>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {missingAnyBins.length > 0 && (
+                        <div>
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Needs one of</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {missingAnyBins.map((bin) => (
+                              <code key={bin} className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text-dim)]">
+                                {bin}
+                              </code>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {missingEnv.length > 0 && (
+                        <div>
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Missing env vars</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {missingEnv.map((v) => (
+                              <code key={v} className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text-dim)]">
+                                {v}
+                              </code>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {skill.missingConfig.length > 0 && (
+                        <div>
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">Missing config keys</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {skill.missingConfig.map((path) => (
+                              <code key={path} className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text-dim)]">
+                                {path}
+                              </code>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+                {!installSessionKey && (skill.installEntries.length > 0 || skill.missingBins.length > 0 || missingAnyBins.length > 0) && (
+                  <motion.div
+                    key="install-options"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25, ease: EASE }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mb-4">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Install</p>
+                      <div className="relative space-y-2">
+                        <AnimatePresence mode="sync">
+                          {skill.installEntries.filter((e) => !activeEntryId || e.id === activeEntryId).map((entry) => (
+                            <motion.div
+                              key={entry.id}
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0, position: "absolute", width: "100%" }}
+                              transition={{ duration: 0.2, ease: EASE }}
+                              className="overflow-hidden"
+                            >
+                              <InstallButton skillId={skill.id} entry={entry} onDone={onChanged} onStateChange={(s) => { if (s === "running") setActiveEntryId(entry.id); else if (s === "done" || s === "error") setActiveEntryId(null); }} />
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
                       </div>
                     </div>
-                  )}
-                  {missingAnyBins.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--status-warning-text)]">Needs one of</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {missingAnyBins.map((bin) => (
-                          <code key={bin} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
-                            {bin}
-                          </code>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {missingEnv.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--status-warning-text)]">Missing env vars</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {missingEnv.map((v) => (
-                          <code key={v} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
-                            {v}
-                          </code>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {skill.missingConfig.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--status-warning-text)]">Missing config keys</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {skill.missingConfig.map((path) => (
-                          <code key={path} className="rounded-md border border-[var(--status-warning-border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--status-warning-text)]">
-                            {path}
-                          </code>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              {!installSessionKey && (skill.installEntries.length > 0 || skill.missingBins.length > 0 || missingAnyBins.length > 0) && (
-                <div>
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Install</p>
-                  <div className="space-y-2">
-                    {skill.installEntries.map((entry) => (
-                      <InstallButton key={entry.id} skillId={skill.id} entry={entry} onDone={onChanged} />
-                    ))}
-                  </div>
-                </div>
-              )}
-              <AskAiInstallButton skill={skill} onChanged={onChanged} initialSessionKey={installSessionKey} initialSessionLabel={installSessionLabel} onSessionStart={(key, label) => onInstallSessionStart(skill.id, key, label)} />
-              {skill.pluginConfig !== null && (
-                <div>
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Config</p>
-                  <ConfigEditor skillId={skill.id} initial={skill.pluginConfig} onSaved={onChanged} />
-                </div>
-              )}
+                  </motion.div>
+                )}
+                {!activeEntryId && (
+                  <motion.div
+                    key="ai-install"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25, ease: EASE }}
+                    className="overflow-hidden"
+                  >
+                    <AskAiInstallButton skill={skill} onChanged={onChanged} initialSessionKey={installSessionKey} initialSessionLabel={installSessionLabel} onSessionStart={(key, label) => onInstallSessionStart(skill.id, key, label)} />
+                  </motion.div>
+                )}
+                {skill.pluginConfig !== null && (
+                  <motion.div key="config" transition={{ duration: 0.25, ease: EASE }} className="mt-4">
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Config</p>
+                    <ConfigEditor skillId={skill.id} initial={skill.pluginConfig} onSaved={onChanged} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
 
@@ -886,13 +967,13 @@ export default function SkillsPage() {
 
 
 
-            {/* Loading skeleton grid */}
+            {/* Loading skeleton */}
             {loading && (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div className="flex flex-col gap-2">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div
                     key={i}
-                    className="h-44 animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+                    className="h-14 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--surface)]"
                   />
                 ))}
               </div>
@@ -933,7 +1014,7 @@ export default function SkillsPage() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
-                    className="grid grid-cols-2 gap-4 sm:grid-cols-3"
+                    className="flex flex-col gap-2"
                   >
                     {filtered.map((skill) => (
                       <SkillCard key={skill.id} skill={skill} onChanged={handleChanged} onToggled={handleToggled} installSessionKey={installSessions[skill.id]?.key} installSessionLabel={installSessions[skill.id]?.label} onInstallSessionStart={(skillId, key, label) => setInstallSessions((prev) => ({ ...prev, [skillId]: { key, label } }))} />
