@@ -5,6 +5,7 @@
 // Fix messages not showing in log.
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangleIcon,
@@ -32,6 +33,7 @@ import { useSessions } from "../_context/sessions-context";
 import { MessageRow } from "../_components/chat-components";
 import { TypingIndicator } from "@/components/ui/typing-indicator";
 import { FadeScroll } from "@/components/ui/fade-scroll";
+import { CornerTab } from "@/components/ui/corner-tab";
 import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
 
 const INSTANCE_PROXY = "/api/instance";
@@ -187,7 +189,7 @@ function detectResult(messages: ChatMessage[]): InstallResult {
   return null;
 }
 
-const STATUS_RE = /^STATUS:\s*(.+)$/m;
+const STATUS_RE = /^[*_]*STATUS:\s*(.+?)[\s*_]*$/m;
 const CODEWORD_RE = /\n?INSTALL_(OK|FAIL|ATTENTION)\b.*$/s;
 
 function latestStatus(messages: ChatMessage[]): string | null {
@@ -196,8 +198,6 @@ function latestStatus(messages: ChatMessage[]): string | null {
     if (m.role !== "assistant") continue;
     const match = m.content.match(STATUS_RE);
     if (match) return match[1].trim();
-    const text = m.content.replace(CODEWORD_RE, "").trim();
-    return text || null;
   }
   return null;
 }
@@ -206,14 +206,18 @@ function stripMarkers(content: string): string {
   return content.replace(STATUS_RE, "").replace(CODEWORD_RE, "").trim();
 }
 
-function AskAiInstallButton({ skill, onChanged }: { skill: Skill; onChanged: () => void }) {
+function AskAiInstallButton({ skill, onChanged, initialSessionKey, initialSessionLabel, onSessionStart }: { skill: Skill; onChanged: () => void; initialSessionKey?: string; initialSessionLabel?: string; onSessionStart: (sessionKey: string, label: string) => void }) {
   const { sendToSession } = useChat();
-  const { createSession } = useSessions();
-  const [sessionKey, setSessionKey] = useState<string | null>(null);
+  const { createSession, setActiveSessionKey } = useSessions();
+  const router = useRouter();
+  const [sessionKey, setSessionKey] = useState<string | null>(initialSessionKey ?? null);
+  const [sessionLabel, setSessionLabel] = useState<string | null>(initialSessionLabel ?? null);
   const [expanded, setExpanded] = useState(false);
+  const [latchedResult, setLatchedResult] = useState<InstallResult>(null);
   const { messages, isThinking } = useSessionObserver(sessionKey);
 
-  const result = detectResult(messages);
+  const liveResult = detectResult(messages);
+  const result = latchedResult ?? liveResult;
   const running = sessionKey !== null && result === null;
   const latestLine = latestStatus(messages);
   const visibleMessages = messages.filter((m) => m.role !== "user");
@@ -226,6 +230,11 @@ function AskAiInstallButton({ skill, onChanged }: { skill: Skill; onChanged: () 
     return { ...m, content: cleaned };
   }).filter((m) => m.role !== "assistant" || m.content.length > 0);
 
+  // Latch the result so it survives session cleanup
+  useEffect(() => {
+    if (liveResult && !latchedResult) setLatchedResult(liveResult);
+  }, [liveResult, latchedResult]);
+
   // Refresh skills list on completion
   useEffect(() => {
     if (result) onChanged();
@@ -234,17 +243,27 @@ function AskAiInstallButton({ skill, onChanged }: { skill: Skill; onChanged: () 
   const handleClick = async () => {
     const allMissing = [...skill.missingBins, ...(skill.missingAnyBins ?? [])];
     const bins = allMissing.length > 0 ? allMissing.join(", ") : "its dependencies";
-    const key = await createSession(`.tmp install ${bins}`, false);
+    const label = `.tmp install ${bins}`;
+    const key = await createSession(label, false);
     setSessionKey(key);
+    setSessionLabel(label);
+    onSessionStart(key, label);
     sendToSession(
       key,
-      `Install ${bins} for the "${skill.name}" skill`,
-      `You are running inside a headless install session in the rele console. The user is asking you to install dependencies for the skill "${skill.name}" (id: ${skill.id}). The missing binaries are: ${allMissing.join(", ") || "unknown"}. Install them using whatever package manager is available (apt-get, brew, npm, pip3, cargo, go, etc). After installing, verify each binary is on PATH. Be concise — the output is shown in a small UI panel.\n\nSTATUS LINE: Start each assistant message with "STATUS: <short phrase>" on its own line (e.g. "STATUS: Installing ffmpeg via apt"). This is shown to the user as a progress indicator. Keep it short, friendly, and descriptive of what you're doing right now. The STATUS line is stripped from the message body.\n\nCOMPLETION: When you are done, end your final message with exactly one of these codewords on its own line:\n\nINSTALL_OK — all binaries installed and verified on PATH\nINSTALL_FAIL — one or more binaries could not be installed\nINSTALL_ATTENTION — installed but something needs the user's attention (e.g. PATH not persisted, version mismatch, manual step required)`,
+      `Install ${allMissing.join(", ") || "dependencies"} for "${skill.name}". Check /app/skills/${skill.id}/SKILL.md first — it usually has install instructions. Verify on PATH after. Before each action send "STATUS: <1-5 words>" (e.g. "STATUS: Installing via apt"). End final message with INSTALL_OK, INSTALL_FAIL, or INSTALL_ATTENTION.`,
     );
   };
 
-  // Idle state
+  const goToSession = () => {
+    if (!sessionKey) return;
+    setActiveSessionKey(sessionKey);
+    router.push("/console/chat");
+  };
+
+  // Idle state — hide if no missing deps (e.g. after a successful install refreshed the skill)
+  const hasMissing = skill.missingBins.length > 0 || (skill.missingAnyBins ?? []).length > 0;
   if (!sessionKey) {
+    if (!hasMissing) return null;
     return (
       <button
         onClick={handleClick}
@@ -285,16 +304,18 @@ function AskAiInstallButton({ skill, onChanged }: { skill: Skill; onChanged: () 
               transition={{ duration: 0.2, ease: EASE }}
               className="overflow-hidden"
             >
-              <FadeScroll
-                className="rounded-lg border border-[var(--border)] bg-[var(--bg)]"
-                innerClassName="max-h-60 p-3"
-              >
-                <div className="flex flex-col gap-3">
-                  {displayMessages.map((msg) => (
-                    <MessageRow key={msg.id} msg={msg} compact />
-                  ))}
-                </div>
-              </FadeScroll>
+              <div className="relative rounded-lg border border-[var(--border)] bg-[var(--bg)]">
+                <FadeScroll innerClassName="max-h-60 p-3">
+                  <div className="flex flex-col gap-3">
+                    {displayMessages.map((msg) => (
+                      <MessageRow key={msg.id} msg={msg} compact />
+                    ))}
+                  </div>
+                </FadeScroll>
+                {sessionLabel && (
+                  <CornerTab onClick={goToSession}>{sessionLabel}</CornerTab>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -325,18 +346,21 @@ function AskAiInstallButton({ skill, onChanged }: { skill: Skill; onChanged: () 
             transition={{ duration: 0.2, ease: EASE }}
             className="overflow-hidden"
           >
-            <FadeScroll
-              className="rounded-lg border border-[var(--border)] bg-[var(--bg)]"
-              innerClassName="max-h-60 p-3"
-              pinToBottom
-            >
-              <div className="flex flex-col gap-3">
-                {displayMessages.map((msg) => (
-                  <MessageRow key={msg.id} msg={msg} compact />
-                ))}
-                {isThinking && <TypingIndicator />}
-              </div>
-            </FadeScroll>
+            <div className="relative rounded-lg border border-[var(--border)] bg-[var(--bg)]">
+              <FadeScroll innerClassName="max-h-60 p-3" pinToBottom>
+                <div className="flex flex-col gap-3">
+                  {displayMessages.map((msg) => (
+                    <MessageRow key={msg.id} msg={msg} compact />
+                  ))}
+                  {isThinking && <TypingIndicator />}
+                </div>
+              </FadeScroll>
+              {sessionLabel && (
+                <button onClick={goToSession} className="absolute bottom-0 right-0 rounded-tl-lg rounded-br-lg bg-[var(--surface)] border-t border-l border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors truncate max-w-[200px]">
+                  {sessionLabel}
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -393,7 +417,7 @@ function ConfigEditor({ skillId, initial, onSaved }: { skillId: string; initial:
 
 // ── Skill card ────────────────────────────────────────────────────────────────
 
-function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: () => void; onToggled: (skillId: string, lockedStatus: SkillStatus, newEnabled: boolean) => void }) {
+function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSessionLabel, onInstallSessionStart }: { skill: Skill; onChanged: () => void; onToggled: (skillId: string, lockedStatus: SkillStatus, newEnabled: boolean) => void; installSessionKey?: string; installSessionLabel?: string; onInstallSessionStart: (skillId: string, sessionKey: string, label: string) => void }) {
   const [toggling, setToggling] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -412,8 +436,10 @@ function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: (
   const missingAnyBins = skill.missingAnyBins ?? [];
   const missingEnv = skill.missingEnv ?? [];
 
-  const needsSetup = skill.status === "missing-deps" || skill.status === "needs-config";
-  const hasDetails = skill.pluginConfig !== null || skill.missingBins.length > 0 || missingAnyBins.length > 0 || missingEnv.length > 0 || skill.missingConfig.length > 0 || skill.installEntries.length > 0;
+  const { messages: installMessages } = useSessionObserver(installSessionKey ?? null);
+  const installResult = detectResult(installMessages);
+  const needsSetup = (skill.status === "missing-deps" || skill.status === "needs-config") && installResult !== "ok";
+  const hasDetails = skill.pluginConfig !== null || skill.missingBins.length > 0 || missingAnyBins.length > 0 || missingEnv.length > 0 || skill.missingConfig.length > 0 || skill.installEntries.length > 0 || !!installSessionKey;
 
   const dotColor =
     skill.status === "ready"          ? "bg-[var(--status-success-text)]"
@@ -587,17 +613,17 @@ function SkillCard({ skill, onChanged, onToggled }: { skill: Skill; onChanged: (
                   )}
                 </div>
               )}
-              {(skill.installEntries.length > 0 || skill.missingBins.length > 0 || missingAnyBins.length > 0) && (
+              {!installSessionKey && (skill.installEntries.length > 0 || skill.missingBins.length > 0 || missingAnyBins.length > 0) && (
                 <div>
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Install</p>
                   <div className="space-y-2">
                     {skill.installEntries.map((entry) => (
                       <InstallButton key={entry.id} skillId={skill.id} entry={entry} onDone={onChanged} />
                     ))}
-                    <AskAiInstallButton skill={skill} onChanged={onChanged} />
                   </div>
                 </div>
               )}
+              <AskAiInstallButton skill={skill} onChanged={onChanged} initialSessionKey={installSessionKey} initialSessionLabel={installSessionLabel} onSessionStart={(key, label) => onInstallSessionStart(skill.id, key, label)} />
               {skill.pluginConfig !== null && (
                 <div>
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Config</p>
@@ -694,6 +720,7 @@ export default function SkillsPage() {
   const [pendingEnabled, setPendingEnabled] = useState<Record<string, boolean>>({});
   const sawDisconnectRef = useRef(false);
   const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [installSessions, setInstallSessions] = useState<Record<string, { key: string; label: string }>>({});
 
   const fetchSkills = useCallback(async () => {
     try {
@@ -785,7 +812,8 @@ export default function SkillsPage() {
 
   const filteredIds = new Set(filterSkills(skillsForFilter, activeFilter).map((s) => s.id));
   const filtered = skillsForDisplay.filter((s) => {
-    if (!filteredIds.has(s.id)) return false;
+    // Keep skills with active install sessions visible so the dialog stays open
+    if (!filteredIds.has(s.id) && !installSessions[s.id]?.key) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return s.name.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q) || s.id.toLowerCase().includes(q);
@@ -908,7 +936,7 @@ export default function SkillsPage() {
                     className="grid grid-cols-2 gap-4 sm:grid-cols-3"
                   >
                     {filtered.map((skill) => (
-                      <SkillCard key={skill.id} skill={skill} onChanged={handleChanged} onToggled={handleToggled} />
+                      <SkillCard key={skill.id} skill={skill} onChanged={handleChanged} onToggled={handleToggled} installSessionKey={installSessions[skill.id]?.key} installSessionLabel={installSessions[skill.id]?.label} onInstallSessionStart={(skillId, key, label) => setInstallSessions((prev) => ({ ...prev, [skillId]: { key, label } }))} />
                     ))}
                   </motion.div>
                 )}
