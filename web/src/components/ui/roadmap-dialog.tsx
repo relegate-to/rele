@@ -391,13 +391,13 @@ export function RoadmapDialog({
             <div className="flex items-center gap-3">
               <div className="flex items-center rounded-md bg-[var(--surface-hi)] p-0.5 text-xs">
                 <button
-                  onClick={() => { setView("planned"); setSelected(0); setShowTopFade(false); setShowBottomFade(true); }}
+                  onClick={() => { setView("planned"); setSelected(0); }}
                   className={`rounded px-3 py-1 font-medium transition-colors ${view === "planned" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--muted)] hover:text-[var(--text-dim)]"}`}
                 >
                   {t("roadmap.planned")}
                 </button>
                 <button
-                  onClick={() => { setView("completed"); setSelected(0); setShowTopFade(false); setShowBottomFade(false); }}
+                  onClick={() => { setView("completed"); setSelected(0); }}
                   className={`rounded px-3 py-1 font-medium transition-colors ${view === "completed" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--muted)] hover:text-[var(--text-dim)]"}`}
                 >
                   {t("roadmap.completed")}
