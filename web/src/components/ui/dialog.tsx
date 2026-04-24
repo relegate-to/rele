@@ -62,16 +62,12 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            render={
-              <Button
-                variant="ghost"
-                className="absolute top-2 right-2"
-                size="icon-sm"
-              />
-            }
+            className="absolute top-2.5 right-2.5 inline-flex size-7 items-center justify-center rounded-lg backdrop-blur-md transition-colors focus:outline-none"
+            style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.15)" }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.25)"; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.7)"; }}
           >
-            <XIcon
-            />
+            <XIcon className="size-3.5" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}

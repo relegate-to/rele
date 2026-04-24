@@ -38,6 +38,53 @@ import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
 
 const INSTANCE_PROXY = "/api/instance";
 
+// ── Emoji color extraction ───────────────────────────────────────────────────
+
+const emojiColorCache = new Map<string, string>();
+
+function getEmojiColor(emoji: string): string | null {
+  if (emojiColorCache.has(emoji)) return emojiColorCache.get(emoji)!;
+  if (typeof document === "undefined") return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  ctx.font = "56px 'Noto Color Emoji', 'Apple Color Emoji', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(emoji, 32, 36);
+
+  const { data } = ctx.getImageData(0, 0, 64, 64);
+  let r = 0, g = 0, b = 0, count = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 128) continue; // skip transparent
+    r += data[i];
+    g += data[i + 1];
+    b += data[i + 2];
+    count++;
+  }
+  if (count === 0) return null;
+
+  const color = `${Math.round(r / count)}, ${Math.round(g / count)}, ${Math.round(b / count)}`;
+  emojiColorCache.set(emoji, color);
+  return color;
+}
+
+function useEmojiColor(emoji: string | null) {
+  const [color, setColor] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (!mounted || !emoji) return;
+    const id = requestIdleCallback(() => setColor(getEmojiColor(emoji)));
+    return () => cancelIdleCallback(id);
+  }, [mounted, emoji]);
+  return color;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SkillStatus = "ready" | "missing-deps" | "needs-config" | "disabled";
@@ -81,7 +128,7 @@ async function apiFetch(path: string, init?: RequestInit) {
 const FILTERS: { id: FilterTab; label: string }[] = [
   { id: "all", label: "All" },
   { id: "enabled", label: "Enabled" },
-  { id: "ready", label: "Ready" },
+  { id: "ready", label: "Disabled" },
   { id: "needs-setup", label: "Needs setup" },
 ];
 
@@ -342,9 +389,9 @@ function AskAiInstallButton({ skill, onChanged, initialSessionKey, initialSessio
                 transition={{ duration: 0.2, ease: EASE }}
                 className="overflow-hidden rounded-lg"
               >
-                <div className="relative rounded-lg border border-[var(--border)] bg-[var(--bg)]">
-                  <FadeScroll className="rounded-lg" innerClassName="h-60 p-3">
-                    <div className="flex flex-col gap-3">
+                <div className="relative rounded-lg border border-[var(--border)] bg-[var(--bg)] overflow-hidden">
+                  <FadeScroll className="rounded-lg" innerClassName="h-60 p-3 overflow-x-auto">
+                    <div className="flex flex-col gap-3 min-w-0 break-words overflow-hidden">
                       {displayMessages.map((msg) => (
                         <MessageRow key={msg.id} msg={msg} compact />
                       ))}
@@ -459,6 +506,7 @@ function ConfigEditor({ skillId, initial, onSaved }: { skillId: string; initial:
 
 function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSessionLabel, onInstallSessionStart }: { skill: Skill; onChanged: () => void; onToggled: (skillId: string, lockedStatus: SkillStatus, newEnabled: boolean) => void; installSessionKey?: string; installSessionLabel?: string; onInstallSessionStart: (skillId: string, sessionKey: string, label: string) => void }) {
   const [toggling, setToggling] = useState(false);
+  const emojiColor = useEmojiColor(skill.emoji ?? "🔧");
   const [open, setOpen] = useState(false);
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
 
@@ -488,87 +536,86 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
                                       : "bg-[var(--border-hi)]";
 
   const statusLabel =
-    skill.status === "ready"          ? "Ready"
+    skill.status === "ready"          ? "Active"
     : skill.status === "missing-deps" ? "Missing deps"
     : skill.status === "needs-config" ? "Needs config"
                                       : "Disabled";
 
 
   const statusBadgeClass =
-    skill.status === "ready"          ? "bg-[var(--status-success-bg)] text-[var(--status-success-text)] ring-1 ring-[var(--status-success-border)]"
-    : needsSetup                      ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] ring-1 ring-[var(--status-warning-border)]"
-                                      : "bg-[var(--surface-hi)] text-[var(--muted)] ring-1 ring-[var(--border)]";
+    skill.status === "ready"          ? "bg-[var(--status-success-bg)] text-[var(--status-success-text)] ring-1 ring-[var(--status-success)]"
+    : needsSetup                      ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] ring-1 ring-[var(--status-warning)]"
+                                      : "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)] ring-1 ring-[var(--status-neutral)]";
 
   return (
     <>
       <div
         onClick={() => setOpen(true)}
         className={cn(
-          "group flex items-center gap-4 rounded-xl border bg-[var(--surface)] px-4 py-3 transition-all duration-150 cursor-pointer",
-          needsSetup
-            ? "border-[var(--status-warning-border)] hover:border-[var(--status-warning)] hover:shadow-md hover:shadow-black/10"
-            : "border-[var(--border)] hover:border-[var(--border-hi)] hover:shadow-sm hover:shadow-black/10",
+          "group relative flex h-32 flex-row rounded-md bg-[var(--surface)] cursor-pointer overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.08)] transition-all duration-200 hover:scale-[1.02] hover:bg-[var(--surface-hi)]/30 hover:shadow-[0_4px_16px_-2px_rgba(99,102,241,0.15)] active:scale-[0.98] active:shadow-sm",
           !skill.enabled && !needsSetup && "opacity-50 hover:opacity-100",
         )}
       >
-        {/* Icon */}
-        <div className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-lg text-lg leading-none",
-          needsSetup ? "bg-[var(--status-warning-bg)]" : "bg-[var(--surface-hi)]",
-          !skill.enabled && !needsSetup && "grayscale",
-        )}>
-          {skill.emoji ?? "🔧"}
+        {/* Emoji panel */}
+        <div
+          className="relative flex w-16 shrink-0 items-center justify-center overflow-hidden "
+          style={{ background: emojiColor ? `linear-gradient(145deg, rgba(${emojiColor}, 0.5), rgba(${emojiColor}, 0.3))` : "var(--surface-hi)" }}
+        >
+          <span className="relative text-[5rem] leading-none opacity-85 rotate-[5deg] pointer-events-none" style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{skill.emoji ?? "🔧"}</span>
         </div>
 
-        {/* Name + description */}
-        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[var(--text)] leading-snug truncate">
-            {skill.name}
-          </p>
-          {skill.description && (
-            <p className="text-xs text-[var(--text-dim)] leading-relaxed truncate">
-              {skill.description}
+        {/* Content */}
+        <div className="flex flex-1 min-w-0 flex-col">
+          {/* Name + description */}
+          <div className="flex-1 min-h-0 px-3.5 py-2.5">
+            <p className="text-sm font-semibold text-[var(--text)] leading-snug truncate">
+              {skill.name}
             </p>
-          )}
-        </div>
+            {skill.description && (
+              <p className="mt-1 text-[11px] text-[var(--text-dim)] leading-relaxed line-clamp-2">
+                {skill.description}
+              </p>
+            )}
+          </div>
 
-        {/* Status badge */}
-        <span className={cn(
-          "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-          statusBadgeClass,
-        )}>
-          <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
-          {statusLabel}
-        </span>
-
-        {/* Switch */}
-        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-          <Switch
-            checked={skill.enabled && !needsSetup}
-            onClick={() => { void doToggle(); }}
-            disabled={toggling || needsSetup}
-            title={needsSetup ? "Fix issues before enabling" : skill.enabled ? "Disable" : "Enable"}
-          />
+          {/* Footer: badge + toggle */}
+          <div className="flex items-center justify-between px-3.5 py-2 bg-[var(--surface-hi)]/50">
+            <span className={cn(
+              "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold",
+              statusBadgeClass,
+            )}>
+              <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
+              {statusLabel}
+            </span>
+            <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+              <Switch
+                checked={skill.enabled && !needsSetup}
+                onClick={() => { void doToggle(); }}
+                disabled={toggling || needsSetup}
+                title={needsSetup ? "Fix issues before enabling" : skill.enabled ? "Disable" : "Enable"}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90svh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="sm:max-w-lg max-h-[90svh] overflow-y-auto overflow-x-hidden p-0">
 
-          {/* Header: icon + name + status */}
-          <div className="flex items-center gap-4">
-            <div className={cn(
-              "flex size-12 shrink-0 items-center justify-center rounded-xl text-2xl leading-none",
-              needsSetup ? "bg-[var(--status-warning-bg)]" : "bg-[var(--surface-hi)]",
-            )}>
-              {skill.emoji ?? "🔧"}
-            </div>
-            <div className="flex flex-col gap-1.5 min-w-0">
-              <DialogTitle className="text-base font-semibold leading-tight">
+          {/* Hero header with gradient */}
+          <div
+            className="relative overflow-hidden rounded-t-lg px-5 pt-5 pb-4"
+            style={{ background: emojiColor ? `linear-gradient(145deg, rgba(${emojiColor}, 0.6), rgba(${emojiColor}, 0.35))` : "var(--surface-hi)" }}
+          >
+            {/* Dark saturated wash behind text for contrast */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-black/10 to-transparent pointer-events-none" style={{ backdropFilter: "saturate(1.5)" }} />
+            <span className="absolute -right-4 -top-4 text-[7rem] leading-none opacity-50 rotate-[5deg] pointer-events-none" style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{skill.emoji ?? "🔧"}</span>
+            <div className="relative flex flex-col gap-2">
+              <DialogTitle className="text-base font-semibold leading-tight text-white">
                 {skill.name}
               </DialogTitle>
               <span className={cn(
-                "inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                "inline-flex w-fit items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold backdrop-blur-sm",
                 statusBadgeClass,
               )}>
                 <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
@@ -576,14 +623,16 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
               </span>
             </div>
           </div>
+
+          <div className="px-5 pb-5 pt-2">
           {skill.description && (
-            <p className="text-xs text-[var(--text-dim)] leading-relaxed">
+            <p className="text-xs text-[var(--text-dim)] leading-relaxed mb-5">
               {skill.description}
             </p>
           )}
 
           {/* Enable row */}
-          <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
+          <div className="flex items-center justify-between border-t border-[var(--border)] pt-5">
             <div>
               <p className="text-sm font-medium text-[var(--text)]">Enable skill</p>
               {needsSetup && (
@@ -599,7 +648,7 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
 
           {/* Details */}
           {hasDetails && (
-            <div className="min-w-0 border-t border-[var(--border)] pt-4">
+            <div className="min-w-0 border-t border-[var(--border)] pt-5 mt-5">
               <AnimatePresence mode="sync">
                 {(skill.missingBins.length > 0 || missingAnyBins.length > 0 || missingEnv.length > 0 || skill.missingConfig.length > 0) && (
                   <motion.div
@@ -675,9 +724,9 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
                       <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">Install</p>
                       <div className="relative space-y-2">
                         <AnimatePresence mode="sync">
-                          {skill.installEntries.filter((e) => !activeEntryId || e.id === activeEntryId).map((entry) => (
+                          {skill.installEntries.filter((e) => !activeEntryId || e.id === activeEntryId).map((entry, i) => (
                             <motion.div
-                              key={entry.id}
+                              key={`${entry.id}-${i}`}
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: "auto" }}
                               exit={{ opacity: 0, height: 0, position: "absolute", width: "100%" }}
@@ -713,6 +762,7 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
               </AnimatePresence>
             </div>
           )}
+          </div>
 
         </DialogContent>
       </Dialog>
@@ -904,7 +954,7 @@ export default function SkillsPage() {
     <div className="h-[100svh] relative flex flex-col">
       <div className="flex-1 overflow-y-auto stable-gutter">
       <div className="relative bg-[var(--bg)] text-[var(--text)]">
-        <div className="relative z-10 mx-auto max-w-[900px] px-8 py-8">
+        <div className="relative z-10 mx-auto px-8 py-8">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -969,11 +1019,11 @@ export default function SkillsPage() {
 
             {/* Loading skeleton */}
             {loading && (
-              <div className="flex flex-col gap-2">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-3">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                   <div
                     key={i}
-                    className="h-14 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--surface)]"
+                    className="h-32 animate-pulse rounded-md border border-[var(--border-hi)] bg-[var(--surface)]"
                   />
                 ))}
               </div>
@@ -989,39 +1039,45 @@ export default function SkillsPage() {
 
             {/* Skills grid */}
             {!loading && !error && (
-              <AnimatePresence mode="wait">
-                {filtered.length === 0 ? (
-                  <motion.div
-                    key="empty"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-14 text-center"
-                  >
-                    <p className="text-sm text-[var(--muted)]">
-                      {total === 0
-                        ? "No skills found in /app/skills/"
-                        : search.trim()
-                          ? `No skills match "${search}"`
-                          : `No skills match "${FILTERS.find((f) => f.id === activeFilter)?.label}"`}
-                    </p>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key={activeFilter}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex flex-col gap-2"
-                  >
+              <>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-3">
+                  <AnimatePresence mode="popLayout">
                     {filtered.map((skill) => (
-                      <SkillCard key={skill.id} skill={skill} onChanged={handleChanged} onToggled={handleToggled} installSessionKey={installSessions[skill.id]?.key} installSessionLabel={installSessions[skill.id]?.label} onInstallSessionStart={(skillId, key, label) => setInstallSessions((prev) => ({ ...prev, [skillId]: { key, label } }))} />
+                      <motion.div
+                        key={skill.id}
+                        layout="position"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2, layout: { duration: 0.25, ease: EASE } }}
+                        className="will-change-[transform,opacity]"
+                      >
+                        <SkillCard skill={skill} onChanged={handleChanged} onToggled={handleToggled} installSessionKey={installSessions[skill.id]?.key} installSessionLabel={installSessions[skill.id]?.label} onInstallSessionStart={(skillId, key, label) => setInstallSessions((prev) => ({ ...prev, [skillId]: { key, label } }))} />
+                      </motion.div>
                     ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </AnimatePresence>
+                </div>
+                <AnimatePresence>
+                  {filtered.length === 0 && (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-6 py-14 text-center"
+                    >
+                      <p className="text-sm text-[var(--muted)]">
+                        {total === 0
+                          ? "No skills found in /app/skills/"
+                          : search.trim()
+                            ? `No skills match "${search}"`
+                            : `No skills match "${FILTERS.find((f) => f.id === activeFilter)?.label}"`}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
             )}
           </motion.div>
         </div>
