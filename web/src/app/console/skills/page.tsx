@@ -205,7 +205,7 @@ function detectResult(messages: ChatMessage[]): InstallResult {
 }
 
 const STATUS_RE = /^[*_]*STATUS:\s*(.+?)[\s*_]*$/m;
-const CODEWORD_RE = /\n?INSTALL_(OK|FAIL|ATTENTION)\b.*$/s;
+const CODEWORD_RE = /\n?INSTALL_(OK|FAIL|ATTENTION)\b[\s\S]*$/;
 
 function latestStatus(messages: ChatMessage[]): string | null {
   for (let i = messages.length - 1; i >= 0; i--) {
