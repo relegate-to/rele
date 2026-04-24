@@ -4,7 +4,7 @@
 // Improve status at end of install.
 // Fix messages not showing in log.
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, memo, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -41,17 +41,25 @@ const INSTANCE_PROXY = "/api/instance";
 // ── Emoji color extraction ───────────────────────────────────────────────────
 
 const emojiColorCache = new Map<string, string>();
+let _sharedCanvas: HTMLCanvasElement | null = null;
+let _sharedCtx: CanvasRenderingContext2D | null = null;
+
+function getEmojiCanvas(): CanvasRenderingContext2D | null {
+  if (_sharedCtx) return _sharedCtx;
+  if (typeof document === "undefined") return null;
+  _sharedCanvas = document.createElement("canvas");
+  _sharedCanvas.width = 64;
+  _sharedCanvas.height = 64;
+  _sharedCtx = _sharedCanvas.getContext("2d", { willReadFrequently: true });
+  return _sharedCtx;
+}
 
 function getEmojiColor(emoji: string): string | null {
   if (emojiColorCache.has(emoji)) return emojiColorCache.get(emoji)!;
-  if (typeof document === "undefined") return null;
-
-  const canvas = document.createElement("canvas");
-  canvas.width = 64;
-  canvas.height = 64;
-  const ctx = canvas.getContext("2d");
+  const ctx = getEmojiCanvas();
   if (!ctx) return null;
 
+  ctx.clearRect(0, 0, 64, 64);
   ctx.font = "56px 'Noto Color Emoji', 'Apple Color Emoji', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -60,7 +68,7 @@ function getEmojiColor(emoji: string): string | null {
   const { data } = ctx.getImageData(0, 0, 64, 64);
   let r = 0, g = 0, b = 0, count = 0;
   for (let i = 0; i < data.length; i += 4) {
-    if (data[i + 3] < 128) continue; // skip transparent
+    if (data[i + 3] < 128) continue;
     r += data[i];
     g += data[i + 1];
     b += data[i + 2];
@@ -74,14 +82,15 @@ function getEmojiColor(emoji: string): string | null {
 }
 
 function useEmojiColor(emoji: string | null) {
-  const [color, setColor] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [color, setColor] = useState<string | null>(() =>
+    emoji ? emojiColorCache.get(emoji) ?? null : null,
+  );
   useEffect(() => {
-    if (!mounted || !emoji) return;
+    if (!emoji) return;
+    if (emojiColorCache.has(emoji)) { setColor(emojiColorCache.get(emoji)!); return; }
     const id = requestIdleCallback(() => setColor(getEmojiColor(emoji)));
     return () => cancelIdleCallback(id);
-  }, [mounted, emoji]);
+  }, [emoji]);
   return color;
 }
 
@@ -373,13 +382,14 @@ function AskAiInstallButton({ skill, onChanged, initialSessionKey, initialSessio
             transition={{ duration: 0.2, ease: EASE }}
             className="space-y-2"
           >
-            <div className={cn("flex items-center gap-2 rounded-lg border px-3 py-2", config.border, config.bg)}>
+            <div
+              onClick={displayMessages.length > 0 ? () => setExpanded((v) => !v) : undefined}
+              className={cn("flex items-center gap-2 rounded-lg px-3 py-2", config.bg, displayMessages.length > 0 && "cursor-pointer")}
+            >
               <Icon className={cn("size-3.5 shrink-0", config.text)} />
               <span className={cn("flex-1 text-xs font-medium", config.text)}>{config.label}</span>
               {displayMessages.length > 0 && (
-                <button onClick={() => setExpanded((v) => !v)} className={cn("transition-colors", config.text)}>
-                  <ChevronDownIcon className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
-                </button>
+                <ChevronDownIcon className={cn("size-3.5 transition-transform", config.text, expanded && "rotate-180")} />
               )}
             </div>
             {logReady && (
@@ -416,15 +426,16 @@ function AskAiInstallButton({ skill, onChanged, initialSessionKey, initialSessio
           transition={{ duration: 0.2, ease: EASE }}
           className="space-y-2"
         >
-          <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+          <div
+            onClick={displayMessages.length > 0 ? () => setExpanded((v) => !v) : undefined}
+            className={cn("flex items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-2", displayMessages.length > 0 && "cursor-pointer")}
+          >
             <RefreshCwIcon className="size-3.5 shrink-0 animate-spin text-[var(--accent)]" />
             <span className="flex-1 min-w-0 truncate text-xs text-[var(--text-dim)]">
               {latestLine ?? "Installing…"}
             </span>
             {displayMessages.length > 0 && (
-              <button onClick={() => setExpanded((v) => !v)} className="text-[var(--muted)] hover:text-[var(--text)] transition-colors">
-                <ChevronDownIcon className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
-              </button>
+              <ChevronDownIcon className={cn("size-3.5 text-[var(--muted)] transition-transform", expanded && "rotate-180")} />
             )}
           </div>
           {logReady && (
@@ -504,7 +515,7 @@ function ConfigEditor({ skillId, initial, onSaved }: { skillId: string; initial:
 
 // ── Skill card ────────────────────────────────────────────────────────────────
 
-function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSessionLabel, onInstallSessionStart }: { skill: Skill; onChanged: () => void; onToggled: (skillId: string, lockedStatus: SkillStatus, newEnabled: boolean) => void; installSessionKey?: string; installSessionLabel?: string; onInstallSessionStart: (skillId: string, sessionKey: string, label: string) => void }) {
+const SkillCard = memo(function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSessionLabel, onInstallSessionStart }: { skill: Skill; onChanged: () => void; onToggled: (skillId: string, lockedStatus: SkillStatus, newEnabled: boolean) => void; installSessionKey?: string; installSessionLabel?: string; onInstallSessionStart: (skillId: string, sessionKey: string, label: string) => void }) {
   const [toggling, setToggling] = useState(false);
   const emojiColor = useEmojiColor(skill.emoji ?? "🔧");
   const [open, setOpen] = useState(false);
@@ -599,12 +610,12 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
         </div>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90svh] overflow-y-auto overflow-x-hidden p-0">
+      {open && <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-xl max-h-[90svh] gap-0 !flex !flex-col overflow-hidden p-0 [&>*]:min-w-0">
 
           {/* Hero header with gradient */}
           <div
-            className="relative overflow-hidden rounded-t-lg px-5 pt-5 pb-4"
+            className="relative overflow-hidden rounded-t-lg px-5 pt-5 pb-4 shrink-0"
             style={{ background: emojiColor ? `linear-gradient(145deg, rgba(${emojiColor}, 0.6), rgba(${emojiColor}, 0.35))` : "var(--surface-hi)" }}
           >
             {/* Dark saturated wash behind text for contrast */}
@@ -624,7 +635,11 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
             </div>
           </div>
 
-          <div className="px-5 pb-5 pt-2">
+
+          <FadeScroll
+            className="flex-1 min-h-0 w-full"
+            innerClassName="px-5 pb-5 pt-2 flex flex-col h-auto max-h-[calc(90svh-120px)]"
+          >
           {skill.description && (
             <p className="text-xs text-[var(--text-dim)] leading-relaxed mb-5">
               {skill.description}
@@ -762,13 +777,13 @@ function SkillCard({ skill, onChanged, onToggled, installSessionKey, installSess
               </AnimatePresence>
             </div>
           )}
-          </div>
+          </FadeScroll>
 
         </DialogContent>
-      </Dialog>
+      </Dialog>}
     </>
   );
-}
+});
 
 // ── Restart banner ────────────────────────────────────────────────────────────
 
@@ -919,36 +934,39 @@ export default function SkillsPage() {
   }, [fetchSkills]);
 
   // For filtering/counts: lock status to pre-toggle value, keep enabled unchanged
-  const skillsForFilter = skills.map((s) => ({
+  const skillsForFilter = useMemo(() => skills.map((s) => ({
     ...s,
     ...(s.id in lockedStatus && { status: lockedStatus[s.id] }),
-  }));
+  })), [skills, lockedStatus]);
 
   // For display: also apply the new enabled state so the switch reflects the toggle
-  const skillsForDisplay = skillsForFilter.map((s) => ({
+  const skillsForDisplay = useMemo(() => skillsForFilter.map((s) => ({
     ...s,
     ...(s.id in pendingEnabled && { enabled: pendingEnabled[s.id] }),
-  }));
+  })), [skillsForFilter, pendingEnabled]);
 
-  const total      = skillsForFilter.length;
-  const ready      = skillsForFilter.filter((s) => !s.enabled && (s.status === "ready" || (s.status === "disabled" && hasAllDeps(s)))).length;
-  const needsSetup = skillsForFilter.filter((s) => s.status === "missing-deps" || s.status === "needs-config").length;
+  const { total, ready, needsSetup, counts } = useMemo(() => {
+    const total = skillsForFilter.length;
+    const ready = skillsForFilter.filter((s) => !s.enabled && (s.status === "ready" || (s.status === "disabled" && hasAllDeps(s)))).length;
+    const needsSetup = skillsForFilter.filter((s) => s.status === "missing-deps" || s.status === "needs-config").length;
+    const counts: Record<FilterTab, number> = {
+      all: total,
+      enabled: skillsForFilter.filter((s) => s.enabled && s.status !== "missing-deps" && s.status !== "needs-config").length,
+      ready,
+      "needs-setup": needsSetup,
+    };
+    return { total, ready, needsSetup, counts };
+  }, [skillsForFilter]);
 
-  const counts: Record<FilterTab, number> = {
-    all: total,
-    enabled: skillsForFilter.filter((s) => s.enabled && s.status !== "missing-deps" && s.status !== "needs-config").length,
-    ready,
-    "needs-setup": needsSetup,
-  };
-
-  const filteredIds = new Set(filterSkills(skillsForFilter, activeFilter).map((s) => s.id));
-  const filtered = skillsForDisplay.filter((s) => {
-    // Keep skills with active install sessions visible so the dialog stays open
-    if (!filteredIds.has(s.id) && !installSessions[s.id]?.key) return false;
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return s.name.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q) || s.id.toLowerCase().includes(q);
-  });
+  const filtered = useMemo(() => {
+    const filteredIds = new Set(filterSkills(skillsForFilter, activeFilter).map((s) => s.id));
+    return skillsForDisplay.filter((s) => {
+      if (!filteredIds.has(s.id) && !installSessions[s.id]?.key) return false;
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return s.name.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q) || s.id.toLowerCase().includes(q);
+    });
+  }, [skillsForDisplay, skillsForFilter, activeFilter, search, installSessions]);
 
   return (
     <div className="h-[100svh] relative flex flex-col">
