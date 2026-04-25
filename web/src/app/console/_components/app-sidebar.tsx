@@ -299,7 +299,7 @@ export function AppSidebar() {
     <Sidebar  variant="floating">
 
       {/* Wordmark */}
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-[9px]">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-2.5">
         <div className="flex items-center gap-2" data-tauri-drag-region>
           {IS_TAURI && <TrafficLights />}
           <span className="text-base font-semibold tracking-[-0.01em] text-sidebar-foreground">
