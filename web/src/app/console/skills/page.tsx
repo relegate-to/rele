@@ -920,7 +920,9 @@ export default function SkillsPage() {
   const handleToggled = useCallback((skillId: string, status: SkillStatus, newEnabled: boolean) => {
     setLockedStatus((prev) => ({ ...prev, [skillId]: status }));
     setPendingEnabled((prev) => ({ ...prev, [skillId]: newEnabled }));
-    setRestartState((prev) => prev === null ? "pending" : prev);
+    if (!newEnabled) {
+      setRestartState((prev) => prev === null ? "pending" : prev);
+    }
   }, []);
 
   const handleRestart = useCallback(async () => {
