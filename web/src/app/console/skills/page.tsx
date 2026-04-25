@@ -138,7 +138,7 @@ const FILTERS: { id: FilterTab; label: string }[] = [
   { id: "all", label: "All" },
   { id: "enabled", label: "Enabled" },
   { id: "ready", label: "Disabled" },
-  { id: "needs-setup", label: "Needs setup" },
+  { id: "needs-setup", label: "Setup" },
 ];
 
 function hasAllDeps(s: Skill) {
@@ -981,7 +981,7 @@ export default function SkillsPage() {
             transition={{ duration: 0.5, ease: EASE }}
           >
             {/* Toolbar */}
-            <div className="mb-4 flex items-center gap-4">
+            <div className="mb-4 flex flex-wrap items-center gap-4">
               {/* Filter tabs */}
               {!loading && !error && total > 0 && (
                 <div className="flex gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
