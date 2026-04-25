@@ -16,7 +16,7 @@ export function TrafficLights() {
       onMouseLeave={() => setHovered(false)}
     >
       {/* Close */}
-      <button onClick={close} className="size-[13px] rounded-full focus:outline-none" aria-label="Close">
+      <button onClick={close} className="size-[14px] rounded-full focus:outline-none" aria-label="Close">
         <svg viewBox="0 0 85.4 85.4" xmlns="http://www.w3.org/2000/svg">
           <g clipRule="evenodd" fillRule="evenodd">
             <path d="m42.7 85.4c23.6 0 42.7-19.1 42.7-42.7s-19.1-42.7-42.7-42.7-42.7 19.1-42.7 42.7 19.1 42.7 42.7 42.7z" fill="#e24b41"/>
@@ -31,7 +31,7 @@ export function TrafficLights() {
         </svg>
       </button>
       {/* Minimize */}
-      <button onClick={minimize} className="size-[13px] rounded-full focus:outline-none" aria-label="Minimize">
+      <button onClick={minimize} className="size-[14px] rounded-full focus:outline-none" aria-label="Minimize">
         <svg viewBox="0 0 85.4 85.4" xmlns="http://www.w3.org/2000/svg">
           <g clipRule="evenodd" fillRule="evenodd">
             <path d="m42.7 85.4c23.6 0 42.7-19.1 42.7-42.7s-19.1-42.7-42.7-42.7-42.7 19.1-42.7 42.7 19.1 42.7 42.7 42.7z" fill="#e1a73e"/>
@@ -43,7 +43,7 @@ export function TrafficLights() {
         </svg>
       </button>
       {/* Maximize */}
-      <button onClick={maximize} className="size-[13px] rounded-full focus:outline-none" aria-label="Maximize">
+      <button onClick={maximize} className="size-[14px] rounded-full focus:outline-none" aria-label="Maximize">
         <svg viewBox="0 0 85.4 85.4" xmlns="http://www.w3.org/2000/svg">
           <g clipRule="evenodd" fillRule="evenodd">
             <path d="m42.7 85.4c23.6 0 42.7-19.1 42.7-42.7s-19.1-42.7-42.7-42.7-42.7 19.1-42.7 42.7 19.1 42.7 42.7 42.7z" fill="#2dac2f"/>
