@@ -31,6 +31,9 @@
         "default": true,
         "identity": {
           "emoji": "🦊"
+        },
+        "heartbeat": {
+          "session": ".heartbeat"
         }
       }
     ]

@@ -46,6 +46,13 @@ node -e "
     cfg.gateway.remote = { url: remoteUrl };
   }
 
+  // Heartbeat: isolate into a hidden session
+  const agent = (cfg.agents.list || []).find(a => a.default || a.id === 'main');
+  if (agent) {
+    agent.heartbeat = agent.heartbeat || {};
+    if (!agent.heartbeat.session) agent.heartbeat.session = '.heartbeat';
+  }
+
   // In production, restrict allowed origins to the production domain only
   const appName = '${FLY_APP_NAME:-}';
   if (appName) {
