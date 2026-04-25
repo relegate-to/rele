@@ -52,7 +52,7 @@ const TOOLS_NAV = [
   { labelKey: "sidebar.status",     href: "/console/status",     icon: ActivityIcon, requiresInstance: false },
 ] as const;
 
-const IS_TAURI = !!window.__TAURI__;
+const IS_TAURI = typeof window !== "undefined" && !!window.__TAURI__;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
