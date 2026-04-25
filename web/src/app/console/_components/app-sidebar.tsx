@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { RoadmapDialog } from "@/components/ui/roadmap-dialog";
 import { useTranslation } from "../_context/i18n-context";
 import { useSessions } from "../_context/sessions-context";
+import { TrafficLights } from "./traffic-lights";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
@@ -295,11 +296,12 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar  variant={IS_TAURI ? "sidebar" : "floating"}>
+    <Sidebar  variant="floating">
 
       {/* Wordmark */}
-      <SidebarHeader className={cn("border-b border-sidebar-border px-4 py-[9px]", IS_TAURI && "pt-10")}>
-        <div className="flex items-center gap-2">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-[9px]">
+        <div className="flex items-center gap-2" data-tauri-drag-region>
+          {IS_TAURI && <TrafficLights />}
           <span className="text-base font-semibold tracking-[-0.01em] text-sidebar-foreground">
             rele
           </span>
