@@ -15,7 +15,6 @@ import {
   RefreshCwIcon,
   SearchIcon,
   SparklesIcon,
-  WrenchIcon,
   XCircleIcon,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -785,73 +784,6 @@ const SkillCard = memo(function SkillCard({ skill, onChanged, onToggled, install
   );
 });
 
-// ── Restart banner ────────────────────────────────────────────────────────────
-
-type RestartState = "pending" | "restarting" | "done" | "timeout";
-
-function RestartBanner({
-  state,
-  onRestart,
-  onDismiss,
-}: {
-  state: RestartState;
-  onRestart: () => void;
-  onDismiss: () => void;
-}) {
-  const isDone    = state === "done";
-  const isTimeout = state === "timeout";
-  const isActive  = state === "restarting";
-
-  return (
-    <div
-      className={cn(
-        "flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl shadow-black/20 text-sm backdrop-blur",
-        isDone
-          ? "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]"
-          : isTimeout
-            ? "border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error-text)]"
-            : "border-[var(--border-hi)] bg-[var(--surface)] text-[var(--text)]",
-      )}
-    >
-        {isDone ? (
-          <CheckCircle2Icon className="size-4 shrink-0" />
-        ) : isTimeout ? (
-          <AlertTriangleIcon className="size-4 shrink-0" />
-        ) : isActive ? (
-          <RefreshCwIcon className="size-4 shrink-0 animate-spin" />
-        ) : (
-          <WrenchIcon className="size-4 shrink-0 text-[var(--muted)]" />
-        )}
-
-        <span className="whitespace-nowrap">
-          {isDone    ? "Gateway restarted"
-           : isTimeout ? "Restart timed out — gateway may still be starting"
-           : isActive  ? "Restarting gateway…"
-                       : "Restart required to apply changes"}
-        </span>
-
-        {!isDone && !isTimeout && !isActive && (
-          <button
-            onClick={onRestart}
-            className="ml-1 rounded-lg border border-[var(--border)] bg-[var(--surface-hi)] px-3 py-1 text-xs font-medium text-[var(--text)] transition-colors hover:border-[var(--border-hi)] whitespace-nowrap"
-          >
-            Restart now
-          </button>
-        )}
-
-        {!isActive && (
-          <button
-            onClick={onDismiss}
-            className="ml-1 text-[var(--muted)] transition-colors hover:text-[var(--text)]"
-          >
-            <XCircleIcon className="size-4" />
-          </button>
-        )}
-    </div>
-  );
-}
-
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SkillsPage() {
@@ -861,11 +793,8 @@ export default function SkillsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
-  const [restartState, setRestartState] = useState<RestartState | null>(null);
   const [lockedStatus, setLockedStatus] = useState<Record<string, SkillStatus>>({});
   const [pendingEnabled, setPendingEnabled] = useState<Record<string, boolean>>({});
-  const sawDisconnectRef = useRef(false);
-  const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [installSessions, setInstallSessions] = useState<Record<string, { key: string; label: string }>>({});
 
   const fetchSkills = useCallback(async () => {
@@ -891,47 +820,12 @@ export default function SkillsPage() {
     if (connected) fetchSkills();
   }, [connected, fetchSkills]);
 
-  // Watch gateway connection for restart completion.
-  useEffect(() => {
-    if (restartState !== "restarting") {
-      sawDisconnectRef.current = false;
-      return;
-    }
-    if (!connected) sawDisconnectRef.current = true;
-    if (connected && sawDisconnectRef.current) {
-      if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
-      setRestartState("done");
-      sawDisconnectRef.current = false;
-      setTimeout(() => {
-        setRestartState(null);
-        setLockedStatus({});
-        setPendingEnabled({});
-      }, 2_000);
-    }
-  }, [connected, restartState]);
-
-  // Timeout if restart takes too long.
-  useEffect(() => {
-    if (restartState !== "restarting") return;
-    restartTimeoutRef.current = setTimeout(() => setRestartState("timeout"), 60_000);
-    return () => { if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current); };
-  }, [restartState]);
-
   const handleToggled = useCallback((skillId: string, status: SkillStatus, newEnabled: boolean) => {
     setLockedStatus((prev) => ({ ...prev, [skillId]: status }));
     setPendingEnabled((prev) => ({ ...prev, [skillId]: newEnabled }));
-    if (!newEnabled) {
-      setRestartState((prev) => prev === null ? "pending" : prev);
-    }
-  }, []);
-
-  const handleRestart = useCallback(async () => {
-    setRestartState("restarting");
-    try { await apiFetch("/api/gateway/restart", { method: "POST" }); } catch {}
   }, []);
 
   const handleChanged = useCallback(() => {
-    setRestartState((prev) => prev === null ? "pending" : prev);
     fetchSkills();
   }, [fetchSkills]);
 
@@ -981,7 +875,7 @@ export default function SkillsPage() {
             transition={{ duration: 0.5, ease: EASE }}
           >
             {/* Toolbar */}
-            <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               {/* Filter tabs */}
               {!loading && !error && total > 0 && (
                 <div className="flex gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
@@ -1015,7 +909,7 @@ export default function SkillsPage() {
               )}
 
               {/* Search */}
-              <div className="relative min-w-32 basis-48 shrink grow max-w-xs">
+              <div className="relative w-48">
                 <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[var(--muted)]" />
                 <input
                   type="text"
@@ -1103,23 +997,6 @@ export default function SkillsPage() {
         </div>
       </div>
       </div>
-      <AnimatePresence>
-        {restartState !== null && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute bottom-6 left-1/2 z-50 -translate-x-1/2"
-          >
-            <RestartBanner
-              state={restartState}
-              onRestart={handleRestart}
-              onDismiss={() => setRestartState(null)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

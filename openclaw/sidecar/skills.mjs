@@ -2,6 +2,7 @@ import { readdir, readFile, rename, mkdir, cp, rm } from "node:fs/promises";
 import { spawn } from "node:child_process";
 
 const SKILLS_DIR = process.env.SKILLS_DIR ?? "/app/skills";
+const WORKSPACE_SKILLS_DIR = "/home/node/.openclaw/workspace/skills";
 const DISABLED_DIR = `${SKILLS_DIR}/.disabled`;
 
 // ── YAML frontmatter ──────────────────────────────────────────────────────────
@@ -254,6 +255,24 @@ async function listSkills(config) {
           const skill = await loadSkill(
             e.name,
             `${SKILLS_DIR}/${e.name}`,
+            config,
+          );
+          if (skill) skills.push(skill);
+        }),
+    );
+  } catch {}
+
+  // Workspace skills (user-installed into ~/.openclaw/workspace/skills/)
+  try {
+    const entries = await readdir(WORKSPACE_SKILLS_DIR, { withFileTypes: true });
+    const seen = new Set(skills.map((s) => s.id));
+    await Promise.all(
+      entries
+        .filter((e) => e.isDirectory() && !e.name.startsWith(".") && !seen.has(e.name))
+        .map(async (e) => {
+          const skill = await loadSkill(
+            e.name,
+            `${WORKSPACE_SKILLS_DIR}/${e.name}`,
             config,
           );
           if (skill) skills.push(skill);
