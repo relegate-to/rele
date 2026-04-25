@@ -356,7 +356,7 @@ export function AppSidebar() {
           const isMainActive = isOnChat && activeSessionKey === "agent:main:main";
           const nonMainSessions = sessions.filter((s) => s.key !== "agent:main:main");
           const normalSessions = nonMainSessions.filter((s) => !s.displayName.startsWith("."));
-          const hiddenSessions = nonMainSessions.filter((s) => s.displayName.startsWith("."));
+          const hiddenSessions = nonMainSessions.filter((s) => s.displayName.startsWith(".") || s.displayName.toLowerCase() === "heartbeat");
           const hasHidden = hiddenSessions.length > 0;
 
           return (
