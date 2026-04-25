@@ -174,7 +174,7 @@ export default {
   // Landing page
   "landing.by-relegate": "By Relegate",
   "landing.tagline": "すぐに使える AI エージェント。",
-  "landing.go-to-console": "コンソールへ",
+  "landing.go-to-console": "コンソール",
   "landing.sign-in": "サインイン",
   "landing.sign-up": "サインアップ",
   "landing.footer.github": "GitHub",

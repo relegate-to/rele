@@ -5,6 +5,8 @@ import { authClient } from "@/lib/auth-client";
 import { EASE } from "@/lib/theme";
 import { useNavigate } from "@/components/ui/page-transition";
 import { NoiseGrain, Vignette } from "@/components/ui/bg-effects";
+import { Button } from "@/components/ui/button";
+import { RocketIcon } from "lucide-react";
 import { I18nProvider, useTranslation } from "./console/_context/i18n-context";
 
 const footerLinks = [
@@ -16,7 +18,7 @@ const footerLinks = [
 function RelePageContent() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { data } = authClient.useSession();
+  const { data, isPending } = authClient.useSession();
   const isSignedIn = !!data?.user;
 
   return (
@@ -59,27 +61,35 @@ function RelePageContent() {
           transition={{ duration: 0.6, ease: EASE, delay: 0.46 }}
           className="flex gap-3 items-center"
         >
-          {isSignedIn ? (
-            <button
+          {isPending ? (
+            <div className="h-9 w-[120px] rounded-lg bg-[var(--border)] animate-pulse" />
+          ) : isSignedIn ? (
+            <Button
+              variant="outline"
+              size="lg"
               onClick={() => navigate("/console")}
-              className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase bg-[var(--accent)] text-white px-6 py-[0.65rem] rounded-lg border-none cursor-pointer hover:bg-[var(--accent-dim)] transition-colors"
+              className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase px-5 gap-2 border-[var(--accent)] shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_15%,transparent)]"
             >
+              <RocketIcon className="size-3.5" />
               {t("landing.go-to-console")}
-            </button>
+            </Button>
           ) : (
             <>
-              <button
+              <Button
+                size="lg"
                 onClick={() => navigate("/sign-in")}
-                className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase bg-[var(--accent)] text-white px-6 py-[0.65rem] rounded-lg border-none cursor-pointer hover:bg-[var(--accent-dim)] transition-colors"
+                className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase px-6 shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_15%,transparent)]"
               >
                 {t("landing.sign-in")}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
                 onClick={() => navigate("/sign-up")}
-                className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase border border-[var(--border)] text-[var(--text-dim)] px-6 py-[0.65rem] rounded-lg bg-transparent cursor-pointer hover:border-[var(--border-hi)] hover:text-[var(--text)] transition-colors"
+                className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase px-6"
               >
                 {t("landing.sign-up")}
-              </button>
+              </Button>
             </>
           )}
         </motion.div>

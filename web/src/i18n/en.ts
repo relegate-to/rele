@@ -174,7 +174,7 @@ export default {
   // Landing page
   "landing.by-relegate": "By Relegate",
   "landing.tagline": "An AI agent that works out of the box.",
-  "landing.go-to-console": "Go to console",
+  "landing.go-to-console": "Console",
   "landing.sign-in": "Sign in",
   "landing.sign-up": "Sign up",
   "landing.footer.github": "GitHub",
