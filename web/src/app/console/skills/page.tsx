@@ -875,7 +875,8 @@ export default function SkillsPage() {
             transition={{ duration: 0.5, ease: EASE }}
           >
             {/* Toolbar */}
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="mb-4 flex justify-center">
+              <div className="inline-flex flex-wrap items-center justify-center gap-3">
               {/* Filter tabs */}
               {!loading && !error && total > 0 && (
                 <div className="flex gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
@@ -909,7 +910,7 @@ export default function SkillsPage() {
               )}
 
               {/* Search */}
-              <div className="relative w-48">
+              <div className="relative w-85 ">
                 <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[var(--muted)]" />
                 <input
                   type="text"
@@ -926,6 +927,7 @@ export default function SkillsPage() {
                     <XCircleIcon className="size-3.5" />
                   </button>
                 )}
+              </div>
               </div>
             </div>
 
