@@ -90,7 +90,7 @@ export default function CanvasPage() {
           onLoad={() => setIframeReady(true)}
         />
       )}
-      <FloatingChat contextPrompt={CANVAS_CONTEXT} />
+      <FloatingChat contextPrompt={CANVAS_CONTEXT} sessionName=".canvas" />
     </div>
   );
 }

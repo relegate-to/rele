@@ -40,13 +40,13 @@ export function AssistantMessage({ content, children }: { content: string; child
   };
 
   return (
-    <div className="group/msg relative">
+    <div className="group/msg relative pb-6">
       {children}
       <motion.button
         onClick={handleCopy}
         whileTap={{ scale: 0.78 }}
         transition={{ type: "spring", stiffness: 600, damping: 18 }}
-        className={`absolute -bottom-6 left-0 flex size-6 items-center justify-center rounded-md text-[var(--muted)] transition-colors duration-100 hover:text-[var(--text)] ${copied ? "opacity-100" : "opacity-0 group-hover/msg:opacity-100"}`}
+        className={`absolute bottom-0 left-0 flex size-6 items-center justify-center rounded-md text-[var(--muted)] transition-colors duration-100 hover:text-[var(--text)] ${copied ? "opacity-100" : "opacity-0 group-hover/msg:opacity-100"}`}
         aria-label={t("chat.copy-message")}
       >
         <AnimatePresence mode="wait" initial={false}>
@@ -80,7 +80,7 @@ export const MessageRow = memo(function MessageRow({ msg, compact }: { msg: Chat
           </div>
         </div>
       ) : msg.role === "tool" ? (
-        <div className="min-w-0">
+        <div className="min-w-0 overflow-hidden">
           <div className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs">
             <ToolIcon name={msg.toolName ?? ""} isError={msg.toolError} />
             <span className="shrink-0">{msg.toolName}</span>

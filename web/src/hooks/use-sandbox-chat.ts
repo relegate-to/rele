@@ -22,6 +22,10 @@ function dedupe(messages: ChatMessage[]): ChatMessage[] {
   });
 }
 
+function filterHidden(messages: ChatMessage[]): ChatMessage[] {
+  return messages.filter((m) => !(m.role === "assistant" && m.content.trim() === "HEARTBEAT_OK"));
+}
+
 export const SESSION_KEY = "agent:main:main";
 
 // Per-session state stored in a ref so background sessions keep accumulating.
@@ -57,7 +61,7 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
   const flush = useCallback((key: string) => {
     if (key === sessionKeyRef.current) {
       const s = getStore(key);
-      setMessages([...s.messages]);
+      setMessages(filterHidden(s.messages));
       setIsThinking(s.isThinking);
     }
     const cbs = listenersRef.current.get(key);
@@ -71,13 +75,13 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
     return () => { listenersRef.current.get(key)?.delete(cb); };
   }, []);
 
-  const getSessionMessages = useCallback((key: string) => getStore(key).messages, [getStore]);
+  const getSessionMessages = useCallback((key: string) => filterHidden(getStore(key).messages), [getStore]);
   const getSessionThinking = useCallback((key: string) => getStore(key).isThinking, [getStore]);
 
   // When session key changes, sync React state from the store.
   useEffect(() => {
     const s = getStore(sessionKey);
-    setMessages([...s.messages]);
+    setMessages(filterHidden(s.messages));
     setIsThinking(s.isThinking);
   }, [sessionKey, getStore]);
 

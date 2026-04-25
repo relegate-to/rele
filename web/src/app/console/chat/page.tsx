@@ -61,7 +61,7 @@ export default function ChatPage() {
     <ConnectionStatus connected={connected} connecting={connecting} />
    </div>
 
-   <div ref={scrollContainerRef} onScroll={handleScroll} className="relative flex-1 overflow-y-auto stable-gutter">
+   <div ref={scrollContainerRef} onScroll={handleScroll} className="relative min-w-0 flex-1 overflow-y-auto stable-gutter">
     <AnimatePresence>
      {messages.length === 0 && (
       <motion.div

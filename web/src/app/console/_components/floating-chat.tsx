@@ -5,19 +5,54 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDownIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { useChat } from "../_context/chat-context";
+import { useSessions } from "../_context/sessions-context";
 import { TypingIndicator } from "@/components/ui/typing-indicator";
 import { MessageRow, ChatInput } from "./chat-components";
 import { useTranslation } from "../_context/i18n-context";
+import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
 
 const SPRING = { type: "spring", stiffness: 380, damping: 40 } as const;
 
-export function FloatingChat({ contextPrompt }: { contextPrompt?: string }) {
+export function FloatingChat({ contextPrompt, sessionName }: { contextPrompt?: string; sessionName?: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const { messages, connected, isThinking, sendMessage, currentModel, setModel } = useChat();
+  const { messages: mainMessages, connected, isThinking: mainIsThinking, sendMessage, sendToSession, observeSession, getSessionMessages, getSessionThinking, currentModel, setModel } = useChat();
+  const { createSession } = useSessions();
+  const [sessionKey, setSessionKey] = useState<string | null>(null);
+  const [sessionMessages, setSessionMessages] = useState<ChatMessage[]>([]);
+  const [sessionIsThinking, setSessionIsThinking] = useState(false);
+  const creatingRef = useRef(false);
+
+  // Create the hidden session on mount if sessionName is provided.
+  useEffect(() => {
+    if (!sessionName || sessionKey || creatingRef.current || !connected) return;
+    creatingRef.current = true;
+    createSession(sessionName, false).then((key) => setSessionKey(key));
+  }, [sessionName, sessionKey, connected, createSession]);
+
+  // Observe session messages.
+  useEffect(() => {
+    if (!sessionKey) return;
+    setSessionMessages(getSessionMessages(sessionKey));
+    setSessionIsThinking(getSessionThinking(sessionKey));
+    return observeSession(sessionKey, () => {
+      setSessionMessages(getSessionMessages(sessionKey));
+      setSessionIsThinking(getSessionThinking(sessionKey));
+    });
+  }, [sessionKey, observeSession, getSessionMessages, getSessionThinking]);
+
+  const messages = sessionKey ? sessionMessages : mainMessages;
+  const isThinking = sessionKey ? sessionIsThinking : mainIsThinking;
+
   const send = useCallback(
-    (content: string) => sendMessage(content, contextPrompt),
-    [sendMessage, contextPrompt],
+    (content: string) => {
+      if (sessionKey) {
+        sendToSession(sessionKey, content, contextPrompt);
+      } else {
+        sendMessage(content, contextPrompt);
+      }
+    },
+    [sessionKey, sendToSession, sendMessage, contextPrompt],
   );
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
