@@ -1015,7 +1015,7 @@ export default function SkillsPage() {
               )}
 
               {/* Search */}
-              <div className="relative w-48 min-w-32 shrink grow">
+              <div className="relative min-w-32 basis-48 shrink grow max-w-xs">
                 <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[var(--muted)]" />
                 <input
                   type="text"
