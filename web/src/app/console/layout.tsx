@@ -11,6 +11,7 @@ import { SessionsProvider } from "./_context/sessions-context";
 import { I18nProvider, useTranslation } from "./_context/i18n-context";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
+const IS_TAURI = typeof window !== "undefined" && !!window.__TAURI__;
 
 function ConsoleTrigger() {
   const { t } = useTranslation();
@@ -65,6 +66,12 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
           <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
+              {IS_TAURI && (
+                <div
+                  data-tauri-drag-region
+                  className="fixed inset-x-0 top-0 z-[1] h-3"
+                />
+              )}
               <ConsoleTrigger />
               {children}
             </SidebarInset>

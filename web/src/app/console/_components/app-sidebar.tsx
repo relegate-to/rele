@@ -300,13 +300,13 @@ export function AppSidebar() {
 
       {/* Wordmark */}
       <SidebarHeader className="border-b border-sidebar-border px-4 py-2.5">
-        <div className="flex items-center gap-2" data-tauri-drag-region>
-          {IS_TAURI && <TrafficLights />}
-          <span className="text-base font-semibold tracking-[-0.01em] text-sidebar-foreground">
+        <div className="flex items-center gap-2 select-none" data-tauri-drag-region>
+          {IS_TAURI && <><TrafficLights /><span className="w-1" /></>}
+          <span className="text-base font-semibold tracking-[-0.01em] text-sidebar-foreground pointer-events-none">
             rele
           </span>
-          <span className="text-xs text-sidebar-foreground/25">·</span>
-          <span className="text-xs text-sidebar-foreground/30">
+          <span className="text-xs text-sidebar-foreground/25 pointer-events-none">·</span>
+          <span className="text-xs text-sidebar-foreground/30 pointer-events-none">
             {t("sidebar.console")}
           </span>
         </div>
