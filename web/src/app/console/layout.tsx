@@ -69,7 +69,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
               {IS_TAURI && (
                 <div
                   data-tauri-drag-region
-                  className="fixed inset-x-0 top-0 z-[1] h-3"
+                  className="fixed inset-x-0 top-0 z-[1] h-16"
                 />
               )}
               <ConsoleTrigger />
