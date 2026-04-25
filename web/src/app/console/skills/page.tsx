@@ -88,8 +88,8 @@ function useEmojiColor(emoji: string | null) {
   useEffect(() => {
     if (!emoji) return;
     if (emojiColorCache.has(emoji)) { setColor(emojiColorCache.get(emoji)!); return; }
-    const id = requestIdleCallback(() => setColor(getEmojiColor(emoji)));
-    return () => cancelIdleCallback(id);
+    const id = (window.requestIdleCallback ?? setTimeout)(() => setColor(getEmojiColor(emoji)));
+    return () => (window.cancelIdleCallback ?? clearTimeout)(id);
   }, [emoji]);
   return color;
 }
@@ -291,8 +291,8 @@ function AskAiInstallButton({ skill, onChanged, initialSessionKey, initialSessio
   // Pre-render log content once idle so expand animation doesn't lag
   useEffect(() => {
     if (!sessionKey || logReady) return;
-    const id = requestIdleCallback(() => setLogReady(true));
-    return () => cancelIdleCallback(id);
+    const id = (window.requestIdleCallback ?? setTimeout)(() => setLogReady(true));
+    return () => (window.cancelIdleCallback ?? clearTimeout)(id);
   }, [sessionKey, logReady]);
 
   const liveResult = detectResult(messages);
