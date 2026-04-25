@@ -51,6 +51,8 @@ const TOOLS_NAV = [
   { labelKey: "sidebar.status",     href: "/console/status",     icon: ActivityIcon, requiresInstance: false },
 ] as const;
 
+const IS_TAURI = !!window.__TAURI__;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function flyStateToStatus(state: string, gatewayConnected: boolean): InstanceStatus {
@@ -293,10 +295,10 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar variant="floating">
+    <Sidebar  variant={IS_TAURI ? "sidebar" : "floating"}>
 
       {/* Wordmark */}
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-[9px]">
+      <SidebarHeader className={cn("border-b border-sidebar-border px-4 py-[9px]", IS_TAURI && "pt-10")}>
         <div className="flex items-center gap-2">
           <span className="text-base font-semibold tracking-[-0.01em] text-sidebar-foreground">
             rele
