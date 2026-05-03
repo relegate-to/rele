@@ -57,11 +57,11 @@ export default function RootLayout({
           basePath="/"
           viewPaths={{
             SIGN_IN: "sign-in",
-            SIGN_UP: "sign-up",
+            // SIGN_UP: "sign-up",
           }}
-          social={{
-            providers: ["github", "google"],
-          }}
+          // social={{
+          //   providers: ["github", "google"],
+          // }}
         >
           <PageTransitionProvider><ThemeProvider attribute="class" defaultTheme="system" enableSystem>{children}<Toaster position="bottom-center" /></ThemeProvider></PageTransitionProvider>
         </NeonAuthUIProvider>

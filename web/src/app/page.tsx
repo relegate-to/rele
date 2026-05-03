@@ -82,14 +82,14 @@ function RelePageContent() {
               >
                 {t("landing.sign-in")}
               </Button>
-              <Button
+              {/*<Button
                 variant="outline"
                 size="lg"
                 onClick={() => navigate("/sign-up")}
                 className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase px-6"
               >
                 {t("landing.sign-up")}
-              </Button>
+              </Button>*/}
             </>
           )}
         </motion.div>
