@@ -7,7 +7,7 @@ import { useNavigate } from "@/components/ui/page-transition";
 import { NoiseGrain, Vignette } from "@/components/ui/bg-effects";
 import { Button } from "@/components/ui/button";
 import { RocketIcon } from "lucide-react";
-import { I18nProvider, useTranslation } from "./console/_context/i18n-context";
+import { useTranslation } from "./console/_context/i18n-context";
 
 const footerLinks = [
   { key: "landing.footer.github", url: "https://github.com/relegate-to/rele" },
@@ -74,23 +74,13 @@ function RelePageContent() {
               {t("landing.go-to-console")}
             </Button>
           ) : (
-            <>
-              <Button
-                size="lg"
-                onClick={() => navigate("/sign-in")}
-                className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase px-6 shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_15%,transparent)]"
-              >
-                {t("landing.sign-in")}
-              </Button>
-              {/*<Button
-                variant="outline"
-                size="lg"
-                onClick={() => navigate("/sign-up")}
-                className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase px-6"
-              >
-                {t("landing.sign-up")}
-              </Button>*/}
-            </>
+            <Button
+              size="lg"
+              onClick={() => navigate("/sign-in")}
+              className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase px-6 shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_15%,transparent)]"
+            >
+              {t("landing.sign-in")}
+            </Button>
           )}
         </motion.div>
       </main>
@@ -116,9 +106,5 @@ function RelePageContent() {
 }
 
 export default function RelePage() {
-  return (
-    <I18nProvider>
-      <RelePageContent />
-    </I18nProvider>
-  );
+  return <RelePageContent />;
 }

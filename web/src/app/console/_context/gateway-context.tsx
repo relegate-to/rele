@@ -109,6 +109,11 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Token goes in the query string because the browser WebSocket API
+    // doesn't let us set custom headers. The connection is wss://, so the
+    // URL is encrypted in transit; the token can still appear in our own
+    // server access logs, which is an accepted tradeoff. The alternative
+    // (Sec-WebSocket-Protocol smuggling) is uglier and not better.
     const ws = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
     wsRef.current = ws;
     let authenticated = false;
@@ -170,7 +175,9 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      console.log("[GW]", data);
+      if (process.env.NODE_ENV === "development") {
+        console.log("[GW]", data);
+      }
       emit(data);
     };
 

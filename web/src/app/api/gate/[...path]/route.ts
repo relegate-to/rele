@@ -150,8 +150,9 @@ async function handler(
 
   // 1. Validate session server-side — auth.getSession() reads the Neon Auth
   //    session cookie from the incoming request headers. Returns null session
-  //    when unauthenticated. The middleware already guards /api/**, but we
-  //    double-check here for defence-in-depth.
+  //    when unauthenticated. NOTE: the proxy.ts matcher explicitly excludes
+  //    /api/gate/* and /api/instance/*, so this check is the *only* auth
+  //    guard for this route — not defence-in-depth. Don't remove it.
   const { data: sessionData, error: sessionError } = await auth.getSession();
 
   if (sessionError || !sessionData?.session) {

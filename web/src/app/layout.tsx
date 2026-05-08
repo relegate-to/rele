@@ -5,6 +5,7 @@ import { authClient } from "@/lib/auth-client";
 import { PageTransitionProvider } from "@/components/ui/page-transition";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "next-themes";
+import { I18nProvider } from "./console/_context/i18n-context";
 
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -63,7 +64,7 @@ export default function RootLayout({
           //   providers: ["github", "google"],
           // }}
         >
-          <PageTransitionProvider><ThemeProvider attribute="class" defaultTheme="system" enableSystem>{children}<Toaster position="bottom-center" /></ThemeProvider></PageTransitionProvider>
+          <I18nProvider><PageTransitionProvider><ThemeProvider attribute="class" defaultTheme="system" enableSystem>{children}<Toaster position="bottom-center" /></ThemeProvider></PageTransitionProvider></I18nProvider>
         </NeonAuthUIProvider>
       </body>
     </html>

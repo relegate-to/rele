@@ -8,7 +8,7 @@ import { MachinesProvider } from "./_context/machines-context";
 import { GatewayProvider } from "./_context/gateway-context";
 import { ChatProvider } from "./_context/chat-context";
 import { SessionsProvider } from "./_context/sessions-context";
-import { I18nProvider, useTranslation } from "./_context/i18n-context";
+import { useTranslation } from "./_context/i18n-context";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
 const IS_TAURI = typeof window !== "undefined" && !!window.__TAURI__;
@@ -58,28 +58,26 @@ function ConsoleTrigger() {
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
   return (
-    <I18nProvider>
-      <MachinesProvider>
-        <GatewayProvider>
-          <SessionsProvider>
-          <ChatProvider>
-          <SidebarProvider>
-            <AppSidebar />
-            <SidebarInset>
-              {IS_TAURI && (
-                <div
-                  data-tauri-drag-region
-                  className="fixed inset-x-0 top-0 z-[1] h-16"
-                />
-              )}
-              <ConsoleTrigger />
-              {children}
-            </SidebarInset>
-          </SidebarProvider>
-          </ChatProvider>
-          </SessionsProvider>
-        </GatewayProvider>
-      </MachinesProvider>
-    </I18nProvider>
+    <MachinesProvider>
+      <GatewayProvider>
+        <SessionsProvider>
+        <ChatProvider>
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>
+            {IS_TAURI && (
+              <div
+                data-tauri-drag-region
+                className="fixed inset-x-0 top-0 z-[1] h-16"
+              />
+            )}
+            <ConsoleTrigger />
+            {children}
+          </SidebarInset>
+        </SidebarProvider>
+        </ChatProvider>
+        </SessionsProvider>
+      </GatewayProvider>
+    </MachinesProvider>
   );
 }

@@ -3,6 +3,19 @@ import { auth } from "@/lib/auth-server";
 
 const GATE_URL = process.env.GATE_URL;
 
+// SECURITY TRADEOFF: this endpoint is the one place where we deliberately
+// hand the Neon Auth JWT and the gateway token to client-side JS. Browser
+// WebSocket APIs can't read HttpOnly cookies, so a direct ws:// connection
+// from the client requires the token in a place JS can reach. The other
+// /api proxies route through the server and never expose tokens — this one
+// inverts that posture by necessity.
+//
+// Mitigations (enforced elsewhere):
+//   - Tokens MUST be short-lived (minutes, not hours).
+//   - gatewayToken MUST be scoped to this user's instance only.
+//   - A CSP that constrains script sources reduces XSS exposure.
+// If any of those assumptions change, revisit this endpoint.
+
 export async function GET() {
   if (!GATE_URL) {
     return NextResponse.json({ error: "Gateway not configured" }, { status: 503 });
