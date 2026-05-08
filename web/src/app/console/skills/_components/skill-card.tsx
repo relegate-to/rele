@@ -94,7 +94,7 @@ export const SkillCard = memo(function SkillCard({
       >
         {/* Emoji panel */}
         <div
-          className="relative flex w-32 shrink-0 items-center justify-center overflow-hidden "
+          className="relative flex w-24 shrink-0 items-center justify-center overflow-hidden "
           style={{ background: emojiColor ? `linear-gradient(145deg, rgba(${emojiColor}, 0.5), rgba(${emojiColor}, 0.3))` : "var(--surface-hi)" }}
         >
           <span className="relative text-[5rem] leading-none opacity-85 pointer-events-none" style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{skill.emoji ?? "🔧"}</span>
