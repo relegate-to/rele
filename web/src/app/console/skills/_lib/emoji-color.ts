@@ -33,17 +33,36 @@ function getEmojiColor(emoji: string): string | null {
   ctx.fillText(emoji, 32, 36);
 
   const { data } = ctx.getImageData(0, 0, 64, 64);
-  let r = 0, g = 0, b = 0, count = 0;
+  // Saturation-weighted average: each opaque pixel contributes proportional
+  // to (max-min)/max, so vivid pixels dominate over near-grays. Without this
+  // the result trends toward muddy mid-tones because emojis carry a lot of
+  // anti-aliased gray on outlines.
+  let r = 0, g = 0, b = 0, weightSum = 0;
   for (let i = 0; i < data.length; i += 4) {
     if (data[i + 3] < 128) continue;
-    r += data[i];
-    g += data[i + 1];
-    b += data[i + 2];
-    count++;
+    const pr = data[i], pg = data[i + 1], pb = data[i + 2];
+    const max = Math.max(pr, pg, pb);
+    const min = Math.min(pr, pg, pb);
+    // Add 0.05 floor so grayscale emojis (skull, gear) still produce a color.
+    const w = max === 0 ? 0.05 : (max - min) / max + 0.05;
+    r += pr * w;
+    g += pg * w;
+    b += pb * w;
+    weightSum += w;
   }
-  if (count === 0) return null;
+  if (weightSum === 0) return null;
 
-  const color = `${Math.round(r / count)}, ${Math.round(g / count)}, ${Math.round(b / count)}`;
+  // Boost saturation on the result: pull each channel away from the mean.
+  let avgR = r / weightSum;
+  let avgG = g / weightSum;
+  let avgB = b / weightSum;
+  const mean = (avgR + avgG + avgB) / 3;
+  const SATURATION_BOOST = 1.45;
+  avgR = Math.max(0, Math.min(255, mean + (avgR - mean) * SATURATION_BOOST));
+  avgG = Math.max(0, Math.min(255, mean + (avgG - mean) * SATURATION_BOOST));
+  avgB = Math.max(0, Math.min(255, mean + (avgB - mean) * SATURATION_BOOST));
+
+  const color = `${Math.round(avgR)}, ${Math.round(avgG)}, ${Math.round(avgB)}`;
   emojiColorCache.set(emoji, color);
   return color;
 }

@@ -94,10 +94,10 @@ export const SkillCard = memo(function SkillCard({
       >
         {/* Emoji panel */}
         <div
-          className="relative flex w-16 shrink-0 items-center justify-center overflow-hidden "
+          className="relative flex w-32 shrink-0 items-center justify-center overflow-hidden "
           style={{ background: emojiColor ? `linear-gradient(145deg, rgba(${emojiColor}, 0.5), rgba(${emojiColor}, 0.3))` : "var(--surface-hi)" }}
         >
-          <span className="relative text-[5rem] leading-none opacity-85 rotate-[5deg] pointer-events-none" style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{skill.emoji ?? "🔧"}</span>
+          <span className="relative text-[5rem] leading-none opacity-85 pointer-events-none" style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{skill.emoji ?? "🔧"}</span>
         </div>
 
         {/* Content */}
@@ -145,7 +145,7 @@ export const SkillCard = memo(function SkillCard({
           >
             {/* Dark saturated wash behind text for contrast */}
             <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-black/10 to-transparent pointer-events-none" style={{ backdropFilter: "saturate(1.5)" }} />
-            <span className="absolute -right-4 -top-4 text-[7rem] leading-none opacity-50 rotate-[5deg] pointer-events-none" style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{skill.emoji ?? "🔧"}</span>
+            <span className="absolute -right-4 -top-4 text-[7rem] leading-none opacity-50 pointer-events-none" style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{skill.emoji ?? "🔧"}</span>
             <div className="relative flex flex-col gap-2">
               <DialogTitle className="text-base font-semibold leading-tight text-white">
                 {skill.name}
