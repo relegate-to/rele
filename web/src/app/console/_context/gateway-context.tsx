@@ -9,7 +9,40 @@ import {
   useState,
 } from "react";
 
-type Listener = (data: unknown) => void;
+// ── Wire protocol ─────────────────────────────────────────────────────────────
+// Messages flowing back from the gateway. Discriminated on `type`. Anything
+// that doesn't match these shapes is ignored by the message handler.
+
+interface GatewayEvent {
+  type: "event";
+  event: string;
+  [key: string]: unknown;
+}
+
+interface GatewayResponseOk {
+  type: "res";
+  id: string;
+  ok: true;
+  payload?: Record<string, unknown>;
+}
+
+interface GatewayResponseErr {
+  type: "res";
+  id: string;
+  ok: false;
+  error?: { message?: string; code?: string };
+}
+
+type GatewayResponse = GatewayResponseOk | GatewayResponseErr;
+type GatewayMessage = GatewayEvent | GatewayResponse;
+
+function isGatewayMessage(v: unknown): v is GatewayMessage {
+  if (!v || typeof v !== "object") return false;
+  const t = (v as { type?: unknown }).type;
+  return t === "event" || t === "res";
+}
+
+type Listener = (data: GatewayMessage) => void;
 
 interface GatewayContextValue {
   connected: boolean;
@@ -46,7 +79,7 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
   // Set to true when disconnect() is called explicitly — suppresses auto-retry.
   const intentionalRef = useRef(false);
 
-  const emit = useCallback((data: unknown) => {
+  const emit = useCallback((data: GatewayMessage) => {
     for (const listener of listenersRef.current) {
       listener(data);
     }
@@ -119,16 +152,17 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     let authenticated = false;
 
     ws.onmessage = (e) => {
-      let data: unknown;
+      let parsed: unknown;
       try {
-        data = JSON.parse(e.data);
+        parsed = JSON.parse(e.data);
       } catch {
         return;
       }
+      if (!isGatewayMessage(parsed)) return;
+      const data = parsed;
 
       if (!authenticated) {
-        const d = data as Record<string, unknown>;
-        if (d.type === "event" && d.event === "connect.challenge") {
+        if (data.type === "event" && data.event === "connect.challenge") {
           ws.send(
             JSON.stringify({
               type: "req",
@@ -160,8 +194,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
           );
           return;
         }
-        if (d.type === "res" && d.id === "gw-connect") {
-          if (d.ok) {
+        if (data.type === "res" && data.id === "gw-connect") {
+          if (data.ok) {
             authenticated = true;
             retryCountRef.current = 0;
             everConnectedRef.current = true;
@@ -222,12 +256,13 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
           reject(new Error(`RPC timeout: ${method}`));
         }, 15_000);
         const unsub = subscribe((data) => {
-          const d = data as Record<string, unknown>;
-          if (d.type === "res" && d.id === id) {
-            clearTimeout(timer);
-            unsub();
-            if (d.ok) resolve((d.payload ?? {}) as Record<string, unknown>);
-            else reject(new Error(String((d as any).error?.message ?? (d as any).error?.code ?? `RPC failed: ${method}`)));
+          if (data.type !== "res" || data.id !== id) return;
+          clearTimeout(timer);
+          unsub();
+          if (data.ok) {
+            resolve(data.payload ?? {});
+          } else {
+            reject(new Error(data.error?.message ?? data.error?.code ?? `RPC failed: ${method}`));
           }
         });
         send({ type: "req", id, method, params });

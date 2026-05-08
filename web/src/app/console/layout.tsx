@@ -2,6 +2,7 @@
 
 import { PanelLeftIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "./_components/app-sidebar";
 import { MachinesProvider } from "./_context/machines-context";
@@ -12,6 +13,17 @@ import { useTranslation } from "./_context/i18n-context";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
 const IS_TAURI = typeof window !== "undefined" && !!window.__TAURI__;
+
+// SidebarTrigger styling, split by concern. When the sidebar is expanded the
+// trigger slides into the sidebar's header area and adopts the sidebar's
+// surface/text colors; when collapsed it floats over the content as a chip.
+const TRIGGER_BASE =
+  "fixed top-3 left-3 z-50 size-8 rounded-lg shadow-lg transition-[translate,colors,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]";
+const TRIGGER_FLOATING =
+  "border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-sm text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hi)]";
+// Applied via the parent SidebarProvider's data-state="expanded" group on md+.
+const TRIGGER_DOCKED =
+  "md:group-data-[state=expanded]/sidebar-wrapper:translate-x-[245px] md:group-data-[state=expanded]/sidebar-wrapper:border-transparent md:group-data-[state=expanded]/sidebar-wrapper:bg-sidebar md:group-data-[state=expanded]/sidebar-wrapper:shadow-none md:group-data-[state=expanded]/sidebar-wrapper:text-sidebar-foreground/40 md:group-data-[state=expanded]/sidebar-wrapper:hover:bg-sidebar-accent md:group-data-[state=expanded]/sidebar-wrapper:hover:text-sidebar-foreground";
 
 function ConsoleTrigger() {
   const { t } = useTranslation();
@@ -50,7 +62,7 @@ function ConsoleTrigger() {
           pointerEvents: showPill ? "none" : "auto",
           transition: `opacity 0.35s ${EASE}, translate 0.5s ${EASE}, colors 0.5s ${EASE}`,
         }}
-        className="fixed top-3 left-3 z-50 size-8 rounded-lg border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-sm shadow-lg transition-[translate,colors,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hi)] md:group-data-[state=expanded]/sidebar-wrapper:translate-x-[245px] md:group-data-[state=expanded]/sidebar-wrapper:border-transparent md:group-data-[state=expanded]/sidebar-wrapper:bg-sidebar md:group-data-[state=expanded]/sidebar-wrapper:shadow-none md:group-data-[state=expanded]/sidebar-wrapper:text-sidebar-foreground/40 md:group-data-[state=expanded]/sidebar-wrapper:hover:bg-sidebar-accent md:group-data-[state=expanded]/sidebar-wrapper:hover:text-sidebar-foreground"
+        className={cn(TRIGGER_BASE, TRIGGER_FLOATING, TRIGGER_DOCKED)}
       />
     </>
   );
