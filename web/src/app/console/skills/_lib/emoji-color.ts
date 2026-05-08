@@ -7,6 +7,47 @@
 
 import { useEffect, useState } from "react";
 
+// sRGB ↔ OKLCH (perceptual) so we can shift hue and clamp chroma/lightness
+// without the channel-skew artifacts of HSL or a linear-RGB saturation boost.
+const srgbToLin = (c: number) => {
+  const x = c / 255;
+  return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+};
+const linToSrgb = (c: number) => {
+  const x = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  return Math.max(0, Math.min(255, Math.round(x * 255)));
+};
+function rgbToOklch(r: number, g: number, b: number) {
+  const lr = srgbToLin(r), lg = srgbToLin(g), lb = srgbToLin(b);
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+  const L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+  const a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+  const C = Math.hypot(a, bb);
+  const H = (Math.atan2(bb, a) * 180) / Math.PI;
+  return { L, C, H: (H + 360) % 360 };
+}
+function oklchToRgb(L: number, C: number, H: number) {
+  const h = (H * Math.PI) / 180;
+  const a = C * Math.cos(h), b = C * Math.sin(h);
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+  const lr = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const lg = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const lb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+  return [linToSrgb(lr), linToSrgb(lg), linToSrgb(lb)] as const;
+}
+
+// Analogous-ish background tone: nudge hue, clamp chroma so it recedes,
+// pin lightness into a band that reads well under the gradient's alpha.
+const HUE_SHIFT = 25;          // degrees — analogous neighbor on the wheel
+const CHROMA_MIN = 0.06;       // floor so grey emoji still get a tint
+const CHROMA_MAX = 0.11;       // ceiling so saturated emoji don't scream
+const LIGHTNESS_TARGET = 0.68; // perceptual L for the surface band
+
 const emojiColorCache = new Map<string, string>();
 let _sharedCanvas: HTMLCanvasElement | null = null;
 let _sharedCtx: CanvasRenderingContext2D | null = null;
@@ -52,17 +93,17 @@ function getEmojiColor(emoji: string): string | null {
   }
   if (weightSum === 0) return null;
 
-  // Boost saturation on the result: pull each channel away from the mean.
-  let avgR = r / weightSum;
-  let avgG = g / weightSum;
-  let avgB = b / weightSum;
-  const mean = (avgR + avgG + avgB) / 3;
-  const SATURATION_BOOST = 1.45;
-  avgR = Math.max(0, Math.min(255, mean + (avgR - mean) * SATURATION_BOOST));
-  avgG = Math.max(0, Math.min(255, mean + (avgG - mean) * SATURATION_BOOST));
-  avgB = Math.max(0, Math.min(255, mean + (avgB - mean) * SATURATION_BOOST));
+  // Convert the weighted average through OKLCH and reshape: nudge hue to an
+  // analogous neighbor, clamp chroma into a "background-friendly" band, and
+  // pin lightness so the gradient reads consistently across all emojis.
+  const { C, H } = rgbToOklch(r / weightSum, g / weightSum, b / weightSum);
+  const [outR, outG, outB] = oklchToRgb(
+    LIGHTNESS_TARGET,
+    Math.max(CHROMA_MIN, Math.min(CHROMA_MAX, C)),
+    (H + HUE_SHIFT + 360) % 360,
+  );
 
-  const color = `${Math.round(avgR)}, ${Math.round(avgG)}, ${Math.round(avgB)}`;
+  const color = `${outR}, ${outG}, ${outB}`;
   emojiColorCache.set(emoji, color);
   return color;
 }
