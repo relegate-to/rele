@@ -80,14 +80,14 @@ async fn main() -> anyhow::Result<()> {
             post(skills::gateway_restart_handler),
         )
         .fallback(proxy::http_fallback_handler)
-        // `route_layer` order: last-added is outermost. We want
-        //   auth (outer) → ws check (inner) → route handler
-        // so add ws first, then auth.
-        .route_layer(axum::middleware::from_fn_with_state(
+        // `layer` (not `route_layer`) so middleware also applies to the
+        // fallback — WS upgrades and proxied HTTP both go via fallback.
+        // Order: last-added is outermost, so auth runs first, then ws.
+        .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             ws::ws_middleware,
         ))
-        .route_layer(axum::middleware::from_fn_with_state(
+        .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth::auth_middleware,
         ));

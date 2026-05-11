@@ -99,6 +99,7 @@ pub async fn verify_jwt(
         let mut validation = jsonwebtoken::Validation::new(header.alg);
         validation.set_issuer(&[&issuer]);
         validation.set_required_spec_claims(&["sub", "iss", "exp"]);
+        validation.validate_aud = false;
         if let Ok(data) = jsonwebtoken::decode::<Claims>(token, &decoding_key, &validation) {
             if data.claims.sub == config.user_id {
                 return Some(data.claims.sub);
