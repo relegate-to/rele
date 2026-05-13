@@ -3,42 +3,42 @@
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT=3000
-MENU_NAME="web"
-MENU_KEYS="  [R] Restart  [O] Open  [Q] Quit  "
 
-source "$REPO/scripts/lib/menu.sh"
+source "$REPO/scripts/lib/runner.sh"
+
+LOG_PUMP_PID=""
 
 start() {
   local pids
   pids=$(lsof -ti tcp:$PORT 2>/dev/null || true)
-  [[ -n "$pids" ]] && kill -9 $pids
-  [[ -n "$LOG_FILE" ]] && rm -f "$LOG_FILE"
-  LOG_FILE=$(mktemp /tmp/rele-web-XXXXXX)
-  setup_terminal
+  [[ -n "$pids" ]] && kill -9 $pids 2>/dev/null
   set -m
-  (cd "$REPO/web" && exec bun run dev) > "$LOG_FILE" 2>&1 &
+  ( cd "$REPO/web" && exec bun run dev 2>&1 ) | runner_log_pipe &
+  LOG_PUMP_PID=$!
   set +m
-  SERVER_PID=$!
-  tail -f "$LOG_FILE" | pipe_logs &
+  runner_track "$LOG_PUMP_PID"
 }
 
 restart() {
-  if [[ -n "$SERVER_PID" ]]; then
-    kill -- -"$SERVER_PID" 2>/dev/null
-    wait "$SERVER_PID" 2>/dev/null
+  if [[ -n "$LOG_PUMP_PID" ]]; then
+    runner_kill "$LOG_PUMP_PID"
+    LOG_PUMP_PID=""
   fi
-  [[ -n "$LOG_FILE" ]] && rm -f "$LOG_FILE"
+  runner_clear
+  runner_info "Restarting web..."
   start
 }
 
-start
+open_browser() {
+  open "http://localhost:$PORT" 2>/dev/null || true
+}
 
-while true; do
-  if IFS= read -r -s -n 1 key < /dev/tty 2>/dev/null; then
-    case "$(echo "$key" | tr '[:lower:]' '[:upper:]')" in
-      R) restart ;;
-      O) open "http://localhost:$PORT" ;;
-      Q) clear; exit 0 ;;
-    esac
-  fi
-done
+quit() { exit 0; }
+
+runner_init "web" "  [R] Restart  [O] Open  [Q] Quit  "
+runner_on R restart
+runner_on O open_browser
+runner_on Q quit
+
+start
+runner_loop
