@@ -38,7 +38,7 @@ function ConsoleTrigger() {
       {/* Floating pill — slides in on control-ui when sidebar is hidden */}
       <div
         id="sidebar-pill"
-        className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center"
+        className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center rouned-md"
         style={{
           transform: showPill ? "translateY(0)" : "translateY(-56px)",
           transition: `transform 0.35s ${EASE}`,

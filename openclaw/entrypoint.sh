@@ -67,9 +67,9 @@ echo "Runtime config values injected"
 
 echo "Config ready at $CONFIG_FILE"
 
-# Start auth proxy (port 80 → OpenClaw on 18789, validates JWT)
-echo "Starting auth proxy..."
-node /opt/openclaw/sidecar/index.mjs &
+# Start sidecar (port 80 → OpenClaw on 18789, validates JWT, serves /api/*)
+echo "Starting sidecar..."
+/opt/openclaw/sidecar &
 
 echo "Launching Gateway..."
 while true; do

@@ -9,9 +9,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2Icon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { apiFetch, type InstallEntry } from "../_lib/skills";
+import { type InstallEntry } from "../_lib/skills";
+import {
+  getInstallJob,
+  startInstallJob,
+  subscribeInstallJob,
+  type InstallJobState,
+} from "../_lib/install-jobs";
 
-type InstallState = "idle" | "running" | "done" | "error";
+type InstallState = InstallJobState;
 
 export function InstallButton({
   skillId,
@@ -24,47 +30,28 @@ export function InstallButton({
   onDone: () => void;
   onStateChange?: (state: InstallState) => void;
 }) {
-  const [state, setState] = useState<InstallState>("idle");
-  const [output, setOutput] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const initial = getInstallJob(skillId, entry.id);
+  const [state, setState] = useState<InstallState>(initial.state);
+  const [output, setOutput] = useState<string | null>(initial.output);
+  const onStateChangeRef = useRef(onStateChange);
+  onStateChangeRef.current = onStateChange;
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
-  const stopPolling = () => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  };
-  useEffect(() => () => stopPolling(), []);
+  useEffect(() => {
+    // Notify parent on mount if a job is already in progress (so the dialog
+    // can collapse the other entries again).
+    const cur = getInstallJob(skillId, entry.id);
+    if (cur.state !== "idle") onStateChangeRef.current?.(cur.state);
+    return subscribeInstallJob(skillId, entry.id, (job) => {
+      setState(job.state);
+      setOutput(job.output);
+      onStateChangeRef.current?.(job.state);
+    });
+  }, [skillId, entry.id]);
 
-  const setStateAndNotify = (s: InstallState) => {
-    setState(s);
-    onStateChange?.(s);
-  };
-
-  const install = async () => {
-    setStateAndNotify("running");
-    setOutput(null);
-    try {
-      const { jobId } = await apiFetch(`/api/skills/${skillId}/install/${entry.id}`, { method: "POST" });
-      pollRef.current = setInterval(async () => {
-        try {
-          const job = await apiFetch(`/api/skills/install/${jobId}`);
-          if (job.output) setOutput(job.output);
-          if (job.status === "done") {
-            stopPolling();
-            setStateAndNotify("done");
-            onDone();
-          } else if (job.status === "error") {
-            stopPolling();
-            setOutput(job.output || job.error || null);
-            setStateAndNotify("error");
-          }
-        } catch {}
-      }, 500);
-    } catch (err) {
-      setOutput(err instanceof Error ? err.message : "Failed to start");
-      setStateAndNotify("error");
-    }
+  const install = () => {
+    void startInstallJob(skillId, entry.id, () => onDoneRef.current());
   };
 
   return (

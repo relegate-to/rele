@@ -20,10 +20,23 @@ import {
   type SkillStatus,
 } from "./_lib/skills";
 
+const SKILLS_CACHE_KEY = "skills-page-cache-v1";
+
 export default function SkillsPage() {
   const { connected, rpc } = useGateway();
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [skills, setSkills] = useState<Skill[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = sessionStorage.getItem(SKILLS_CACHE_KEY);
+      return raw ? (JSON.parse(raw) as Skill[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try { return !sessionStorage.getItem(SKILLS_CACHE_KEY); } catch { return true; }
+  });
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
@@ -31,10 +44,8 @@ export default function SkillsPage() {
   const [pendingEnabled, setPendingEnabled] = useState<Record<string, boolean>>({});
   const [installSessions, setInstallSessions] = useState<Record<string, { key: string; label: string }>>({});
 
-  const fetchSkills = useCallback(async () => {
+  const fetchSkills = useCallback(async (config: Record<string, unknown>) => {
     try {
-      let config = {};
-      try { config = await rpc("config.get"); } catch {}
       const { skills } = await apiFetch("/api/skills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -42,26 +53,38 @@ export default function SkillsPage() {
       });
       setSkills(skills);
       setError(null);
+      try { sessionStorage.setItem(SKILLS_CACHE_KEY, JSON.stringify(skills)); } catch {}
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load skills");
     } finally {
       setLoading(false);
     }
-  }, [rpc]);
+  }, []);
 
-  // Fetch skills when gateway connects (and on reconnect after restart).
+  // Kick off an immediate fetch on mount (parallel to WS connect) so we don't
+  // wait on the gateway. Then refetch with real config once connected.
   useEffect(() => {
-    if (connected) fetchSkills();
-  }, [connected, fetchSkills]);
+    if (connected) {
+      (async () => {
+        let config: Record<string, unknown> = {};
+        try { config = (await rpc("config.get")) as Record<string, unknown>; } catch {}
+        fetchSkills(config);
+      })();
+    } else {
+      fetchSkills({});
+    }
+  }, [connected, rpc, fetchSkills]);
 
   const handleToggled = useCallback((skillId: string, status: SkillStatus, newEnabled: boolean) => {
     setLockedStatus((prev) => ({ ...prev, [skillId]: status }));
     setPendingEnabled((prev) => ({ ...prev, [skillId]: newEnabled }));
   }, []);
 
-  const handleChanged = useCallback(() => {
-    fetchSkills();
-  }, [fetchSkills]);
+  const handleChanged = useCallback(async () => {
+    let config: Record<string, unknown> = {};
+    try { config = (await rpc("config.get")) as Record<string, unknown>; } catch {}
+    fetchSkills(config);
+  }, [rpc, fetchSkills]);
 
   // For filtering/counts: lock status to pre-toggle value, keep enabled unchanged
   const skillsForFilter = useMemo(() => skills.map((s) => ({

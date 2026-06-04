@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { apiKeys } from "@rele/db";
 import { db } from "../db";
 import { createSubKey } from "../providers/openrouter";
@@ -7,7 +7,7 @@ export async function ensureManagedKey(userId: string): Promise<string> {
   const [existing] = await db
     .select({ key: apiKeys.key, managed: apiKeys.managed })
     .from(apiKeys)
-    .where(eq(apiKeys.userId, userId));
+    .where(and(eq(apiKeys.userId, userId), eq(apiKeys.managed, true)));
 
   if (existing) {
     return existing.key;

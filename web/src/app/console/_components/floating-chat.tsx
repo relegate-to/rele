@@ -156,9 +156,9 @@ export function FloatingChat({ contextPrompt, sessionName }: { contextPrompt?: s
                   </motion.div>
                 )}
               </AnimatePresence>
-              <div className="px-4 py-4 flex flex-col gap-5">
-                {messages.map((msg) => (
-                  <MessageRow key={msg.id} msg={msg} />
+              <div className="px-4 py-4 flex flex-col gap-1.5">
+                {messages.map((msg, i) => (
+                  <MessageRow key={msg.id} msg={msg} prevRole={messages[i - 1]?.role} />
                 ))}
                 <motion.div animate={{ opacity: isThinking && connected ? 1 : 0 }}>
                   <TypingIndicator />

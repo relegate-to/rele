@@ -30,10 +30,6 @@ import { TrafficLights } from "./traffic-lights";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
-const MAIN_NAV = [
-  { labelKey: "sidebar.canvas", href: "/console/canvas", icon: SquarePenIcon },
-] as const;
-
 const AUTOMATION_NAV = [
   { labelKey: "sidebar.skills",         href: "/console/skills",         icon: BlocksIcon },
   { labelKey: "sidebar.channels",       href: "/console/channels",       icon: Link2Icon },
@@ -48,6 +44,7 @@ const ACCOUNT_NAV = [
 ] as const;
 
 const TOOLS_NAV = [
+  { labelKey: "sidebar.canvas",     href: "/console/canvas",     icon: SquarePenIcon, requiresInstance: true },
   { labelKey: "sidebar.control-ui", href: "/console/control-ui", icon: MonitorIcon, requiresInstance: true,  badge: "alpha" },
   { labelKey: "sidebar.status",     href: "/console/status",     icon: ActivityIcon, requiresInstance: false },
 ] as const;
@@ -359,8 +356,10 @@ export function AppSidebar() {
           const isOnChat = pathname === "/console/chat";
           const isMainActive = isOnChat && activeSessionKey === "agent:main:main";
           const nonMainSessions = sessions.filter((s) => s.key !== "agent:main:main");
-          const normalSessions = nonMainSessions.filter((s) => !s.displayName.startsWith("."));
-          const hiddenSessions = nonMainSessions.filter((s) => s.displayName.startsWith(".") || s.displayName.toLowerCase() === "heartbeat");
+          const isHidden = (s: { displayName: string }) =>
+            s.displayName.startsWith(".") || s.displayName.toLowerCase() === "heartbeat";
+          const normalSessions = nonMainSessions.filter((s) => !isHidden(s));
+          const hiddenSessions = nonMainSessions.filter(isHidden);
           const hasHidden = hiddenSessions.length > 0;
 
           return (
@@ -431,7 +430,7 @@ export function AppSidebar() {
                       }}
                     >
                       <div className="overflow-hidden">
-                        <ul className="flex flex-col">
+                        <ul className="flex flex-col gap-0.5">
                           {normalSessions.map((session) => (
                             <SessionItem
                               key={session.key}
@@ -463,7 +462,7 @@ export function AppSidebar() {
                               }}
                             >
                               <div className="overflow-hidden">
-                                <ul className="flex flex-col">
+                                <ul className="flex flex-col gap-0.5">
                                   {hiddenSessions.map((session) => (
                                     <SessionItem
                                       key={session.key}
@@ -513,9 +512,9 @@ export function AppSidebar() {
         })()}
 
         {/* Navigation */}
+        <div className="h-px w-full bg-sidebar-border my-2" />
         {(
           [
-            { label: "MAIN",       items: MAIN_NAV,       requiresInstance: true  },
             { label: "AUTOMATION", items: AUTOMATION_NAV, requiresInstance: false },
             { label: "ACCOUNT",    items: ACCOUNT_NAV,    requiresInstance: false },
             { label: "TOOLS",      items: TOOLS_NAV,      requiresInstance: false },
