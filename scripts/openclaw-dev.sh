@@ -49,8 +49,8 @@ start_build() {
   runner_info "Building $IMAGE..."
   BUILD_STATUS_FILE=$(mktemp /tmp/rele-openclaw-build-XXXXXX)
   set -m
-  ( docker build --progress=plain -t "$IMAGE" "$WATCH_DIR" 2>&1; \
-    printf '%s' $? > "$BUILD_STATUS_FILE" ) | runner_log_pipe </dev/null &
+  ( docker build --progress=plain -t "$IMAGE" "$WATCH_DIR" </dev/null 2>&1; \
+    printf '%s' $? > "$BUILD_STATUS_FILE" ) | runner_log_pipe &
   BUILD_PID=$!
   set +m
   runner_track "$BUILD_PID"

@@ -7,17 +7,20 @@ import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 import { useGateway } from "../_context/gateway-context";
 import { useTranslation } from "../_context/i18n-context";
+import { useEmojiColor } from "../skills/_lib/emoji-color";
 
 // ─── Name + icon generation ───────────────────────────────────────────────────
 
-const ADJECTIVES = ["swift", "bright", "calm", "bold", "keen", "quiet", "crisp", "clear", "deep", "sharp", "still", "vast", "prime", "fresh", "lucid"];
-const NOUNS = ["harbor", "forge", "haven", "peak", "vault", "ridge", "basin", "grove", "drift", "shelf", "reach", "gate", "field", "bloom", "shore"];
+const LY_WORDS = ["swift", "bright", "calm", "bold", "keen", "quiet", "crisp", "clear", "deep", "sharp", "fresh", "lucid", "vast"];
+const ER_WORDS = ["forge", "vault", "drift", "field", "bloom", "glide", "craft", "build", "climb", "wander", "seek", "trace", "reach"];
 const ICONS = ["⚡", "🔥", "🌊", "🌿", "🎯", "🚀", "💫", "🔮", "🌙", "⭐", "🧊", "🦋"];
 
 function generateName(): string {
-  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-  return `${adj}-${noun}`;
+  const useLy = Math.random() < 0.5;
+  const pool = useLy ? LY_WORDS : ER_WORDS;
+  const word = pool[Math.floor(Math.random() * pool.length)];
+  const name = word.charAt(0).toUpperCase() + word.slice(1) + (useLy ? "ly" : "er");
+  return name;
 }
 
 function randomIcon(): string {
@@ -161,6 +164,7 @@ export function Onboarding() {
     phase === "connecting" ||
     (submitting && phase !== "setup");
 
+  const emojiColor = useEmojiColor(icon);
   const panelContent = getPanelContent(focus, t);
 
   return (
@@ -186,8 +190,11 @@ export function Onboarding() {
                 transition={{ duration: 0.3, ease: EASE }}
                 className="flex flex-col items-center gap-6 py-8 text-center"
               >
-                <div className="flex size-16 items-center justify-center rounded-2xl border border-[var(--border-hi)] bg-[var(--surface)] text-3xl shadow-sm">
-                  {icon}
+                <div
+                  className="flex size-16 items-center justify-center rounded-2xl border border-[var(--border-hi)] text-3xl shadow-sm"
+                  style={{ background: emojiColor ? `linear-gradient(145deg, rgba(${emojiColor}, 0.5), rgba(${emojiColor}, 0.3))` : "var(--surface)" }}
+                >
+                  <span style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{icon}</span>
                 </div>
                 <div>
                   <p className="font-[var(--font-dm-mono),monospace] text-base font-medium text-[var(--text)]">
@@ -240,9 +247,10 @@ export function Onboarding() {
                       <button
                         type="button"
                         onClick={() => { setShowIconPicker((v) => !v); setFocus("name"); }}
-                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg)]/60 text-lg transition-colors hover:border-[var(--border-hi)]"
+                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] text-lg transition-colors hover:border-[var(--border-hi)]"
+                        style={{ background: emojiColor ? `linear-gradient(145deg, rgba(${emojiColor}, 0.5), rgba(${emojiColor}, 0.3))` : "var(--bg)" }}
                       >
-                        {icon}
+                        <span style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{icon}</span>
                       </button>
                       <AnimatePresence>
                         {showIconPicker && (
@@ -260,7 +268,7 @@ export function Onboarding() {
                                 onClick={() => { setIcon(i); setShowIconPicker(false); }}
                                 className={`flex size-8 items-center justify-center rounded-lg text-base transition-colors hover:bg-[var(--surface-hi)] ${icon === i ? "bg-[var(--accent)]/10" : ""}`}
                               >
-                                {i}
+                                <span style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{i}</span>
                               </button>
                             ))}
                           </motion.div>
@@ -274,6 +282,17 @@ export function Onboarding() {
                       onFocus={() => setFocus("name")}
                       className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)]/60 px-3.5 py-2 font-[var(--font-dm-mono),monospace] text-sm text-[var(--text)] transition-colors focus:border-[var(--accent)]/40 focus:outline-none"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setName(generateName())}
+                      title="Reroll name"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg)]/60 text-[var(--muted)] transition-colors hover:border-[var(--border-hi)] hover:text-[var(--text)]"
+                    >
+                      <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 4h10M1 4l3-3M1 4l3 3" />
+                        <path d="M15 12H5M15 12l-3-3M15 12l-3 3" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
 

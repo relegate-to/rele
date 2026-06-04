@@ -53,7 +53,10 @@ export default function ChatPage() {
   return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
  }, []);
 
- if (loading || !machine) return null;
+ // Render the shell immediately. The redirect effect above handles the
+ // no-machine case; rendering during `loading` avoids a blank flash on
+ // first paint.
+ if (!loading && !machine) return null;
 
  return (
   <div className="relative flex h-[100svh] flex-col bg-[var(--bg)] text-[var(--text)]">
@@ -83,9 +86,9 @@ export default function ChatPage() {
      )}
     </AnimatePresence>
     <div className="mx-auto max-w-4xl px-6 py-6">
-     <div className="flex min-w-0 flex-col gap-5">
-      {messages.map((msg) => (
-       <MessageRow key={msg.id} msg={msg} />
+     <div className="flex min-w-0 flex-col gap-1.5">
+      {messages.map((msg, i) => (
+       <MessageRow key={msg.id} msg={msg} prevRole={messages[i - 1]?.role} />
       ))}
       <motion.div animate={{ opacity: isThinking && connected ? 1 : 0 }}>
        <TypingIndicator />

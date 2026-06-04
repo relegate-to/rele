@@ -30,7 +30,7 @@ interface SessionsContextValue {
   loading: boolean;
 }
 
-const MAIN_SESSION_KEY = "agent:main:main";
+export const MAIN_SESSION_KEY = "agent:main:main";
 
 const SessionsContext = createContext<SessionsContextValue | null>(null);
 

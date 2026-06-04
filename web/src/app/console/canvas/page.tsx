@@ -5,6 +5,7 @@ import { useMachinesContext } from "../_context/machines-context";
 import { useGateway } from "../_context/gateway-context";
 import { FloatingChat } from "../_components/floating-chat";
 import { useTranslation } from "../_context/i18n-context";
+import { useSessions, MAIN_SESSION_KEY } from "../_context/sessions-context";
 
 const CANVAS_CONTEXT = `The user is viewing the rele Canvas. The canvas is a single HTML file served directly from the agent's filesystem at /home/node/.openclaw/canvas/index.html. When the user asks you to create, change, or update canvas content, edit that file in place using your file tools (direct write to file — not APIs). Write clean, self-contained HTML — all styles inline or in a <style> block, no external dependencies. Make targeted edits and preserve anything the user hasn't asked to change. Respond briefly to confirm what you did.`;
 
@@ -12,6 +13,13 @@ export default function CanvasPage() {
   const { t } = useTranslation();
   const { machines, loading } = useMachinesContext();
   const { subscribe } = useGateway();
+  const { sessions, setActiveSessionKey } = useSessions();
+
+  useEffect(() => {
+    const canvas = sessions.find((s) => s.displayName === ".canvas");
+    if (canvas) setActiveSessionKey(canvas.key);
+    return () => { setActiveSessionKey(MAIN_SESSION_KEY); };
+  }, [sessions, setActiveSessionKey]);
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [iframeReady, setIframeReady] = useState(false);
@@ -54,6 +62,15 @@ export default function CanvasPage() {
     });
   }, [subscribe]);
 
+  // Kick off the ws-auth fetch immediately on mount in parallel with the
+  // machines query. If it turns out we have no running machine the result
+  // is discarded by the gating effect below.
+  const authPromiseRef = useRef<Promise<{ url: string; token: string; gatewayToken: string }> | null>(null);
+  if (authPromiseRef.current === null) {
+    authPromiseRef.current = fetch("/api/gate/ws-auth")
+      .then((r) => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e.error ?? "Failed")));
+  }
+
   useEffect(() => {
     if (loading) return;
     if (!machine) { router.replace("/console/chat"); return; }
@@ -61,14 +78,13 @@ export default function CanvasPage() {
     if (fetched.current) return;
     fetched.current = true;
 
-    fetch("/api/gate/ws-auth")
-      .then((r) => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e.error ?? "Failed")))
-      .then(({ url, token, gatewayToken }: { url: string; token: string; gatewayToken: string }) => {
+    authPromiseRef.current!
+      .then(({ url, token, gatewayToken }) => {
         const httpBase = url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
         setSrc(`${httpBase}/__openclaw__/canvas/?jwt=${encodeURIComponent(token)}&token=${encodeURIComponent(gatewayToken)}`);
       })
       .catch((e: unknown) => setError(typeof e === "string" ? e : t("console.canvas.connection-failed")));
-  }, [loading, machine, isRunning, router]);
+  }, [loading, machine, isRunning, router, t]);
 
   if (error) {
     return (

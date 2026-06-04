@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, memo, type KeyboardEvent, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpIcon, CopyIcon, CheckIcon, ChevronDownIcon } from "lucide-react";
+import { ArrowUpIcon, ChevronDownIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
@@ -29,49 +29,20 @@ function modelLabel(id: string | null): string {
   return MODELS.find((m) => m.id === id)?.label ?? id.split("/").pop() ?? id;
 }
 
-export function AssistantMessage({ content, children }: { content: string; children: ReactNode }) {
-  const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-
-  return (
-    <div className="group/msg relative pb-6">
-      {children}
-      <motion.button
-        onClick={handleCopy}
-        whileTap={{ scale: 0.78 }}
-        transition={{ type: "spring", stiffness: 600, damping: 18 }}
-        className={`absolute bottom-0 left-0 flex size-6 items-center justify-center rounded-md text-[var(--muted)] transition-colors duration-100 hover:text-[var(--text)] ${copied ? "opacity-100" : "opacity-0 group-hover/msg:opacity-100"}`}
-        aria-label={t("chat.copy-message")}
-      >
-        <AnimatePresence mode="wait" initial={false}>
-          {copied ? (
-            <motion.span key="check" initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 700, damping: 18 }}>
-              <CheckIcon className="size-3.5 text-[var(--accent)]" />
-            </motion.span>
-          ) : (
-            <motion.span key="copy" initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 700, damping: 18 }}>
-              <CopyIcon className="size-3.5" />
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </motion.button>
-    </div>
-  );
+export function AssistantMessage({ children }: { content: string; children: ReactNode }) {
+  return <>{children}</>;
 }
 
-export const MessageRow = memo(function MessageRow({ msg, compact }: { msg: ChatMessage; compact?: boolean }) {
+const isAssistant = (role: string) => role === "assistant" || role === "tool";
+
+export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: { msg: ChatMessage; compact?: boolean; prevRole?: string }) {
+  const turnBoundary = !!prevRole && isAssistant(prevRole) !== isAssistant(msg.role);
   return (
     <motion.div
       initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{ duration: 0.35, ease: EASE }}
-      className={cn("min-w-0", msg.role === "tool" && !compact && "-my-2")}
+      className={cn("min-w-0", !compact && turnBoundary && "mt-4")}
     >
       {msg.role === "user" ? (
         <div className="flex justify-end">
@@ -95,9 +66,11 @@ export const MessageRow = memo(function MessageRow({ msg, compact }: { msg: Chat
         </MarkdownProse>
       ) : (
         <AssistantMessage content={msg.content}>
-          <MarkdownProse isStreaming={msg.isStreaming}>
-            {msg.content}
-          </MarkdownProse>
+          <div className="py-0">
+            <MarkdownProse isStreaming={msg.isStreaming}>
+              {msg.content}
+            </MarkdownProse>
+          </div>
         </AssistantMessage>
       )}
     </motion.div>
