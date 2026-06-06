@@ -31,11 +31,11 @@ import { TrafficLights } from "./traffic-lights";
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
 const AUTOMATION_NAV = [
-  { labelKey: "sidebar.skills",         href: "/console/skills",         icon: BlocksIcon },
-  { labelKey: "sidebar.channels",       href: "/console/channels",       icon: Link2Icon },
-  { labelKey: "sidebar.features",       href: "/console/features",       icon: ZapIcon },
-  { labelKey: "sidebar.scheduled-jobs", href: "/console/scheduled-jobs", icon: ClockIcon },
-  { labelKey: "sidebar.terminal",       href: "/console/terminal",       icon: SquareTerminalIcon },
+  { labelKey: "sidebar.skills",         href: "/console/skills",         icon: BlocksIcon,         requiresInstance: true },
+  { labelKey: "sidebar.channels",       href: "/console/channels",       icon: Link2Icon,          requiresInstance: true },
+  { labelKey: "sidebar.features",       href: "/console/features",       icon: ZapIcon,            requiresInstance: true },
+  { labelKey: "sidebar.scheduled-jobs", href: "/console/scheduled-jobs", icon: ClockIcon,          requiresInstance: true },
+  { labelKey: "sidebar.terminal",       href: "/console/terminal",       icon: SquareTerminalIcon, requiresInstance: true },
 ] as const;
 
 const ACCOUNT_NAV = [
@@ -94,92 +94,191 @@ function machineToInstance(m: Machine, gatewayConnected: boolean): Instance {
   };
 }
 
-// ─── Onboarding sidebar section with exit animation ──────────────────────────
+// ─── Instance + onboarding shell ─────────────────────────────────────────────
+//
+// The onboarding card visually wraps the instance pill: an accent-tinted ring
+// surrounds the instance, with a CTA row tucked underneath. When onboarding
+// completes the CTA briefly turns success-green, then the row collapses
+// upward behind the pill and the ring fades, leaving the bare instance.
 
 type ExitPhase = "visible" | "completing" | "collapsing" | "gone";
 
-function OnboardingSection({
-  show,
+function InstanceShell({
+  showOnboarding,
   hasInstances,
   pathname,
   t,
+  children,
 }: {
-  show: boolean;
+  showOnboarding: boolean;
   hasInstances: boolean;
   pathname: string;
   t: (key: string) => string;
+  children: React.ReactNode;
 }) {
-  const [phase, setPhase] = useState<ExitPhase>(show ? "visible" : "gone");
-  const prevShow = useRef(show);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [measuredHeight, setMeasuredHeight] = useState<number | undefined>(undefined);
+  const [phase, setPhase] = useState<ExitPhase>(showOnboarding ? "visible" : "gone");
+  const prevShow = useRef(showOnboarding);
+  const ctaRef = useRef<HTMLDivElement>(null);
+  const [ctaHeight, setCtaHeight] = useState<number | undefined>(undefined);
 
   useEffect(() => {
-    if (prevShow.current && !show) {
-      if (containerRef.current) {
-        setMeasuredHeight(containerRef.current.scrollHeight);
-      }
+    if (prevShow.current && !showOnboarding) {
+      if (ctaRef.current) setCtaHeight(ctaRef.current.scrollHeight);
       setPhase("completing");
-      const t1 = setTimeout(() => setPhase("collapsing"), 800);
-      const t2 = setTimeout(() => setPhase("gone"), 1200);
+      const t1 = setTimeout(() => setPhase("collapsing"), 900);
+      const t2 = setTimeout(() => setPhase("gone"), 1600);
+      prevShow.current = showOnboarding;
       return () => { clearTimeout(t1); clearTimeout(t2); };
     }
-    if (!prevShow.current && show) {
+    if (!prevShow.current && showOnboarding) {
       setPhase("visible");
-      setMeasuredHeight(undefined);
+      setCtaHeight(undefined);
     }
-    prevShow.current = show;
-  }, [show]);
+    prevShow.current = showOnboarding;
+  }, [showOnboarding]);
 
-  if (phase === "gone") return null;
+  const wrapping = phase !== "gone";
+  const isActive = pathname === "/console/onboarding";
+
+  // Hold success styling through the collapse so the CTA doesn't flicker back
+  // to the accent/onboarding state while it's fading out.
+  const success = phase === "completing" || phase === "collapsing";
+  const accentVisible = wrapping && phase !== "collapsing";
+
+  // Smooth ease curve used throughout the close sequence
+  const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 
   return (
-    <div
-      ref={containerRef}
-      className="overflow-hidden transition-all duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-      style={{
-        height: phase === "collapsing" ? 0 : measuredHeight ?? "auto",
-        opacity: phase === "collapsing" ? 0 : 1,
-      }}
-    >
-      <SidebarGroup className="px-2 pt-1 pb-1">
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={pathname === "/console/onboarding"}
-                tooltip={t("sidebar.onboarding.view-setup")}
-                render={<Link href="/console/onboarding" />}
-                className={cn(
-                  "h-auto gap-2.5 rounded-lg px-3 py-2 transition-all duration-500",
-                  phase === "completing"
-                    ? "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success)]"
-                    : "ring-1 ring-[var(--accent)] bg-[var(--accent)]/5 text-[var(--accent)] hover:bg-[var(--accent)]/10 data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary data-[active]:ring-[var(--accent)] data-[active]:shadow-none"
-                )}
+    <SidebarGroup className="px-2.5 py-2.5">
+      <SidebarGroupContent>
+        <div
+          className="relative rounded-2xl transition-[padding] ease-[cubic-bezier(0.32,0.72,0,1)]"
+          style={{
+            padding: wrapping ? 8 : 0,
+            transitionDuration: "550ms",
+          }}
+        >
+          {/* Accent sleeve — gradient border. Two variants (light/dark) since flat alpha tints
+              look heavier on a light surface than they do on a dark one. */}
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 rounded-2xl transition-opacity ease-[cubic-bezier(0.32,0.72,0,1)] dark:hidden",
+              accentVisible || success ? "opacity-100" : "opacity-0",
+            )}
+            style={{
+              padding: 1,
+              transitionDuration: "550ms",
+              background: success
+                ? "linear-gradient(180deg, color-mix(in oklab, var(--status-success) 45%, transparent), color-mix(in oklab, var(--status-success) 15%, transparent))"
+                : "linear-gradient(180deg, color-mix(in oklab, var(--accent) 40%, transparent), color-mix(in oklab, var(--accent) 10%, transparent))",
+              WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+            }}
+          />
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 rounded-2xl transition-opacity ease-[cubic-bezier(0.32,0.72,0,1)] hidden dark:block",
+              accentVisible || success ? "opacity-100" : "opacity-0",
+            )}
+            style={{
+              padding: 1,
+              transitionDuration: "550ms",
+              background: success
+                ? "linear-gradient(180deg, var(--status-success-border), color-mix(in oklab, var(--status-success) 30%, transparent))"
+                : "linear-gradient(180deg, color-mix(in oklab, var(--accent) 70%, transparent), color-mix(in oklab, var(--accent) 20%, transparent))",
+              WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+            }}
+          />
+          {/* Top glow — subtle in light, more visible in dark */}
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 rounded-2xl transition-opacity ease-[cubic-bezier(0.32,0.72,0,1)]",
+              accentVisible ? "opacity-100" : "opacity-0",
+            )}
+            style={{
+              transitionDuration: "550ms",
+              background: "radial-gradient(120% 60% at 50% 0%, color-mix(in oklab, var(--accent) var(--glow-strength, 5%), transparent), transparent 70%)",
+              ["--glow-strength" as string]: "4%",
+            }}
+          />
+
+          <div className="relative">
+            <SidebarMenu>{children}</SidebarMenu>
+
+            {wrapping && (
+              <div
+                ref={ctaRef}
+                className="overflow-hidden"
+                style={{
+                  height: phase === "collapsing" ? 0 : ctaHeight ?? "auto",
+                  marginTop: phase === "collapsing" ? 0 : 8,
+                  transition: `height 550ms ${EASE}, margin-top 550ms ${EASE}`,
+                }}
               >
-                {phase === "completing" ? (
-                  <CheckCircle2Icon className="size-4 shrink-0" />
-                ) : (
-                  <SparklesIcon className="size-4 shrink-0" />
-                )}
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold leading-tight">
-                    {phase === "completing" ? t("sidebar.onboarding.all-done") : t("sidebar.onboarding.title")}
+                <div
+                  style={{
+                    opacity: phase === "collapsing" ? 0 : 1,
+                    transform: phase === "collapsing" ? "translateY(-4px)" : "translateY(0)",
+                    transition: `opacity 260ms cubic-bezier(0.4, 0, 1, 1), transform 360ms ${EASE}`,
+                  }}
+                >
+                <Link
+                  href="/console/onboarding"
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors",
+                    success
+                      ? "text-[var(--status-success)]"
+                      : isActive
+                        ? "bg-[var(--accent)]/8 text-[var(--accent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_18%,transparent)] dark:bg-[var(--accent)]/14 dark:shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_30%,transparent)]"
+                        : "text-[var(--accent)] hover:bg-[var(--accent)]/5 dark:hover:bg-[var(--accent)]/8",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors",
+                      success
+                        ? "bg-[var(--status-success)]/10 ring-1 ring-[var(--status-success)]/20 dark:bg-[var(--status-success)]/15 dark:ring-[var(--status-success)]/30"
+                        : isActive
+                          ? "bg-[var(--accent)]/14 ring-1 ring-[var(--accent)]/25 dark:bg-[var(--accent)]/25 dark:ring-[var(--accent)]/45"
+                          : "bg-[var(--accent)]/7 ring-1 ring-[var(--accent)]/15 dark:bg-[var(--accent)]/12 dark:ring-[var(--accent)]/25",
+                    )}
+                  >
+                    {success ? (
+                      <CheckCircle2Icon className="size-4" />
+                    ) : (
+                      <SparklesIcon className="size-4" />
+                    )}
                   </span>
-                  <span className="text-xs font-normal opacity-60">
-                    {phase === "completing"
-                      ? t("sidebar.onboarding.ready")
-                      : hasInstances
-                        ? t("sidebar.onboarding.view-setup")
-                        : t("sidebar.onboarding.create")}
-                  </span>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-[13px] font-semibold leading-tight tracking-[-0.005em]">
+                      {success ? t("sidebar.onboarding.all-done") : t("sidebar.onboarding.title")}
+                    </span>
+                    <span className="mt-0.5 text-[11px] font-normal leading-tight opacity-65 truncate">
+                      {success
+                        ? t("sidebar.onboarding.ready")
+                        : hasInstances
+                          ? t("sidebar.onboarding.view-setup")
+                          : t("sidebar.onboarding.create")}
+                    </span>
+                  </div>
+                  {!success && (
+                    <ArrowRightIcon className="size-3.5 shrink-0 opacity-50 transition-[transform,opacity] duration-200 group-hover:translate-x-0.5 group-hover:opacity-90" />
+                  )}
+                </Link>
                 </div>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }
 
@@ -309,42 +408,40 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      {/* Instance — pinned above scrollable content */}
-      <SidebarGroup className="px-2.5 py-2.5">
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {loading && machines.length === 0 && (
-              <SidebarMenuItem>
-                <div className="flex h-auto items-center gap-3 rounded-lg border border-sidebar-border px-3 py-2">
-                  <div className="flex size-6 shrink-0 items-center justify-center rounded-md border border-sidebar-border bg-sidebar-accent/50 animate-pulse">
-                    <span className="text-xs italic text-sidebar-foreground/30">r</span>
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <span className="h-3.5 w-20 rounded bg-sidebar-accent/60 animate-pulse" />
-                    <span className="h-2.5 w-14 rounded bg-sidebar-accent/40 animate-pulse" />
-                  </div>
-                </div>
-              </SidebarMenuItem>
-            )}
-            {machines.map((m) => (
-              <InstanceItem
-                key={m.id}
-                instance={machineToInstance(m, gatewayConnected)}
-                isActive={pathname === "/console/status"}
-                onStop={() => stopMachine(m.id)}
-                onStart={() => startMachine(m.id)}
-                onDelete={() => deleteMachine(m.id)}
-              />
-            ))}
-            {!loading && machines.length === 0 && (
-              <AddInstanceItem onClick={() => router.push("/console/onboarding")} />
-            )}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-
-      {/* Onboarding — animated exit when user has instance and navigates away */}
-      <OnboardingSection show={!hasInstances || pathname === "/console/onboarding"} hasInstances={hasInstances} pathname={pathname} t={t} />
+      {/* Instance — pinned above scrollable content, wrapped by onboarding sleeve until setup is done */}
+      <InstanceShell
+        showOnboarding={!hasInstances || pathname === "/console/onboarding"}
+        hasInstances={hasInstances}
+        pathname={pathname}
+        t={t}
+      >
+        {loading && machines.length === 0 && (
+          <SidebarMenuItem>
+            <div className="flex h-auto items-center gap-3 rounded-lg border border-sidebar-border px-3 py-2">
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-md border border-sidebar-border bg-sidebar-accent/50 animate-pulse">
+                <span className="text-xs italic text-sidebar-foreground/30">r</span>
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <span className="h-3.5 w-20 rounded bg-sidebar-accent/60 animate-pulse" />
+                <span className="h-2.5 w-14 rounded bg-sidebar-accent/40 animate-pulse" />
+              </div>
+            </div>
+          </SidebarMenuItem>
+        )}
+        {machines.map((m) => (
+          <InstanceItem
+            key={m.id}
+            instance={machineToInstance(m, gatewayConnected)}
+            isActive={pathname === "/console/status"}
+            onStop={() => stopMachine(m.id)}
+            onStart={() => startMachine(m.id)}
+            onDelete={() => deleteMachine(m.id)}
+          />
+        ))}
+        {!loading && machines.length === 0 && (
+          <AddInstanceItem onClick={() => router.push("/console/onboarding")} />
+        )}
+      </InstanceShell>
 
       <SidebarContent>
 
@@ -534,14 +631,15 @@ export function AppSidebar() {
                     const isExternal = !!(item as { external?: boolean }).external;
                     const itemRequiresInstance = !!(item as { requiresInstance?: boolean }).requiresInstance;
                     const badge = (item as { badge?: string }).badge;
-                    const disabled = (section.requiresInstance || itemRequiresInstance) && (!hasInstances || notReady);
-                    const tooltip = section.requiresInstance && !hasInstances
+                    const needsInstance = section.requiresInstance || itemRequiresInstance;
+                    const disabled = needsInstance && (!hasInstances || notReady);
+                    const tooltip = needsInstance && !hasInstances
                       ? t("sidebar.tooltip.create-instance")
-                      : section.requiresInstance && primaryStatus === "provisioning"
+                      : needsInstance && primaryStatus === "provisioning"
                       ? t("sidebar.tooltip.starting")
-                      : section.requiresInstance && primaryStatus === "connecting"
+                      : needsInstance && primaryStatus === "connecting"
                       ? t("sidebar.tooltip.connecting")
-                      : section.requiresInstance && primaryStatus === "stopping"
+                      : needsInstance && primaryStatus === "stopping"
                       ? t("sidebar.tooltip.stopping")
                       : t((item as any).labelKey);
                     return (
