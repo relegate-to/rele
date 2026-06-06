@@ -61,7 +61,7 @@ export default function ChatPage() {
  return (
   <div className="relative flex h-[100svh] flex-col bg-[var(--bg)] text-[var(--text)]">
    <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">
-    <ConnectionStatus connected={connected} connecting={connecting} />
+    {/*<ConnectionStatus connected={connected} connecting={connecting} />*/}
    </div>
 
    <div ref={scrollContainerRef} onScroll={handleScroll} className="relative min-w-0 flex-1 overflow-y-auto stable-gutter">

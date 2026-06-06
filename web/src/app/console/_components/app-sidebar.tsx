@@ -142,7 +142,7 @@ function OnboardingSection({
         opacity: phase === "collapsing" ? 0 : 1,
       }}
     >
-      <SidebarGroup className="px-2 pt-0 pb-1">
+      <SidebarGroup className="px-2 pt-1 pb-1">
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -151,10 +151,10 @@ function OnboardingSection({
                 tooltip={t("sidebar.onboarding.view-setup")}
                 render={<Link href="/console/onboarding" />}
                 className={cn(
-                  "h-auto gap-2.5 rounded-lg border px-2.5 py-2 transition-all duration-500",
+                  "h-auto gap-2.5 rounded-lg px-3 py-2 transition-all duration-500",
                   phase === "completing"
                     ? "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success)]"
-                    : "border-[var(--accent)]/20 bg-[var(--accent)]/5 text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/10"
+                    : "ring-1 ring-[var(--accent)] bg-[var(--accent)]/5 text-[var(--accent)] hover:bg-[var(--accent)]/10 data-[active]:bg-sidebar-primary/10 data-[active]:text-sidebar-primary data-[active]:ring-[var(--accent)] data-[active]:shadow-none"
                 )}
               >
                 {phase === "completing" ? (
