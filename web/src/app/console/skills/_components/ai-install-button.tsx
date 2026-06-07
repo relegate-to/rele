@@ -27,7 +27,7 @@ import { FadeScroll } from "@/components/ui/fade-scroll";
 import { CornerTab } from "@/components/ui/corner-tab";
 import { useChat } from "../../_context/chat-context";
 import { useSessions } from "../../_context/sessions-context";
-import { MessageRow } from "../../_components/chat-components";
+import { MessageList } from "../../_components/chat-components";
 import {
   detectResult,
   latestStatus,
@@ -175,9 +175,7 @@ export function AskAiInstallButton({
                 <div className="relative rounded-lg border border-[var(--border)] bg-[var(--bg)] overflow-hidden">
                   <FadeScroll className="rounded-lg" innerClassName="h-60 p-3 overflow-x-auto">
                     <div className="flex flex-col gap-3 min-w-0 break-words overflow-hidden">
-                      {displayMessages.map((msg) => (
-                        <MessageRow key={msg.id} msg={msg} compact />
-                      ))}
+                      <MessageList messages={displayMessages} compact />
                     </div>
                   </FadeScroll>
                   {sessionLabel && (
@@ -221,9 +219,7 @@ export function AskAiInstallButton({
               <div className="relative rounded-lg border border-[var(--border)] bg-[var(--bg)]">
                 <FadeScroll className="rounded-lg" innerClassName="h-60 p-3" pinToBottom>
                   <div className="flex flex-col gap-3">
-                    {displayMessages.map((msg) => (
-                      <MessageRow key={msg.id} msg={msg} compact />
-                    ))}
+                    <MessageList messages={displayMessages} compact />
                     {isThinking && <TypingIndicator />}
                   </div>
                 </FadeScroll>

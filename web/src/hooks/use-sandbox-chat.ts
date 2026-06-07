@@ -7,6 +7,8 @@ import {
   parseHistoryMessages,
   parseToolEvent,
   parseChatEvent,
+  stripHiddenPrefix,
+  stripUserContextPrefix,
   HIDDEN_START,
   HIDDEN_END,
 } from "./sandbox-chat-protocol";
@@ -78,6 +80,26 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
   const getSessionMessages = useCallback((key: string) => filterHidden(getStore(key).messages), [getStore]);
   const getSessionThinking = useCallback((key: string) => getStore(key).isThinking, [getStore]);
 
+  const refreshHistory = useCallback((key?: string) => {
+    const target = key ?? sessionKeyRef.current;
+    send({
+      type: "req",
+      id: `chat-hist-${target}-${Date.now()}`,
+      method: "chat.history",
+      params: { sessionKey: target },
+    });
+  }, [send]);
+
+  const clearMessages = useCallback((key?: string) => {
+    const target = key ?? sessionKeyRef.current;
+    const s = getStore(target);
+    s.messages = [];
+    s.isThinking = false;
+    s.currentStreamId = null;
+    s.historyFetched = false;
+    flush(target);
+  }, [getStore, flush]);
+
   // When session key changes, sync React state from the store.
   useEffect(() => {
     const s = getStore(sessionKey);
@@ -124,7 +146,38 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
 
           const store = getStore(histKey);
           const history = parseHistoryMessages(payload.messages as unknown[]);
-          store.messages = dedupe([...history, ...store.messages]);
+
+          // History entries can carry different ids than the live stream
+          // (history uses `hist:` or `run:<runId>`, stream uses
+          // `run:<runId>:<seg>`) and user entries may pick up a `System:`
+          // wrapper after compaction. Dedupe by displayable content — but
+          // count-based, so re-running the same command (e.g. /usage twice
+          // returning identical text) doesn't drop the second response.
+          const userKey = (s: string) =>
+            stripUserContextPrefix(stripHiddenPrefix(s)).trim();
+          const remaining = new Map<string, number>();
+          const bump = (key: string) =>
+            remaining.set(key, (remaining.get(key) ?? 0) + 1);
+          for (const m of store.messages) {
+            if (m.role === "assistant") bump(`a:${m.content.trim()}`);
+            else if (m.role === "user") bump(`u:${userKey(m.content)}`);
+          }
+          const filteredHistory = history.filter((m) => {
+            const key =
+              m.role === "assistant" ? `a:${m.content.trim()}`
+              : m.role === "user" ? `u:${userKey(m.content)}`
+              : null;
+            if (!key) return true;
+            const count = remaining.get(key) ?? 0;
+            if (count > 0) {
+              remaining.set(key, count - 1);
+              return false;
+            }
+            return true;
+          });
+
+          store.messages = dedupe([...filteredHistory, ...store.messages])
+            .sort((a, b) => a.timestamp - b.timestamp);
           flush(histKey);
         }
         return;
@@ -199,7 +252,13 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
         }
 
         if (stream === "lifecycle") {
-          if ((payload.data as Record<string, unknown> | undefined)?.phase !== "end") return;
+          const phase = (payload.data as Record<string, unknown> | undefined)?.phase;
+          if (phase === "start") {
+            store.isThinking = true;
+            flush(evtKey);
+            return;
+          }
+          if (phase !== "end") return;
           const msgId = store.currentStreamId;
           if (msgId) {
             const idx = store.messages.findIndex((m) => m.id === msgId);
@@ -216,24 +275,48 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
         }
       }
 
-      // Chat events used for error reporting only.
+      // Chat events: full entries (gateway-injected messages like /status,
+      // /compact summaries) AND streaming error reports.
       if (data.type === "event" && data.event === "chat") {
         const chatPayload = data.payload as Record<string, unknown>;
         const evtKey = (chatPayload?.sessionKey as string) || sessionKeyRef.current;
         const store = getStore(evtKey);
+
+        const entry = chatPayload?.entry as unknown;
+        if (entry) {
+          const parsed = parseHistoryMessages([entry]);
+          if (parsed.length > 0) {
+            store.messages = dedupe([...store.messages, ...parsed]);
+            // Gateway-injected assistant entries (compaction, status) end the
+            // current "thinking" state.
+            if (parsed.some((m) => m.role === "assistant")) {
+              store.isThinking = false;
+            }
+            flush(evtKey);
+          }
+          return;
+        }
+
         const event = parseChatEvent(chatPayload);
-        if (!event || event.state !== "error") return;
-        store.isThinking = false;
-        store.messages = dedupe([
-          ...store.messages,
-          {
-            id: `error:${event.messageId}:${Date.now()}`,
-            role: "assistant",
-            content: event.text || "Agent error",
-            timestamp: Date.now(),
-          },
-        ]);
-        flush(evtKey);
+        if (!event) return;
+        if (event.state === "final") {
+          store.isThinking = false;
+          flush(evtKey);
+          return;
+        }
+        if (event.state === "error") {
+          store.isThinking = false;
+          store.messages = dedupe([
+            ...store.messages,
+            {
+              id: `error:${event.messageId}:${Date.now()}`,
+              role: "assistant",
+              content: event.text || "Agent error",
+              timestamp: Date.now(),
+            },
+          ]);
+          flush(evtKey);
+        }
       }
     });
   }, [subscribe, getStore, flush]);
@@ -323,6 +406,8 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
     observeSession,
     getSessionMessages,
     getSessionThinking,
+    clearMessages,
+    refreshHistory,
     currentModel,
     setModel,
   };

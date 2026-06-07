@@ -16,6 +16,8 @@ interface ChatContextValue {
   observeSession: (key: string, cb: () => void) => () => void;
   getSessionMessages: (key: string) => ChatMessage[];
   getSessionThinking: (key: string) => boolean;
+  clearMessages: (key?: string) => void;
+  refreshHistory: (key?: string) => void;
   currentModel: string | null;
   setModel: (model: string) => void;
 }
