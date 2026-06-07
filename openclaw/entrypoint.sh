@@ -76,6 +76,13 @@ echo "Config ready at $CONFIG_FILE"
 
 # Drop to rele for the long-running processes. HOME is set so brew, npm, go,
 # and anything the agent runs land in /home/rele rather than /root.
+#
+# Re-apply cap_net_bind_service at boot: the build-time setcap can be stripped
+# by image transport (registries / runtimes that don't preserve security.capability
+# xattrs), which manifests on Fly as "Permission denied (os error 13)" when the
+# unprivileged sidecar tries to bind :80.
+setcap 'cap_net_bind_service=+ep' /opt/openclaw/sidecar
+
 echo "Starting sidecar..."
 gosu rele env HOME=/home/rele /opt/openclaw/sidecar &
 
