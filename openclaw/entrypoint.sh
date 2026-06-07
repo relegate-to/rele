@@ -13,7 +13,7 @@ if [ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]; then
   exit 1
 fi
 
-CONFIG_DIR="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}"
+CONFIG_DIR="${OPENCLAW_STATE_DIR:-/home/rele/.openclaw}"
 CONFIG_FILE="$CONFIG_DIR/openclaw.json"
 
 mkdir -p "$CONFIG_DIR" "$CONFIG_DIR/workspace" "$CONFIG_DIR/credentials" "$CONFIG_DIR/agents/main/sessions" "$CONFIG_DIR/canvas"
