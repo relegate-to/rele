@@ -146,6 +146,12 @@ pub async fn ws_middleware(
         return next.run(req).await;
     }
 
+    // The terminal endpoint runs locally on the sidecar — don't tunnel its
+    // upgrade to the gateway, let axum's route handler take it.
+    if req.uri().path() == "/api/terminal" {
+        return next.run(req).await;
+    }
+
     // Pull out everything we need before consuming the request for upgrade.
     let client_key = match req
         .headers()
