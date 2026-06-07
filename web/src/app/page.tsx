@@ -6,7 +6,7 @@ import { EASE } from "@/lib/theme";
 import { useNavigate } from "@/components/ui/page-transition";
 import { NoiseGrain, Vignette } from "@/components/ui/bg-effects";
 import { Button } from "@/components/ui/button";
-import { RocketIcon } from "lucide-react";
+import { ArrowRightIcon, RocketIcon } from "lucide-react";
 import { useTranslation } from "./console/_context/i18n-context";
 
 const footerLinks = [
@@ -28,29 +28,28 @@ function RelePageContent() {
 
       {/* Hero */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6">
-        <motion.p
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: EASE, delay: 0.1 }}
-          className="font-[var(--font-dm-mono),monospace] text-[0.65rem] text-[var(--accent)] tracking-[0.2em] uppercase mb-7"
-        >
-          {t("landing.by-relegate")}
-        </motion.p>
-
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: EASE, delay: 0.22 }}
-          className="font-semibold text-[clamp(2.8rem,6vw,5.5rem)] leading-[1.08] tracking-[-0.03em] text-[var(--text)] mb-5 max-w-[700px]"
+          transition={{ duration: 0.7, ease: EASE, delay: 0.15 }}
+          className="font-semibold text-[clamp(3.2rem,8vw,6rem)] leading-[0.95] tracking-[-0.04em] text-[var(--text)] mb-6"
         >
           rele
         </motion.h1>
 
+        <motion.span
+          initial={{ opacity: 0, scaleX: 0 }}
+          animate={{ opacity: 1, scaleX: 1 }}
+          transition={{ duration: 0.7, ease: EASE, delay: 0.32 }}
+          className="block h-px w-12 bg-[var(--accent)] mb-7 origin-center"
+          aria-hidden
+        />
+
         <motion.p
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: EASE, delay: 0.34 }}
-          className="text-[1.15rem] text-[var(--text-dim)] leading-[1.7] max-w-[420px] mx-auto mb-11"
+          transition={{ duration: 0.6, ease: EASE, delay: 0.38 }}
+          className="text-[1.05rem] sm:text-[1.15rem] text-[var(--text-dim)] leading-[1.65] max-w-[440px] mx-auto mb-10"
         >
           {t("landing.tagline")}
         </motion.p>
@@ -58,17 +57,16 @@ function RelePageContent() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: EASE, delay: 0.46 }}
-          className="flex gap-3 items-center"
+          transition={{ duration: 0.6, ease: EASE, delay: 0.5 }}
         >
           {isPending ? (
-            <div className="h-9 w-[120px] rounded-lg bg-[var(--border)] animate-pulse" />
+            <div className="h-9 w-[120px] rounded-lg bg-[var(--border)]/60 animate-pulse" />
           ) : isSignedIn ? (
             <Button
               variant="outline"
               size="lg"
               onClick={() => navigate("/console")}
-              className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase px-5 gap-2 border-[var(--accent)] shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_15%,transparent)]"
+              className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.1em] uppercase px-5 gap-2 border-[var(--accent)] text-[var(--text)] hover:bg-[var(--accent-subtle)] hover:text-[var(--text)]"
             >
               <RocketIcon className="size-3.5" />
               {t("landing.go-to-console")}
@@ -77,30 +75,43 @@ function RelePageContent() {
             <Button
               size="lg"
               onClick={() => navigate("/sign-in")}
-              className="font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.08em] uppercase px-6 shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_15%,transparent)]"
+              className="group font-[var(--font-dm-mono),monospace] text-[0.72rem] tracking-[0.1em] uppercase px-6 gap-2 hover:bg-[color-mix(in_srgb,var(--primary)_88%,white)]"
             >
               {t("landing.sign-in")}
+              <ArrowRightIcon className="size-3.5 transition-transform group-hover:translate-x-0.5" />
             </Button>
           )}
         </motion.div>
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-[var(--border)] px-12 py-6 flex items-center justify-between flex-wrap gap-4">
-        <span className="font-[var(--font-dm-mono),monospace] text-[0.62rem] text-[var(--muted)] tracking-[0.06em]">
-          {"rele — "}
-          <a href="https://relegate.to" className="text-[var(--accent)] no-underline hover:text-[var(--accent-dim)] transition-colors">
+      <motion.footer
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, ease: EASE, delay: 0.65 }}
+        className="relative z-10 border-t border-[var(--border)] px-8 sm:px-12 py-6 flex items-center justify-between flex-wrap gap-4 font-[var(--font-dm-mono),monospace] text-[0.62rem] text-[var(--text-dim)] tracking-[0.1em]"
+      >
+        <span>
+          {"rele · "}
+          <a
+            href="https://relegate.to"
+            className="text-[var(--accent)] no-underline hover:text-[var(--accent-dim)] transition-colors"
+          >
             relegate.to
           </a>
         </span>
-        <div className="flex gap-8 font-[var(--font-dm-mono),monospace] text-[0.62rem] text-[var(--muted)] tracking-[0.06em]">
+        <div className="flex gap-7">
           {footerLinks.map(({ key, url }) => (
-            <a key={key} href={url} className="text-[var(--muted)] no-underline hover:text-[var(--text-dim)] transition-colors">
+            <a
+              key={key}
+              href={url}
+              className="hover:text-[var(--text)] transition-colors"
+            >
               {t(key)}
             </a>
           ))}
         </div>
-      </footer>
+      </motion.footer>
     </div>
   );
 }

@@ -171,20 +171,22 @@ export const SkillCard = memo(function SkillCard({
             </p>
           )}
 
-          {/* Enable row */}
-          <div className="flex items-center justify-between border-t border-[var(--border)] pt-5">
-            <div>
-              <p className="text-sm font-medium text-[var(--text)]">Enable skill</p>
-              {needsSetup && (
-                <p className="text-xs text-[var(--status-warning-text)]">Fix issues before enabling</p>
-              )}
+          {/* Enable row — hidden when deps are missing (user needs to install first) */}
+          {skill.status !== "missing-deps" && (
+            <div className="flex items-center justify-between border-t border-[var(--border)] pt-5">
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">Enable skill</p>
+                {needsSetup && (
+                  <p className="text-xs text-[var(--status-warning-text)]">Fix issues before enabling</p>
+                )}
+              </div>
+              <Switch
+                checked={skill.enabled && !needsSetup}
+                onClick={() => { void doToggle(); }}
+                disabled={toggling || needsSetup}
+              />
             </div>
-            <Switch
-              checked={skill.enabled && !needsSetup}
-              onClick={() => { void doToggle(); }}
-              disabled={toggling || needsSetup}
-            />
-          </div>
+          )}
 
           {/* Details */}
           {hasDetails && (

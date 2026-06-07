@@ -16,17 +16,23 @@ fi
 CONFIG_DIR="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}"
 CONFIG_FILE="$CONFIG_DIR/openclaw.json"
 
+# This runs as root. The Fly volume is mounted at $CONFIG_DIR by the platform
+# and its ownership is independent of anything in the image, so we have to
+# chown it on every boot before the rele user can touch it.
 mkdir -p "$CONFIG_DIR" "$CONFIG_DIR/workspace" "$CONFIG_DIR/credentials" "$CONFIG_DIR/agents/main/sessions" "$CONFIG_DIR/canvas"
 chmod 700 "$CONFIG_DIR" "$CONFIG_DIR/credentials" || true
+chown -R rele:rele "$CONFIG_DIR"
 
 # Seed canvas placeholder (never overwrite if the agent has put real content there)
 if [ ! -f "$CONFIG_DIR/canvas/index.html" ]; then
   cp /opt/openclaw/canvas-placeholder.html "$CONFIG_DIR/canvas/index.html"
+  chown rele:rele "$CONFIG_DIR/canvas/index.html"
 fi
 
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "No config found, copying template..."
   cp /opt/openclaw/openclaw-template.json "$CONFIG_FILE"
+  chown rele:rele "$CONFIG_FILE"
   echo "Default config created at $CONFIG_FILE"
 fi
 
@@ -63,19 +69,22 @@ node -e "
 
   fs.writeFileSync('$CONFIG_FILE', JSON.stringify(cfg, null, 2) + '\n');
 "
+chown rele:rele "$CONFIG_FILE"
 echo "Runtime config values injected"
 
 echo "Config ready at $CONFIG_FILE"
 
-# Start sidecar (port 80 → OpenClaw on 18789, validates JWT, serves /api/*)
+# Drop to rele for the long-running processes. HOME is set so brew, npm, go,
+# and anything the agent runs land in /home/rele rather than /root.
 echo "Starting sidecar..."
-/opt/openclaw/sidecar &
+gosu rele env HOME=/home/rele /opt/openclaw/sidecar &
 
 echo "Launching Gateway..."
 while true; do
   _fifo=$(mktemp -u /tmp/gw.XXXXXX)
   mkfifo "$_fifo"
-  node dist/index.js gateway run >"$_fifo" 2>&1 &
+  chown rele:rele "$_fifo"
+  gosu rele env HOME=/home/rele node dist/index.js gateway run >"$_fifo" 2>&1 &
   _node_pid=$!
   while IFS= read -r _line; do
     printf '%s\n' "$_line"

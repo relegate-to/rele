@@ -45,7 +45,7 @@
   },
   "commands": {
     "native": "auto",
-    "nativeSkills": "auto",
+    "nativeSkills": false,
     "restart": true,
     "ownerDisplay": "raw",
     "bash": true
