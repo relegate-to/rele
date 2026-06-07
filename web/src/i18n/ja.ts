@@ -141,6 +141,8 @@ export default {
   "console.control-ui.loading": "インターフェースを読み込み中",
   "console.control-ui.not-running": "インスタンスが実行されていません。",
   "console.control-ui.connection-failed": "接続情報の取得に失敗しました。",
+  "console.terminal.not-running": "インスタンスが実行されていません。",
+  "console.terminal.connection-failed": "接続情報の取得に失敗しました。",
   "console.canvas.not-running": "インスタンスが実行されていません。",
   "console.canvas.connection-failed": "接続情報の取得に失敗しました。",
   

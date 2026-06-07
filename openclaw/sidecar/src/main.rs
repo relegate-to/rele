@@ -17,6 +17,7 @@ mod mcp;
 mod prompt;
 mod proxy;
 mod skills;
+mod terminal;
 mod ws;
 
 use config::{AppConfig, AppState};
@@ -79,6 +80,7 @@ async fn main() -> anyhow::Result<()> {
             "/api/gateway/restart",
             post(skills::gateway_restart_handler),
         )
+        .route("/api/terminal", get(terminal::handler))
         .fallback(proxy::http_fallback_handler)
         // `layer` (not `route_layer`) so middleware also applies to the
         // fallback — WS upgrades and proxied HTTP both go via fallback.

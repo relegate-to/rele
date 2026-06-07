@@ -141,6 +141,8 @@ export default {
   "console.control-ui.loading": "Loading interface",
   "console.control-ui.not-running": "Instance is not running.",
   "console.control-ui.connection-failed": "Failed to get connection info.",
+  "console.terminal.not-running": "Instance is not running.",
+  "console.terminal.connection-failed": "Failed to get connection info.",
   "console.canvas.not-running": "Instance is not running.",
   "console.canvas.connection-failed": "Failed to get connection info.",
   
