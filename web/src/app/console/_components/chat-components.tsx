@@ -37,9 +37,11 @@ const isAssistant = (role: string) => role === "assistant" || role === "tool";
 
 function ToolPill({ msg }: { msg: ChatMessage }) {
   return (
-    <div className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs">
-      <ToolIcon name={msg.toolName ?? ""} isError={msg.toolError} />
-      <span className="shrink-0">{msg.toolName}</span>
+    <div className="inline-flex min-w-0 max-w-full items-center gap-2.5 rounded-full border border-[var(--border)] bg-[var(--surface)]/60 py-1 pl-1.5 pr-3 text-xs text-[var(--text)] backdrop-blur-sm">
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] ring-1 ring-[var(--surface)]">
+        <ToolIcon name={msg.toolName ?? ""} isError={msg.toolError} />
+      </span>
+      <span className="shrink-0 font-medium">{msg.toolName}</span>
       {msg.toolMeta && (
         <span className="min-w-0 flex-1 truncate text-[var(--muted)]">{msg.toolMeta}</span>
       )}
@@ -62,10 +64,6 @@ export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: {
             <MarkdownProse variant="user">{stripHiddenPrefix(msg.content)}</MarkdownProse>
           </div>
         </div>
-      ) : msg.role === "tool" ? (
-        <div className="min-w-0 overflow-hidden">
-          <ToolPill msg={msg} />
-        </div>
       ) : compact ? (
         <MarkdownProse isStreaming={msg.isStreaming}>
           {msg.content}
@@ -86,28 +84,31 @@ export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: {
 const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
 const numWord = (n: number) => NUMBER_WORDS[n] ?? String(n);
 
-const TOOL_SUMMARY: Record<string, (n: number) => string> = {
-  read: (n) => `Read ${numWord(n)} files`,
-  edit: (n) => `Edited ${numWord(n)} files`,
-  write: (n) => `Wrote ${numWord(n)} files`,
-  multiedit: (n) => `Edited ${numWord(n)} files`,
-  bash: (n) => `Ran ${numWord(n)} commands`,
-  grep: (n) => `Searched ${numWord(n)} times`,
-  glob: (n) => `Looked up ${numWord(n)} file patterns`,
-  webfetch: (n) => `Fetched ${numWord(n)} pages`,
-  websearch: (n) => `Ran ${numWord(n)} web searches`,
+type ToolPhrases = { one: string; many: (n: string) => string };
+const TOOL_SUMMARY: Record<string, ToolPhrases> = {
+  read: { one: "Read a file", many: (n) => `Read ${n} files` },
+  edit: { one: "Edited a file", many: (n) => `Edited ${n} files` },
+  write: { one: "Wrote a file", many: (n) => `Wrote ${n} files` },
+  multiedit: { one: "Edited a file", many: (n) => `Edited ${n} files` },
+  bash: { one: "Ran a command", many: (n) => `Ran ${n} commands` },
+  grep: { one: "Searched", many: (n) => `Searched ${n} times` },
+  glob: { one: "Looked up a file pattern", many: (n) => `Looked up ${n} file patterns` },
+  webfetch: { one: "Fetched a page", many: (n) => `Fetched ${n} pages` },
+  websearch: { one: "Ran a web search", many: (n) => `Ran ${n} web searches` },
 };
 
 function summarizeTools(msgs: ChatMessage[]): string {
   const names = msgs.map((m) => m.toolName).filter(Boolean) as string[];
-  if (names.length === 0) return `Called ${numWord(msgs.length)} tools`;
-  const unique = new Set(names.map((n) => n.toLowerCase()));
+  const n = msgs.length;
+  if (names.length === 0) return n === 1 ? "Called a tool" : `Called ${numWord(n)} tools`;
+  const unique = new Set(names.map((s) => s.toLowerCase()));
   if (unique.size === 1) {
     const key = names[0].toLowerCase();
     const fmt = TOOL_SUMMARY[key];
-    return fmt ? fmt(names.length) : `Ran ${names[0]} ${numWord(names.length)} times`;
+    if (n === 1) return fmt ? fmt.one : `Ran ${names[0]}`;
+    return fmt ? fmt.many(numWord(n)) : `Ran ${names[0]} ${numWord(n)} times`;
   }
-  return `Called ${numWord(names.length)} tools`;
+  return `Called ${numWord(n)} tools`;
 }
 
 const ToolGroup = memo(function ToolGroup({ msgs, prevRole, compact }: { msgs: ChatMessage[]; prevRole?: string; compact?: boolean }) {
@@ -203,8 +204,6 @@ export function MessageList({ messages, compact }: { messages: ChatMessage[]; co
       {groups.map((g) =>
         g.kind === "single" ? (
           <MessageRow key={g.msg.id} msg={g.msg} prevRole={g.prevRole} compact={compact} />
-        ) : g.msgs.length === 1 ? (
-          <MessageRow key={g.msgs[0].id} msg={g.msgs[0]} prevRole={g.prevRole} compact={compact} />
         ) : (
           <ToolGroup key={g.msgs[0].id} msgs={g.msgs} prevRole={g.prevRole} compact={compact} />
         ),
