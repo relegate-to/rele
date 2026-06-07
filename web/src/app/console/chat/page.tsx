@@ -8,7 +8,7 @@ import { useMachinesContext } from "../_context/machines-context";
 import { useChat } from "../_context/chat-context";
 import { TypingIndicator } from "@/components/ui/typing-indicator";
 import { ConnectionStatus } from "@/components/ui/connection-status";
-import { MessageRow, ChatInput } from "../_components/chat-components";
+import { MessageList, ChatInput } from "../_components/chat-components";
 import { useTranslation } from "../_context/i18n-context";
 
 export default function ChatPage() {
@@ -86,10 +86,8 @@ export default function ChatPage() {
      )}
     </AnimatePresence>
     <div className="mx-auto max-w-4xl px-6 py-6">
-     <div className="flex min-w-0 flex-col gap-1.5">
-      {messages.map((msg, i) => (
-       <MessageRow key={msg.id} msg={msg} prevRole={messages[i - 1]?.role} />
-      ))}
+     <div className="flex min-w-0 flex-col gap-3">
+      <MessageList messages={messages} />
       <motion.div animate={{ opacity: isThinking && connected ? 1 : 0 }}>
        <TypingIndicator />
       </motion.div>

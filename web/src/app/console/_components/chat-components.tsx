@@ -35,6 +35,18 @@ export function AssistantMessage({ children }: { content: string; children: Reac
 
 const isAssistant = (role: string) => role === "assistant" || role === "tool";
 
+function ToolPill({ msg }: { msg: ChatMessage }) {
+  return (
+    <div className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs">
+      <ToolIcon name={msg.toolName ?? ""} isError={msg.toolError} />
+      <span className="shrink-0">{msg.toolName}</span>
+      {msg.toolMeta && (
+        <span className="min-w-0 flex-1 truncate text-[var(--muted)]">{msg.toolMeta}</span>
+      )}
+    </div>
+  );
+}
+
 export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: { msg: ChatMessage; compact?: boolean; prevRole?: string }) {
   const turnBoundary = !!prevRole && isAssistant(prevRole) !== isAssistant(msg.role);
   return (
@@ -42,7 +54,7 @@ export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: {
       initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{ duration: 0.35, ease: EASE }}
-      className={cn("min-w-0", !compact && turnBoundary && "mt-4")}
+      className={cn("min-w-0", !compact && turnBoundary && "mt-6")}
     >
       {msg.role === "user" ? (
         <div className="flex justify-end">
@@ -52,13 +64,7 @@ export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: {
         </div>
       ) : msg.role === "tool" ? (
         <div className="min-w-0 overflow-hidden">
-          <div className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs">
-            <ToolIcon name={msg.toolName ?? ""} isError={msg.toolError} />
-            <span className="shrink-0">{msg.toolName}</span>
-            {msg.toolMeta && (
-              <span className="min-w-0 flex-1 truncate text-[var(--muted)]">{msg.toolMeta}</span>
-            )}
-          </div>
+          <ToolPill msg={msg} />
         </div>
       ) : compact ? (
         <MarkdownProse isStreaming={msg.isStreaming}>
@@ -76,6 +82,136 @@ export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: {
     </motion.div>
   );
 });
+
+const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+const numWord = (n: number) => NUMBER_WORDS[n] ?? String(n);
+
+const TOOL_SUMMARY: Record<string, (n: number) => string> = {
+  read: (n) => `Read ${numWord(n)} files`,
+  edit: (n) => `Edited ${numWord(n)} files`,
+  write: (n) => `Wrote ${numWord(n)} files`,
+  multiedit: (n) => `Edited ${numWord(n)} files`,
+  bash: (n) => `Ran ${numWord(n)} commands`,
+  grep: (n) => `Searched ${numWord(n)} times`,
+  glob: (n) => `Looked up ${numWord(n)} file patterns`,
+  webfetch: (n) => `Fetched ${numWord(n)} pages`,
+  websearch: (n) => `Ran ${numWord(n)} web searches`,
+};
+
+function summarizeTools(msgs: ChatMessage[]): string {
+  const names = msgs.map((m) => m.toolName).filter(Boolean) as string[];
+  if (names.length === 0) return `Called ${numWord(msgs.length)} tools`;
+  const unique = new Set(names.map((n) => n.toLowerCase()));
+  if (unique.size === 1) {
+    const key = names[0].toLowerCase();
+    const fmt = TOOL_SUMMARY[key];
+    return fmt ? fmt(names.length) : `Ran ${names[0]} ${numWord(names.length)} times`;
+  }
+  return `Called ${numWord(names.length)} tools`;
+}
+
+const ToolGroup = memo(function ToolGroup({ msgs, prevRole, compact }: { msgs: ChatMessage[]; prevRole?: string; compact?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const turnBoundary = !!prevRole && !isAssistant(prevRole);
+  const uniqueIcons: string[] = [];
+  for (const m of msgs) {
+    const n = m.toolName ?? "";
+    if (n && !uniqueIcons.includes(n)) uniqueIcons.push(n);
+    if (uniqueIcons.length >= 3) break;
+  }
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      transition={{ duration: 0.35, ease: EASE }}
+      className={cn("min-w-0", !compact && turnBoundary && "mt-6")}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="group inline-flex min-w-0 max-w-full items-center gap-2.5 rounded-full border border-[var(--border)] bg-[var(--surface)]/60 py-1 pl-1.5 pr-3 text-xs text-[var(--text)] backdrop-blur-sm transition-all duration-150 hover:border-[var(--accent)]/40 hover:bg-[var(--surface)]"
+      >
+        <span className="flex shrink-0 items-center -space-x-1.5">
+          {uniqueIcons.map((name, i) => (
+            <span
+              key={name}
+              className="flex size-5 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] ring-1 ring-[var(--surface)]"
+              style={{ zIndex: uniqueIcons.length - i }}
+            >
+              <ToolIcon name={name} />
+            </span>
+          ))}
+        </span>
+        <span className="shrink-0 font-medium">{summarizeTools(msgs)}</span>
+        <ChevronDownIcon
+          className={cn(
+            "size-3 shrink-0 text-[var(--muted)] transition-transform duration-200 group-hover:text-[var(--text)]",
+            !expanded && "-rotate-90",
+          )}
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: EASE }}
+            className="overflow-hidden"
+          >
+            <div className="ml-3 mt-2 flex flex-col gap-1 border-l border-dashed border-[var(--border)] pl-3">
+              {msgs.map((m) => (
+                <div key={m.id} className="min-w-0 overflow-hidden">
+                  <ToolPill msg={m} />
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+});
+
+type RenderGroup =
+  | { kind: "single"; msg: ChatMessage; prevRole?: string }
+  | { kind: "tools"; msgs: ChatMessage[]; prevRole?: string };
+
+function groupMessages(messages: ChatMessage[]): RenderGroup[] {
+  const groups: RenderGroup[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    const prevRole = messages[i - 1]?.role;
+    if (msg.role === "tool") {
+      const last = groups[groups.length - 1];
+      if (last && last.kind === "tools") {
+        last.msgs.push(msg);
+        continue;
+      }
+      groups.push({ kind: "tools", msgs: [msg], prevRole });
+    } else {
+      groups.push({ kind: "single", msg, prevRole });
+    }
+  }
+  return groups;
+}
+
+export function MessageList({ messages, compact }: { messages: ChatMessage[]; compact?: boolean }) {
+  const groups = groupMessages(messages);
+  return (
+    <>
+      {groups.map((g) =>
+        g.kind === "single" ? (
+          <MessageRow key={g.msg.id} msg={g.msg} prevRole={g.prevRole} compact={compact} />
+        ) : g.msgs.length === 1 ? (
+          <MessageRow key={g.msgs[0].id} msg={g.msgs[0]} prevRole={g.prevRole} compact={compact} />
+        ) : (
+          <ToolGroup key={g.msgs[0].id} msgs={g.msgs} prevRole={g.prevRole} compact={compact} />
+        ),
+      )}
+    </>
+  );
+}
 
 export interface ChatInputProps {
   connected: boolean;
