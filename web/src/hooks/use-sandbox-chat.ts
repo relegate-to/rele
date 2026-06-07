@@ -150,25 +150,28 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
           // History entries can carry different ids than the live stream
           // (history uses `hist:` or `run:<runId>`, stream uses
           // `run:<runId>:<seg>`) and user entries may pick up a `System:`
-          // wrapper after compaction. Dedupe by displayable content.
+          // wrapper after compaction. Dedupe by displayable content — but
+          // count-based, so re-running the same command (e.g. /usage twice
+          // returning identical text) doesn't drop the second response.
           const userKey = (s: string) =>
             stripUserContextPrefix(stripHiddenPrefix(s)).trim();
-          const existingAssistantContent = new Set(
-            store.messages
-              .filter((m) => m.role === "assistant")
-              .map((m) => m.content.trim()),
-          );
-          const existingUserContent = new Set(
-            store.messages
-              .filter((m) => m.role === "user")
-              .map((m) => userKey(m.content)),
-          );
+          const remaining = new Map<string, number>();
+          const bump = (key: string) =>
+            remaining.set(key, (remaining.get(key) ?? 0) + 1);
+          for (const m of store.messages) {
+            if (m.role === "assistant") bump(`a:${m.content.trim()}`);
+            else if (m.role === "user") bump(`u:${userKey(m.content)}`);
+          }
           const filteredHistory = history.filter((m) => {
-            if (m.role === "assistant") {
-              return !existingAssistantContent.has(m.content.trim());
-            }
-            if (m.role === "user") {
-              return !existingUserContent.has(userKey(m.content));
+            const key =
+              m.role === "assistant" ? `a:${m.content.trim()}`
+              : m.role === "user" ? `u:${userKey(m.content)}`
+              : null;
+            if (!key) return true;
+            const count = remaining.get(key) ?? 0;
+            if (count > 0) {
+              remaining.set(key, count - 1);
+              return false;
             }
             return true;
           });
