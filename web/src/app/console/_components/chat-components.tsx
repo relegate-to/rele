@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, memo, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, memo, type KeyboardEvent, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpIcon, ChevronDownIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
-import { stripHiddenPrefix } from "@/hooks/sandbox-chat-protocol";
+import { stripHiddenPrefix, stripUserContextPrefix } from "@/hooks/sandbox-chat-protocol";
 import { ToolIcon } from "@/components/ui/tool-icon";
 import { MarkdownProse } from "@/components/ui/markdown-prose";
 import { useTranslation } from "../_context/i18n-context";
@@ -51,6 +51,42 @@ function ToolPill({ msg }: { msg: ChatMessage }) {
 
 export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: { msg: ChatMessage; compact?: boolean; prevRole?: string }) {
   const turnBoundary = !!prevRole && isAssistant(prevRole) !== isAssistant(msg.role);
+
+  const isNotice = msg.gatewayNotice || msg.role === "system";
+  const compactNotice = isNotice && !msg.content.includes("\n") && msg.content.length <= 80;
+
+  if (compactNotice) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: EASE }}
+        className={cn("flex items-center gap-3 py-1", !compact && turnBoundary && "mt-6")}
+      >
+        <div className="h-px flex-1 bg-[var(--border)]" />
+        <span className="shrink-0 rounded-full border border-[var(--border)] bg-[var(--surface)]/60 px-2.5 py-0.5 text-[11px] font-medium text-[var(--muted)] backdrop-blur-sm">
+          {msg.content}
+        </span>
+        <div className="h-px flex-1 bg-[var(--border)]" />
+      </motion.div>
+    );
+  }
+
+  if (isNotice) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: EASE }}
+        className={cn("min-w-0", !compact && turnBoundary && "mt-6")}
+      >
+        <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]/40 px-4 py-3 font-[var(--font-dm-mono),monospace] text-xs leading-relaxed text-[var(--muted)] backdrop-blur-sm whitespace-pre-wrap">
+          {msg.content}
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
@@ -61,7 +97,7 @@ export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: {
       {msg.role === "user" ? (
         <div className="flex justify-end">
           <div className="max-w-[80%] rounded-2xl rounded-br-md bg-[var(--accent)] px-4 py-2.5">
-            <MarkdownProse variant="user">{stripHiddenPrefix(msg.content)}</MarkdownProse>
+            <MarkdownProse variant="user">{stripUserContextPrefix(stripHiddenPrefix(msg.content))}</MarkdownProse>
           </div>
         </div>
       ) : compact ? (
@@ -81,10 +117,7 @@ export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: {
   );
 });
 
-const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
-const numWord = (n: number) => NUMBER_WORDS[n] ?? String(n);
-
-type ToolPhrases = { one: string; many: (n: string) => string };
+type ToolPhrases = { one: string; many: (n: number) => string };
 const TOOL_SUMMARY: Record<string, ToolPhrases> = {
   read: { one: "Read a file", many: (n) => `Read ${n} files` },
   edit: { one: "Edited a file", many: (n) => `Edited ${n} files` },
@@ -100,15 +133,15 @@ const TOOL_SUMMARY: Record<string, ToolPhrases> = {
 function summarizeTools(msgs: ChatMessage[]): string {
   const names = msgs.map((m) => m.toolName).filter(Boolean) as string[];
   const n = msgs.length;
-  if (names.length === 0) return n === 1 ? "Called a tool" : `Called ${numWord(n)} tools`;
+  if (names.length === 0) return n === 1 ? "Called a tool" : `Called ${n} tools`;
   const unique = new Set(names.map((s) => s.toLowerCase()));
   if (unique.size === 1) {
     const key = names[0].toLowerCase();
     const fmt = TOOL_SUMMARY[key];
     if (n === 1) return fmt ? fmt.one : `Ran ${names[0]}`;
-    return fmt ? fmt.many(numWord(n)) : `Ran ${names[0]} ${numWord(n)} times`;
+    return fmt ? fmt.many(n) : `Ran ${names[0]} ${n} times`;
   }
-  return `Called ${numWord(n)} tools`;
+  return `Called ${n} tools`;
 }
 
 const ToolGroup = memo(function ToolGroup({ msgs, prevRole, compact }: { msgs: ChatMessage[]; prevRole?: string; compact?: boolean }) {
@@ -197,8 +230,16 @@ function groupMessages(messages: ChatMessage[]): RenderGroup[] {
   return groups;
 }
 
-export function MessageList({ messages, compact }: { messages: ChatMessage[]; compact?: boolean }) {
-  const groups = groupMessages(messages);
+export function MessageList({ messages, compact, showSystem }: { messages: ChatMessage[]; compact?: boolean; showSystem?: boolean }) {
+  const visible = messages.filter((m) => {
+    if (m.role === "user" && isKnownSlashMessage(stripHiddenPrefix(m.content))) return false;
+    if (!showSystem && m.isSystem) return false;
+    // Bare compaction marker — the paired gateway-injected assistant message
+    // carries the human-readable summary, so skip the marker itself.
+    if (m.role === "system" && m.systemKind === "compaction") return false;
+    return true;
+  });
+  const groups = groupMessages(visible);
   return (
     <>
       {groups.map((g) =>
@@ -209,6 +250,146 @@ export function MessageList({ messages, compact }: { messages: ChatMessage[]; co
         ),
       )}
     </>
+  );
+}
+
+// --- Slash commands ---
+// Dispatched as plain text via chat.send — OpenClaw parses server-side.
+// Not yet exposed in the picker (track here for completeness):
+//   /allowlist /acp /focus /unfocus /agents /activation /send  (admin/routing)
+//   /tts /export-session                                       (media/export)
+//   /dock_telegram /dock_discord /dock_slack                   (dock switching)
+//   /pair /phone /voice                                        (plugin-specific)
+//   /bash                                                      (host-only, sensitive)
+
+type SlashCommand = {
+  name: string;            // canonical, no leading slash
+  aliases?: string[];
+  desc: string;
+  hasArgs?: boolean;       // if true, accepting inserts "/name " (waits for args)
+  category: string;
+};
+
+const SLASH_COMMANDS: SlashCommand[] = [
+  // Session
+  { name: "session", aliases: [], desc: "Manage session-level settings", hasArgs: true, category: "Session" },
+  { name: "stop", desc: "Stop the current run", category: "Session" },
+  { name: "reset", aliases: ["clear"], desc: "Clear context of the current session", category: "Session" },
+  { name: "new", desc: "Start a fresh session (preserves this one in history)", category: "Session" },
+  { name: "compact", desc: "Compact the session context", category: "Session" },
+
+  // Options
+  { name: "usage", desc: "Usage footer or cost summary", category: "Options" },
+  { name: "think", aliases: ["thinking", "t"], desc: "Set thinking level", hasArgs: true, category: "Options" },
+  { name: "verbose", aliases: ["v"], desc: "Toggle verbose mode", category: "Options" },
+  { name: "fast", desc: "Toggle fast mode", category: "Options" },
+  { name: "reasoning", aliases: ["reason"], desc: "Toggle reasoning visibility", category: "Options" },
+  { name: "elevated", aliases: ["elev"], desc: "Toggle elevated mode", category: "Options" },
+  { name: "exec", desc: "Set exec defaults for this session", hasArgs: true, category: "Options" },
+  { name: "model", desc: "Show or set the model", hasArgs: true, category: "Options" },
+  { name: "models", desc: "List model providers or provider models", category: "Options" },
+  { name: "queue", desc: "Adjust queue settings", hasArgs: true, category: "Options" },
+
+  // Status
+  { name: "help", desc: "Show available commands", category: "Status" },
+  { name: "commands", desc: "List all slash commands", category: "Status" },
+  { name: "tools", desc: "List available runtime tools", category: "Status" },
+  { name: "status", desc: "Show current status", category: "Status" },
+  { name: "context", desc: "Explain how context is built and used", category: "Status" },
+  { name: "whoami", aliases: ["id"], desc: "Show your sender id", category: "Status" },
+
+  // Management
+  { name: "approve", desc: "Approve or deny exec requests", hasArgs: true, category: "Management" },
+  { name: "subagents", desc: "Manage subagent runs for this session", hasArgs: true, category: "Management" },
+  { name: "kill", desc: "Kill a running subagent (or all)", hasArgs: true, category: "Management" },
+  { name: "steer", aliases: ["tell"], desc: "Send guidance to a running subagent", hasArgs: true, category: "Management" },
+
+  // Tools
+  { name: "skill", desc: "Run a skill by name", hasArgs: true, category: "Tools" },
+  { name: "btw", desc: "Ask a side question without changing future context", hasArgs: true, category: "Tools" },
+  { name: "restart", desc: "Restart OpenClaw", category: "Tools" },
+];
+
+const KNOWN_SLASH_NAMES = new Set<string>(
+  SLASH_COMMANDS.flatMap((c) => [c.name, ...(c.aliases ?? [])]),
+);
+
+function isKnownSlashMessage(text: string): boolean {
+  const t = text.trim();
+  if (!t.startsWith("/")) return false;
+  if (t.includes("\n")) return false;
+  const word = t.slice(1).split(/\s+/, 1)[0]?.toLowerCase();
+  return !!word && KNOWN_SLASH_NAMES.has(word);
+}
+
+function matchSlash(input: string): { query: string; matches: SlashCommand[] } | null {
+  if (!input.startsWith("/")) return null;
+  const rest = input.slice(1);
+  // Picker shows only while the user is typing the command word (no space yet).
+  if (/\s/.test(rest)) return null;
+  const q = rest.toLowerCase();
+  const matches = SLASH_COMMANDS.filter((c) => {
+    if (!q) return true;
+    if (c.name.startsWith(q)) return true;
+    if (c.aliases?.some((a) => a.startsWith(q))) return true;
+    return c.name.includes(q);
+  });
+  return { query: q, matches };
+}
+
+function SlashPicker({
+  matches,
+  activeIdx,
+  onPick,
+  onHover,
+}: {
+  matches: SlashCommand[];
+  activeIdx: number;
+  onPick: (cmd: SlashCommand) => void;
+  onHover: (i: number) => void;
+}) {
+  const activeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [activeIdx]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 4, scale: 0.98 }}
+      transition={{ duration: 0.12, ease: EASE }}
+      className="absolute bottom-full left-0 right-0 z-50 mb-2 max-h-[280px] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg"
+    >
+      {matches.length === 0 ? (
+        <div className="px-3 py-2 text-xs text-[var(--muted)]">No matching commands</div>
+      ) : (
+        matches.map((c, i) => {
+          const active = i === activeIdx;
+          return (
+            <button
+              key={c.name}
+              ref={active ? activeRef : undefined}
+              type="button"
+              onMouseEnter={() => onHover(i)}
+              onMouseDown={(e) => { e.preventDefault(); onPick(c); }}
+              className={cn(
+                "flex w-full items-baseline gap-2 px-3 py-1.5 text-left text-xs transition-colors",
+                active ? "bg-[var(--border)]/60 text-[var(--text)]" : "text-[var(--muted)] hover:bg-[var(--border)]/30",
+              )}
+            >
+              <span className="font-mono font-medium text-[var(--text)]">/{c.name}</span>
+              {c.aliases && c.aliases.length > 0 && (
+                <span className="font-mono text-[10px] opacity-60">
+                  {c.aliases.map((a) => `/${a}`).join(" ")}
+                </span>
+              )}
+              <span className="ml-auto truncate pl-2 text-right">{c.desc}</span>
+            </button>
+          );
+        })
+      )}
+    </motion.div>
   );
 }
 
@@ -224,8 +405,26 @@ export function ChatInput({ connected, onSend, compact = false, model, onModelCh
   const { t } = useTranslation();
   const [input, setInput] = useState("");
   const [modelOpen, setModelOpen] = useState(false);
+  const [slashIdx, setSlashIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modelRef = useRef<HTMLDivElement>(null);
+
+  const slash = useMemo(() => matchSlash(input), [input]);
+  useEffect(() => { setSlashIdx(0); }, [slash?.query]);
+  const slashOpen = !!slash && slash.matches.length > 0;
+
+  const applySlash = useCallback((cmd: SlashCommand) => {
+    const next = cmd.hasArgs ? `/${cmd.name} ` : `/${cmd.name}`;
+    setInput(next);
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        const pos = next.length;
+        el.setSelectionRange(pos, pos);
+      }
+    });
+  }, []);
 
   // Close model picker on outside click
   useEffect(() => {
@@ -260,13 +459,37 @@ export function ChatInput({ connected, onSend, compact = false, model, onModelCh
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (slashOpen && slash) {
+        const n = slash.matches.length;
+        if (e.key === "ArrowDown") { e.preventDefault(); setSlashIdx((i) => (i + 1) % n); return; }
+        if (e.key === "ArrowUp") { e.preventDefault(); setSlashIdx((i) => (i - 1 + n) % n); return; }
+        if (e.key === "Tab") { e.preventDefault(); applySlash(slash.matches[slashIdx]); return; }
+        if (e.key === "Escape") { e.preventDefault(); setInput(""); return; }
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          const cmd = slash.matches[slashIdx];
+          if (cmd.hasArgs) { applySlash(cmd); }
+          else { onSend(`/${cmd.name}`); setInput(""); }
+          return;
+        }
+      }
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
     },
-    [handleSend]
+    [handleSend, slashOpen, slash, slashIdx, applySlash, onSend]
   );
 
   const innerBox = (
     <div className={`relative flex flex-col rounded-2xl border bg-[var(--surface)]/80 backdrop-blur-sm shadow-[0_2px_12px_rgba(0,0,0,0.04),0_0_0_1px_var(--border)] transition-all duration-200 focus-within:shadow-[0_2px_20px_rgba(99,102,241,0.12),0_0_0_1px_var(--accent)] ${!connected ? "opacity-60" : ""}`}>
+      <AnimatePresence>
+        {slashOpen && slash && (
+          <SlashPicker
+            matches={slash.matches}
+            activeIdx={slashIdx}
+            onPick={applySlash}
+            onHover={setSlashIdx}
+          />
+        )}
+      </AnimatePresence>
       {onModelChange && (
         <div ref={modelRef} className="relative flex items-center px-3 pt-2 pb-0">
           <button

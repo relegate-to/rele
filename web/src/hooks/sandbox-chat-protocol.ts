@@ -5,13 +5,21 @@
 
 export interface ChatMessage {
   id: string;
-  role: "user" | "assistant" | "tool";
+  role: "user" | "assistant" | "tool" | "system";
   content: string;
   timestamp: number;
   toolName?: string;
   toolMeta?: string;
   toolError?: boolean;
   isStreaming?: boolean;
+  // True when a "user" role message was injected by OpenClaw rather than typed
+  // by a human. Detected by absence of senderLabel on the wire entry.
+  isSystem?: boolean;
+  // For role="system" entries — the __openclaw.kind tag (e.g. "compaction").
+  systemKind?: string;
+  // True when the assistant message originates from the Gateway itself
+  // (model === "gateway-injected") — e.g. the post-compaction summary.
+  gatewayNotice?: boolean;
 }
 
 export function formatArgs(args: unknown): string {
@@ -34,6 +42,19 @@ export function stripHiddenPrefix(text: string): string {
   const end = text.indexOf(HIDDEN_END);
   if (end === -1) return text;
   return text.slice(end + HIDDEN_END.length).replace(/^\n\n/, "");
+}
+
+// User messages can be wrapped by OpenClaw with leading "System: ..." context
+// lines and a per-turn "[Day YYYY-MM-DD HH:MM UTC] " timestamp prefix. Strip
+// both so the chat bubble shows just what the human typed.
+export function stripUserContextPrefix(text: string): string {
+  const lines = text.split("\n");
+  let i = 0;
+  while (i < lines.length && (lines[i].startsWith("System:") || lines[i].trim() === "")) {
+    i++;
+  }
+  const remaining = lines.slice(i).join("\n").trim();
+  return remaining.replace(/^\[[^\]]+\]\s*/, "");
 }
 
 export function extractText(content: unknown): string {
@@ -87,6 +108,9 @@ export function parseHistoryMessages(messages: any[]): ChatMessage[] {
       role: m.role,
       content: m.role === "user" ? stripHiddenPrefix(rawContent) : rawContent,
       timestamp: m.timestamp ?? Date.now(),
+      isSystem: m.role === "user" && !m.senderLabel,
+      systemKind: m.role === "system" ? m.__openclaw?.kind : undefined,
+      gatewayNotice: m.role === "assistant" && m.model === "gateway-injected",
     };
   });
 }

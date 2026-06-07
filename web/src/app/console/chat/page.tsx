@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { useMachinesContext } from "../_context/machines-context";
 import { useChat } from "../_context/chat-context";
@@ -14,7 +15,31 @@ import { useTranslation } from "../_context/i18n-context";
 export default function ChatPage() {
  const { t } = useTranslation();
  const { machines, loading } = useMachinesContext();
- const { messages, connected, connecting, isThinking, sendMessage, currentModel, setModel } = useChat();
+ const { messages, connected, connecting, isThinking, sendMessage, clearMessages, refreshHistory, currentModel, setModel } = useChat();
+
+ const [showSystem, setShowSystem] = useState(false);
+ const systemCount = useMemo(() => messages.filter((m) => m.isSystem).length, [messages]);
+
+ // Slash commands often produce gateway-injected entries that aren't broadcast
+ // live. Refresh history once the agent transitions from thinking → idle.
+ const pendingSlashRef = useRef(false);
+ const prevThinkingRef = useRef(false);
+ useEffect(() => {
+  if (prevThinkingRef.current && !isThinking && pendingSlashRef.current) {
+   pendingSlashRef.current = false;
+   refreshHistory();
+  }
+  prevThinkingRef.current = isThinking;
+ }, [isThinking, refreshHistory]);
+
+ const handleSend = useCallback((text: string) => {
+  const trimmed = text.trim();
+  if (/^\/(reset|clear|new)(\s|$)/i.test(trimmed)) {
+   clearMessages();
+  }
+  if (trimmed.startsWith("/")) pendingSlashRef.current = true;
+  sendMessage(text);
+ }, [sendMessage, clearMessages]);
  const scrollContainerRef = useRef<HTMLDivElement>(null);
  const pinnedToBottomRef = useRef(true);
  const rafRef = useRef<number | null>(null);
@@ -64,6 +89,18 @@ export default function ChatPage() {
     {/*<ConnectionStatus connected={connected} connecting={connecting} />*/}
    </div>
 
+   {systemCount > 0 && (
+    <button
+     type="button"
+     onClick={() => setShowSystem((v) => !v)}
+     title={showSystem ? "Hide system-injected messages" : "Show system-injected messages"}
+     className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)]/80 px-2.5 py-1 text-[11px] text-[var(--muted)] backdrop-blur-sm transition-colors hover:text-[var(--text)]"
+    >
+     {showSystem ? <EyeIcon className="size-3" /> : <EyeOffIcon className="size-3" />}
+     <span>{systemCount} system</span>
+    </button>
+   )}
+
    <div ref={scrollContainerRef} onScroll={handleScroll} className="relative min-w-0 flex-1 overflow-y-auto stable-gutter">
     <AnimatePresence>
      {messages.length === 0 && (
@@ -87,7 +124,7 @@ export default function ChatPage() {
     </AnimatePresence>
     <div className="mx-auto max-w-4xl px-6 py-6">
      <div className="flex min-w-0 flex-col gap-3">
-      <MessageList messages={messages} />
+      <MessageList messages={messages} showSystem={showSystem} />
       <motion.div animate={{ opacity: isThinking && connected ? 1 : 0 }}>
        <TypingIndicator />
       </motion.div>
@@ -95,7 +132,7 @@ export default function ChatPage() {
     </div>
    </div>
 
-   <ChatInput connected={connected} onSend={sendMessage} model={currentModel} onModelChange={setModel} />
+   <ChatInput connected={connected} onSend={handleSend} model={currentModel} onModelChange={setModel} />
   </div>
  );
 }
