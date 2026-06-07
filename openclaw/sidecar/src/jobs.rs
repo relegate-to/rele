@@ -63,7 +63,7 @@ fn build_install_command(entry: &InstallEntry) -> Option<String> {
         .or(entry.module.as_deref())
         .or(entry.name.as_deref())?;
     let cmd = match entry.kind.as_str() {
-        "brew" => format!(r#"su linuxbrew -s /bin/bash -c "brew install {}""#, pkg),
+        "brew" => format!("brew install {}", pkg),
         "npm" | "node" => format!("npm install -g {}", pkg),
         "pip" | "pip3" => format!("pip3 install {}", pkg),
         "apt" | "apt-get" => format!("apt-get install -y {}", pkg),
