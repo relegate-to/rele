@@ -230,7 +230,7 @@ function groupMessages(messages: ChatMessage[]): RenderGroup[] {
   return groups;
 }
 
-export function MessageList({ messages, compact, showSystem }: { messages: ChatMessage[]; compact?: boolean; showSystem?: boolean }) {
+function renderMessages(messages: ChatMessage[], compact?: boolean, showSystem?: boolean) {
   const visible = messages.filter((m) => {
     if (m.role === "user" && isKnownSlashMessage(stripHiddenPrefix(m.content))) return false;
     if (!showSystem && m.isSystem) return false;
@@ -240,15 +240,69 @@ export function MessageList({ messages, compact, showSystem }: { messages: ChatM
     return true;
   });
   const groups = groupMessages(visible);
+  return groups.map((g) =>
+    g.kind === "single" ? (
+      <MessageRow key={g.msg.id} msg={g.msg} prevRole={g.prevRole} compact={compact} />
+    ) : (
+      <ToolGroup key={g.msgs[0].id} msgs={g.msgs} prevRole={g.prevRole} compact={compact} />
+    ),
+  );
+}
+
+function CompactionCollapse({ msgs, compact, showSystem }: { msgs: ChatMessage[]; compact?: boolean; showSystem?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: EASE }}
+      className="min-w-0"
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="group inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--border)] bg-[var(--surface)]/40 px-3 py-1 text-[11px] text-[var(--muted)] backdrop-blur-sm transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--text)]"
+      >
+        <ChevronDownIcon className={cn("size-3 transition-transform duration-200", !expanded && "-rotate-90")} />
+        <span>{expanded ? "Hide" : "Show"} {msgs.length} earlier message{msgs.length === 1 ? "" : "s"} before compaction</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: EASE }}
+            className="overflow-hidden"
+          >
+            <div className="mt-3 flex flex-col gap-3 border-l border-dashed border-[var(--border)] pl-3 opacity-70">
+              {renderMessages(msgs, compact, showSystem)}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+export function MessageList({ messages, compact, showSystem }: { messages: ChatMessage[]; compact?: boolean; showSystem?: boolean }) {
+  // Find the most recent compaction boundary; everything before it gets
+  // collapsed since the assistant has already been re-grounded on a summary.
+  let boundary = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "system" && messages[i].systemKind === "compaction") {
+      boundary = i;
+      break;
+    }
+  }
+  const before = boundary > 0 ? messages.slice(0, boundary) : [];
+  const after = boundary >= 0 ? messages.slice(boundary) : messages;
   return (
     <>
-      {groups.map((g) =>
-        g.kind === "single" ? (
-          <MessageRow key={g.msg.id} msg={g.msg} prevRole={g.prevRole} compact={compact} />
-        ) : (
-          <ToolGroup key={g.msgs[0].id} msgs={g.msgs} prevRole={g.prevRole} compact={compact} />
-        ),
+      {before.length > 0 && (
+        <CompactionCollapse key={`compact:${boundary}`} msgs={before} compact={compact} showSystem={showSystem} />
       )}
+      {renderMessages(after, compact, showSystem)}
     </>
   );
 }
