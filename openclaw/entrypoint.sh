@@ -10,6 +10,7 @@ fi
 
 CONFIG_DIR="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}"
 CONFIG_FILE="$CONFIG_DIR/openclaw.json"
+LOOPBACK_PW_FILE="$CONFIG_DIR/credentials/loopback-password"
 
 # This runs as root. The Fly volume is mounted at $CONFIG_DIR by the platform
 # and its ownership is independent of anything in the image, so we have to
@@ -31,6 +32,17 @@ if [ ! -f "$CONFIG_FILE" ]; then
   echo "Default config created at $CONFIG_FILE"
 fi
 
+# Loopback password: trusted-proxy mode rejects direct (non-proxied) connections,
+# which breaks internal callers (node host, CLI, agent tools, status probes).
+# openclaw/openclaw#73034 adds a password fallback for loopback-only callers.
+# Generate once and persist so internal processes reading the same config agree.
+if [ ! -s "$LOOPBACK_PW_FILE" ]; then
+  head -c 32 /dev/urandom | base64 | tr -d '\n=+/ ' >"$LOOPBACK_PW_FILE"
+fi
+chmod 600 "$LOOPBACK_PW_FILE"
+chown rele:rele "$LOOPBACK_PW_FILE"
+LOOPBACK_PW=$(cat "$LOOPBACK_PW_FILE")
+
 # Inject runtime values into config (always, so existing configs stay up to date)
 node -e "
   const fs = require('fs');
@@ -46,6 +58,9 @@ node -e "
       userHeader: 'x-forwarded-user',
       allowLoopback: true,
     },
+    // Loopback-only password fallback for internal callers that don't go
+    // through the sidecar (see openclaw/openclaw#73034).
+    password: '${LOOPBACK_PW}',
   };
 
   // Public URL so OpenClaw generates correct webhook/callback URLs
