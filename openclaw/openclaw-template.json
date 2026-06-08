@@ -21,7 +21,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/stepfun/step-3.5-flash:nitro"
+        "primary": "openrouter/deepseek/deepseek-v4-flash"
       },
       "workspace": "/home/node/.openclaw/workspace"
     },

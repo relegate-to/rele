@@ -12,14 +12,14 @@ import { MarkdownProse } from "@/components/ui/markdown-prose";
 import { useTranslation } from "../_context/i18n-context";
 
 export const MODELS = [
-  { id: "openrouter/anthropic/claude-opus-4-6", label: "Opus 4.6" },
+  { id: "openrouter/anthropic/claude-opus-4-7", label: "Opus 4.7" },
   { id: "openrouter/anthropic/claude-sonnet-4-6", label: "Sonnet 4.6" },
   { id: "openrouter/anthropic/claude-haiku-4-5-20251001", label: "Haiku 4.5" },
-  { id: "openrouter/openai/gpt-4o", label: "GPT-4o" },
-  { id: "openrouter/openai/o3", label: "o3" },
-  { id: "openrouter/google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-  { id: "openrouter/meta-llama/llama-4-scout", label: "Llama 4 Scout" },
-  { id: "openrouter/stepfun/step-3.5-flash:nitro", label: "Step 3.5 Flash", default: true },
+  { id: "openrouter/openai/gpt-5-mini", label: "GPT-5 Mini" },
+  { id: "openrouter/openai/gpt-5-nano", label: "GPT-5 Nano" },
+  { id: "openrouter/google/gemini-3-flash-preview", label: "Gemini 3 Flash" },
+  { id: "openrouter/deepseek/deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+  { id: "openrouter/deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash", default: true },
 ];
 
 const DEFAULT_MODEL = MODELS.find((m) => "default" in m && m.default)!;
