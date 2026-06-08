@@ -215,7 +215,7 @@ function InstanceIcon({ status, name, icon }: { status: InstanceStatus; name: st
         color:       isStopped ? "color-mix(in srgb, var(--sidebar-foreground) 35%, transparent)"  : textColor,
       }}
     >
-      {icon ? <span className="text-sm leading-none">{icon}</span> : (name[0] ?? "?").toUpperCase()}
+      {icon ? <span className="text-sm leading-none" style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none" }}>{icon}</span> : (name[0] ?? "?").toUpperCase()}
       <span
         className={cn(
           "absolute -bottom-px -right-px size-1.5 rounded-full border-[1.5px] border-sidebar",
