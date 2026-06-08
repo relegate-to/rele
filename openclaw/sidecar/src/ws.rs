@@ -89,7 +89,7 @@ fn build_upstream_request(
     method: &str,
     path_and_query: &str,
     incoming_headers: &HeaderMap,
-    gateway_token: &str,
+    user_id: &str,
 ) -> String {
     let mut out = format!("{} {} HTTP/1.1\r\n", method, path_and_query);
     out.push_str("Host: localhost:18789\r\n");
@@ -106,7 +106,7 @@ fn build_upstream_request(
             out.push_str(&format!("{}: {}\r\n", name, v));
         }
     }
-    out.push_str(&format!("Authorization: Bearer {}\r\n", gateway_token));
+    out.push_str(&format!("X-Forwarded-User: {}\r\n", user_id));
     out.push_str("\r\n");
     out
 }
@@ -167,7 +167,7 @@ pub async fn ws_middleware(
     let path_and_query = sanitised_path(req.uri().path(), req.uri().query());
     let headers = req.headers().clone();
     let selected_protocol = headers.get("sec-websocket-protocol").cloned();
-    let gateway_token = state.config.gateway_token.clone();
+    let user_id = state.config.user_id.clone();
     let upstream_addr = state.config.upstream;
 
     let upgrade_fut = hyper::upgrade::on(&mut req);
@@ -191,7 +191,7 @@ pub async fn ws_middleware(
         };
 
         let req_str =
-            build_upstream_request(&method, &path_and_query, &headers, &gateway_token);
+            build_upstream_request(&method, &path_and_query, &headers, &user_id);
         if let Err(e) = upstream.write_all(req_str.as_bytes()).await {
             tracing::warn!("ws upstream write failed: {}", e);
             return;

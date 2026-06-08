@@ -117,9 +117,9 @@ export default function ControlUiPage() {
 
     fetch("/api/gate/ws-auth")
       .then((r) => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e.error ?? "Failed")))
-      .then(({ url, token, gatewayToken }: { url: string; token: string; gatewayToken: string }) => {
+      .then(({ url, token }: { url: string; token: string }) => {
         const httpBase = url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
-        setSrc(`${httpBase}/__openclaw__/?jwt=${encodeURIComponent(token)}&token=${encodeURIComponent(gatewayToken)}`);
+        setSrc(`${httpBase}/__openclaw__/?jwt=${encodeURIComponent(token)}`);
       })
       .catch((e: unknown) => setError(typeof e === "string" ? e : t("console.control-ui.connection-failed")));
   }, [loading, machine, isRunning, router]);

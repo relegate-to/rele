@@ -15,7 +15,7 @@ COPY sidecar/ .
 RUN cargo build --release --bin sidecar
 
 # ── Stage 3: runtime image ────────────────────────────────────────────────────
-FROM alpine/openclaw:2026.3.24
+FROM alpine/openclaw:latest
 
 USER root
 

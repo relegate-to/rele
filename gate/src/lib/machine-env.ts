@@ -1,7 +1,6 @@
 import { db } from "../db";
 import { apiKeys } from "@rele/db";
 import { eq } from "drizzle-orm";
-import crypto from "crypto";
 
 export const PROVIDER_ENV_MAP: Record<string, string> = {
   anthropic: "ANTHROPIC_API_KEY",
@@ -12,9 +11,7 @@ export const PROVIDER_ENV_MAP: Record<string, string> = {
 export async function buildMachineEnv(
   userId: string,
   extra?: Record<string, string>
-): Promise<{ env: Record<string, string>; gatewayToken: string }> {
-  const gatewayToken = crypto.randomUUID();
-
+): Promise<{ env: Record<string, string> }> {
   const userKeys = await db
     .select({ provider: apiKeys.provider, key: apiKeys.key })
     .from(apiKeys)
@@ -29,12 +26,10 @@ export async function buildMachineEnv(
   }
 
   return {
-    gatewayToken,
     env: {
       ...extra,
       ...keyEnv,
       USER_ID: userId,
-      OPENCLAW_GATEWAY_TOKEN: gatewayToken,
       NEON_AUTH_URL: process.env.NEON_AUTH_URL!,
       OPENCLAW_STATE_DIR: "/home/node/.openclaw",
       NODE_OPTIONS: "--max-old-space-size=2048",

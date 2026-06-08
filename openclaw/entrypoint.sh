@@ -8,11 +8,6 @@ if [ -z "${NEON_AUTH_URL:-}" ]; then
   exit 1
 fi
 
-if [ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]; then
-  echo "ERROR: OPENCLAW_GATEWAY_TOKEN is missing" >&2
-  exit 1
-fi
-
 CONFIG_DIR="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}"
 CONFIG_FILE="$CONFIG_DIR/openclaw.json"
 
@@ -41,10 +36,17 @@ node -e "
   const fs = require('fs');
   const cfg = JSON.parse(fs.readFileSync('$CONFIG_FILE', 'utf8'));
 
-  // Gateway token
-  cfg.gateway.auth = cfg.gateway.auth || {};
-  cfg.gateway.auth.mode = 'token';
-  cfg.gateway.auth.token = '$OPENCLAW_GATEWAY_TOKEN';
+  // Trusted-proxy auth: sidecar (same host) authenticates the user via JWT and
+  // forwards identity as x-forwarded-user. Gateway binds loopback so the only
+  // path in is via the sidecar.
+  cfg.gateway.trustedProxies = ['127.0.0.1', '::1'];
+  cfg.gateway.auth = {
+    mode: 'trusted-proxy',
+    trustedProxy: {
+      userHeader: 'x-forwarded-user',
+      allowLoopback: true,
+    },
+  };
 
   // Public URL so OpenClaw generates correct webhook/callback URLs
   const remoteUrl = '${GATEWAY_REMOTE_URL:-}';

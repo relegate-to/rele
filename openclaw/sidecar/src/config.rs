@@ -14,7 +14,6 @@ use crate::skills::SkillsCache;
 pub struct AppConfig {
     pub neon_auth_url: String,
     pub user_id: String,
-    pub gateway_token: String,
     pub skills_dir: PathBuf,
     pub workspace_skills_dir: PathBuf,
     pub upstream: SocketAddr,
@@ -26,8 +25,6 @@ impl AppConfig {
             .map_err(|_| anyhow::anyhow!("missing NEON_AUTH_URL"))?;
         let user_id =
             std::env::var("USER_ID").map_err(|_| anyhow::anyhow!("missing USER_ID"))?;
-        let gateway_token = std::env::var("OPENCLAW_GATEWAY_TOKEN")
-            .map_err(|_| anyhow::anyhow!("missing OPENCLAW_GATEWAY_TOKEN"))?;
         let skills_dir = std::env::var("SKILLS_DIR")
             .unwrap_or_else(|_| "/app/skills".to_string())
             .into();
@@ -38,7 +35,6 @@ impl AppConfig {
         Ok(Self {
             neon_auth_url,
             user_id,
-            gateway_token,
             skills_dir,
             workspace_skills_dir,
             upstream,

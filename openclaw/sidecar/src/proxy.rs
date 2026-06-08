@@ -55,10 +55,7 @@ pub async fn http_fallback_handler(
     }
     req_builder = req_builder
         .header(header::HOST, "localhost:18789")
-        .header(
-            header::AUTHORIZATION,
-            format!("Bearer {}", state.config.gateway_token),
-        );
+        .header("x-forwarded-user", state.config.user_id.as_str());
     if real_origin.is_some() {
         req_builder = req_builder.header(header::ORIGIN, "http://localhost:18789");
     }

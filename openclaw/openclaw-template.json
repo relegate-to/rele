@@ -71,6 +71,7 @@
     "port": 18789,
     "mode": "local",
     "bind": "loopback",
+    "trustedProxies": ["127.0.0.1", "::1"],
     "controlUi": {
       "enabled": true,
       "basePath": "/__openclaw__",
@@ -84,8 +85,11 @@
       "dangerouslyDisableDeviceAuth": true
     },
     "auth": {
-      "mode": "token",
-      "token": ""
+      "mode": "trusted-proxy",
+      "trustedProxy": {
+        "userHeader": "x-forwarded-user",
+        "allowLoopback": true
+      }
     }
   }
 }

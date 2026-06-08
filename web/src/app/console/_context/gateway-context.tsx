@@ -119,11 +119,11 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     setConnecting(true);
     setError(null);
 
-    let url: string, token: string, gatewayToken: string;
+    let url: string, token: string;
     try {
       const res = await fetch("/api/gate/ws-auth");
       if (!res.ok) throw new Error("Failed to get WS auth");
-      ({ url, token, gatewayToken } = await res.json());
+      ({ url, token } = await res.json());
     } catch (e) {
       setConnecting(false);
       setError(e instanceof Error ? e.message : "Failed to connect.");
@@ -169,8 +169,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
               id: "gw-connect",
               method: "connect",
               params: {
-                minProtocol: 3,
-                maxProtocol: 3,
+                minProtocol: 4,
+                maxProtocol: 4,
                 client: {
                   id: "openclaw-control-ui",
                   version: "0.1.0",
@@ -186,7 +186,6 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
                   "operator.pairing",
                 ],
                 caps: ["tool-events"],
-                auth: { token: gatewayToken },
                 userAgent: navigator.userAgent,
                 locale: navigator.language,
               },

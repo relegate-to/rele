@@ -65,7 +65,7 @@ export default function CanvasPage() {
   // Kick off the ws-auth fetch immediately on mount in parallel with the
   // machines query. If it turns out we have no running machine the result
   // is discarded by the gating effect below.
-  const authPromiseRef = useRef<Promise<{ url: string; token: string; gatewayToken: string }> | null>(null);
+  const authPromiseRef = useRef<Promise<{ url: string; token: string }> | null>(null);
   if (authPromiseRef.current === null) {
     authPromiseRef.current = fetch("/api/gate/ws-auth")
       .then((r) => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e.error ?? "Failed")));
@@ -79,9 +79,9 @@ export default function CanvasPage() {
     fetched.current = true;
 
     authPromiseRef.current!
-      .then(({ url, token, gatewayToken }) => {
+      .then(({ url, token }) => {
         const httpBase = url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
-        setSrc(`${httpBase}/__openclaw__/canvas/?jwt=${encodeURIComponent(token)}&token=${encodeURIComponent(gatewayToken)}`);
+        setSrc(`${httpBase}/__openclaw__/canvas/?jwt=${encodeURIComponent(token)}`);
       })
       .catch((e: unknown) => setError(typeof e === "string" ? e : t("console.canvas.connection-failed")));
   }, [loading, machine, isRunning, router, t]);

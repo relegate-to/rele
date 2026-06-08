@@ -23,10 +23,7 @@ export function createMachineRoutes(provider: MachineProvider) {
       return c.json({ error: "No running machine" }, 404);
     }
 
-    const config = machine.config as any;
-    const gatewayToken = config?.env?.OPENCLAW_GATEWAY_TOKEN;
-
-    return c.json({ url: provider.connectUrl(machine), gatewayToken });
+    return c.json({ url: provider.connectUrl(machine) });
   });
 
   router.get("/", async (c) => {
