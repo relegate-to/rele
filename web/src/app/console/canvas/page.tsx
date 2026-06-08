@@ -81,7 +81,7 @@ export default function CanvasPage() {
     authPromiseRef.current!
       .then(({ url, token }) => {
         const httpBase = url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
-        setSrc(`${httpBase}/__openclaw__/canvas/?jwt=${encodeURIComponent(token)}`);
+        setSrc(`${httpBase}/__auth__/bootstrap?to=${encodeURIComponent("/__openclaw__/canvas/")}#${encodeURIComponent(token)}`);
       })
       .catch((e: unknown) => setError(typeof e === "string" ? e : t("console.canvas.connection-failed")));
   }, [loading, machine, isRunning, router, t]);

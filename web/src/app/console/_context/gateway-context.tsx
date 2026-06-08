@@ -142,12 +142,11 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Token goes in the query string because the browser WebSocket API
-    // doesn't let us set custom headers. The connection is wss://, so the
-    // URL is encrypted in transit; the token can still appear in our own
-    // server access logs, which is an accepted tradeoff. The alternative
-    // (Sec-WebSocket-Protocol smuggling) is uglier and not better.
-    const ws = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
+    // Token rides in `Sec-WebSocket-Protocol` (the only way to attach auth
+    // to a browser-initiated WS upgrade without putting it in the URL). The
+    // sidecar's auth middleware reads the entry after `bearer`, validates
+    // it, and strips this header before forwarding upstream.
+    const ws = new WebSocket(url, ["bearer", token]);
     wsRef.current = ws;
     let authenticated = false;
 

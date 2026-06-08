@@ -110,7 +110,7 @@ export class FlyProvider implements MachineProvider {
       services: [
         {
           ports: [
-            { port: 80, handlers: ["http"] },
+            { port: 80, handlers: ["http"], force_https: true },
             { port: 443, handlers: ["tls", "http"] },
           ],
           protocol: "tcp",

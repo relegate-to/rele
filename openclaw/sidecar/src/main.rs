@@ -1,19 +1,24 @@
 use std::sync::Arc;
 
 use axum::Router;
-use axum::extract::DefaultBodyLimit;
+use axum::extract::{DefaultBodyLimit, Request};
+use axum::http::{HeaderValue, header};
+use axum::middleware::Next;
+use axum::response::Response;
 use axum::routing::{get, post};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tracing_subscriber::EnvFilter;
 
 mod auth;
+mod bootstrap;
 mod config;
 mod events;
 mod health;
 mod inject;
 mod jobs;
 mod mcp;
+mod origin;
 mod prompt;
 mod proxy;
 mod skills;
@@ -89,6 +94,12 @@ async fn main() -> anyhow::Result<()> {
             state.clone(),
             ws::ws_middleware,
         ))
+        // CSRF check sits between auth and ws — runs for every authed
+        // request, blocks cookie-bearing unsafe methods from a bad origin.
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            origin::csrf_middleware,
+        ))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth::auth_middleware,
@@ -96,8 +107,14 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/health", get(health::handler))
+        // /__auth__/* are intentionally unauthenticated at the middleware
+        // layer — the exchange handler does its own JWT verification, and
+        // the bootstrap page is a static loader.
+        .route("/__auth__/bootstrap", get(bootstrap::bootstrap_handler))
+        .route("/__auth__/exchange", post(bootstrap::exchange_handler))
         .merge(authed)
         .layer(DefaultBodyLimit::max(50 * 1024 * 1024))
+        .layer(axum::middleware::from_fn(security_headers))
         .with_state(state);
 
     let listener = TcpListener::bind("0.0.0.0:80").await?;
@@ -105,4 +122,25 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>())
         .await?;
     Ok(())
+}
+
+/// Belt-and-braces hardening for the public surface. Fly's edge already does
+/// the TLS work and we set `force_https` on the service, but HSTS makes the
+/// browser refuse to downgrade on future visits.
+async fn security_headers(req: Request, next: Next) -> Response {
+    let mut resp = next.run(req).await;
+    let h = resp.headers_mut();
+    h.insert(
+        header::STRICT_TRANSPORT_SECURITY,
+        HeaderValue::from_static("max-age=31536000; includeSubDomains"),
+    );
+    h.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    h.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    resp
 }

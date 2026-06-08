@@ -119,7 +119,10 @@ export default function ControlUiPage() {
       .then((r) => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e.error ?? "Failed")))
       .then(({ url, token }: { url: string; token: string }) => {
         const httpBase = url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
-        setSrc(`${httpBase}/__openclaw__/?jwt=${encodeURIComponent(token)}`);
+        // Token goes in the fragment (`#…`) — never sent to the server.
+        // Bootstrap page reads it, exchanges for a session cookie, then
+        // navigates the iframe to `to`.
+        setSrc(`${httpBase}/__auth__/bootstrap?to=${encodeURIComponent("/__openclaw__/")}#${encodeURIComponent(token)}`);
       })
       .catch((e: unknown) => setError(typeof e === "string" ? e : t("console.control-ui.connection-failed")));
   }, [loading, machine, isRunning, router]);

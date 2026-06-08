@@ -30,6 +30,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 use crate::config::AppState;
+use crate::origin::is_origin_allowed;
 
 const WS_ACCEPT_MAGIC: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
@@ -42,6 +43,9 @@ static STRIP_WS_HEADERS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     s.insert("x-forwarded-host");
     s.insert("x-forwarded-user");
     s.insert("host");
+    // Token rides here (`bearer, <jwt>`); upstream gateway doesn't need it
+    // and we don't want the token leaking into its logs.
+    s.insert("sec-websocket-protocol");
     s
 });
 
@@ -146,6 +150,20 @@ pub async fn ws_middleware(
         return next.run(req).await;
     }
 
+    // Cross-Site WebSocket Hijacking defense. Browsers always send `Origin` on
+    // a WS upgrade; a missing Origin is a non-browser client (programmatic
+    // Bearer auth) and is allowed through. A present Origin must be on our
+    // allowlist or equal the request's own host.
+    if let Some(origin) = req
+        .headers()
+        .get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+    {
+        if !is_origin_allowed(origin, req.headers(), &state.config.allowed_origins) {
+            return (StatusCode::FORBIDDEN, "origin not allowed").into_response();
+        }
+    }
+
     // The terminal endpoint runs locally on the sidecar — don't tunnel its
     // upgrade to the gateway, let axum's route handler take it.
     if req.uri().path() == "/api/terminal" {
@@ -166,7 +184,19 @@ pub async fn ws_middleware(
     let method = req.method().as_str().to_string();
     let path_and_query = sanitised_path(req.uri().path(), req.uri().query());
     let headers = req.headers().clone();
-    let selected_protocol = headers.get("sec-websocket-protocol").cloned();
+    // If the client offered the `bearer` subprotocol (with the JWT after it),
+    // pick "bearer" alone to echo back. Echoing the raw header would surface
+    // the token in the 101 response.
+    let selected_protocol = headers
+        .get("sec-websocket-protocol")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| {
+            if s.split(',').any(|p| p.trim() == "bearer") {
+                Some(HeaderValue::from_static("bearer"))
+            } else {
+                None
+            }
+        });
     let user_id = state.config.user_id.clone();
     let upstream_addr = state.config.upstream;
 

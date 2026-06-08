@@ -19,7 +19,10 @@ const DEFAULT_CWD: &str = "/home/node/.openclaw/workspace";
 const DEFAULT_SHELL: &str = "/bin/bash";
 
 pub async fn handler(ws: WebSocketUpgrade) -> Response {
-    ws.on_upgrade(|socket| async move {
+    // Accept the `bearer` subprotocol so the client can authenticate via
+    // `new WebSocket(url, ["bearer", token])`. Auth itself is enforced by the
+    // outer auth middleware; this just makes the WS handshake legal.
+    ws.protocols(["bearer"]).on_upgrade(|socket| async move {
         if let Err(e) = run(socket).await {
             tracing::warn!("terminal session ended: {}", e);
         }

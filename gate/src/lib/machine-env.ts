@@ -34,6 +34,8 @@ export async function buildMachineEnv(
       OPENCLAW_STATE_DIR: "/home/node/.openclaw",
       NODE_OPTIONS: "--max-old-space-size=2048",
       NODE_ENV: "production",
+      ALLOWED_ORIGINS: process.env.SIDECAR_ALLOWED_ORIGINS ?? "https://rele.to",
+      FRAME_ANCESTORS: process.env.SIDECAR_FRAME_ANCESTORS ?? "'self' https://rele.to https://*.rele.to",
     },
   };
 }

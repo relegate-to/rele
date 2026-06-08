@@ -77,16 +77,34 @@ pub async fn http_fallback_handler(
     let status = upstream_res.status();
     let mut headers = upstream_res.headers().clone();
 
+    // Replace upstream framing rules with our own — the gateway's defaults are
+    // too restrictive (block all framing) for the rele.to console embedding,
+    // but we don't want to drop framing protection entirely.
     headers.remove("x-frame-options");
-    headers.remove("content-security-policy");
+    if let Ok(v) = HeaderValue::from_str(&format!(
+        "frame-ancestors {}",
+        state.config.frame_ancestors
+    )) {
+        headers.insert(header::CONTENT_SECURITY_POLICY, v);
+    }
 
-    if let (Some(origin), Some(_)) = (
-        real_origin.as_deref(),
-        headers.get(header::ACCESS_CONTROL_ALLOW_ORIGIN),
-    ) {
-        if let Ok(v) = HeaderValue::from_str(origin) {
-            headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, v);
+    // Reflect Origin into ACAO only if the request origin is on our allowlist.
+    // Without this gate, any site could read responses from authenticated
+    // cross-origin requests (the session cookie is SameSite=None).
+    let origin_allowed = real_origin
+        .as_deref()
+        .map(|o| state.config.allowed_origins.iter().any(|a| a == o))
+        .unwrap_or(false);
+    if origin_allowed {
+        if let Some(origin) = real_origin.as_deref() {
+            if let Ok(v) = HeaderValue::from_str(origin) {
+                headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, v);
+                headers.insert(header::VARY, HeaderValue::from_static("Origin"));
+            }
         }
+    } else {
+        headers.remove(header::ACCESS_CONTROL_ALLOW_ORIGIN);
+        headers.remove(header::ACCESS_CONTROL_ALLOW_CREDENTIALS);
     }
 
     let is_html = headers

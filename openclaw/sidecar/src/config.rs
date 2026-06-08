@@ -17,6 +17,13 @@ pub struct AppConfig {
     pub skills_dir: PathBuf,
     pub workspace_skills_dir: PathBuf,
     pub upstream: SocketAddr,
+    /// Origins permitted to receive a reflected `Access-Control-Allow-Origin`.
+    /// Anything not in this set gets no ACAO from us, regardless of what the
+    /// upstream gateway tried to send.
+    pub allowed_origins: Vec<String>,
+    /// Value used for `Content-Security-Policy: frame-ancestors …` on proxied
+    /// responses. Replaces the upstream's X-Frame-Options / CSP framing rules.
+    pub frame_ancestors: String,
 }
 
 impl AppConfig {
@@ -32,12 +39,23 @@ impl AppConfig {
             PathBuf::from("/home/node/.openclaw/workspace/skills");
         let upstream: SocketAddr = "127.0.0.1:18789".parse().unwrap();
 
+        let allowed_origins = std::env::var("ALLOWED_ORIGINS")
+            .unwrap_or_else(|_| "https://rele.to".to_string())
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let frame_ancestors = std::env::var("FRAME_ANCESTORS")
+            .unwrap_or_else(|_| "'self' https://rele.to https://*.rele.to".to_string());
+
         Ok(Self {
             neon_auth_url,
             user_id,
             skills_dir,
             workspace_skills_dir,
             upstream,
+            allowed_origins,
+            frame_ancestors,
         })
     }
 

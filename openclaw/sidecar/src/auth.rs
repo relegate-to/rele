@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use axum::extract::{Request, State};
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{StatusCode, header};
 use axum::middleware::Next;
 use axum::response::Response;
 use jsonwebtoken::jwk::JwkSet;
@@ -77,6 +77,8 @@ pub async fn verify_jwt(
     client: &reqwest::Client,
     config: &AppConfig,
 ) -> Option<String> {
+    use std::str::FromStr;
+    use jsonwebtoken::jwk::AlgorithmParameters;
     let header = jsonwebtoken::decode_header(token).ok()?;
     let keys = cache.get(client, &config.neon_auth_url).await.ok()?;
 
@@ -93,10 +95,33 @@ pub async fn verify_jwt(
     let issuer = issuer_from_url(&config.neon_auth_url);
 
     for jwk in candidates {
+        // Pin the validation algorithm to what the JWK says, not what the token
+        // header claims. Without this an attacker can request a symmetric alg
+        // (HS256) and try to forge a signature against the public-key bytes.
+        let expected_alg = jwk
+            .common
+            .key_algorithm
+            .and_then(|a| jsonwebtoken::Algorithm::from_str(&a.to_string()).ok());
+        let expected_alg = expected_alg.or_else(|| match &jwk.algorithm {
+            AlgorithmParameters::RSA(_) => Some(jsonwebtoken::Algorithm::RS256),
+            AlgorithmParameters::EllipticCurve(_) => Some(jsonwebtoken::Algorithm::ES256),
+            AlgorithmParameters::OctetKeyPair(_) => Some(jsonwebtoken::Algorithm::EdDSA),
+            // Symmetric keys (oct) are rejected — JWKS for our IdP should
+            // never publish them, and accepting one would invite alg-confusion
+            // forgery.
+            _ => None,
+        });
+        let Some(expected_alg) = expected_alg else {
+            continue;
+        };
+        if header.alg != expected_alg {
+            continue;
+        }
+
         let Ok(decoding_key) = jsonwebtoken::DecodingKey::from_jwk(jwk) else {
             continue;
         };
-        let mut validation = jsonwebtoken::Validation::new(header.alg);
+        let mut validation = jsonwebtoken::Validation::new(expected_alg);
         validation.set_issuer(&[&issuer]);
         validation.set_required_spec_claims(&["sub", "iss", "exp"]);
         validation.validate_aud = false;
@@ -112,43 +137,43 @@ pub async fn verify_jwt(
 #[derive(Clone, Debug)]
 pub struct AuthContext {
     pub user_id: String,
-    /// If the token came from a query param, this is the raw JWT — set as a
-    /// session cookie on the response.
-    pub session_token: Option<String>,
 }
 
-fn extract_token_from_request(req: &Request) -> Option<(String, bool)> {
-    // (token, came_from_query)
-
+fn extract_token_from_request(req: &Request) -> Option<String> {
     // Bearer header
     if let Some(auth) = req.headers().get(header::AUTHORIZATION) {
         if let Ok(s) = auth.to_str() {
             if let Some(tok) = s.strip_prefix("Bearer ").or_else(|| s.strip_prefix("bearer ")) {
-                return Some((tok.to_string(), false));
+                return Some(tok.to_string());
             }
         }
     }
 
-    // Query params: ?jwt= or ?token=
-    if let Some(q) = req.uri().query() {
-        for pair in q.split('&') {
-            let mut it = pair.splitn(2, '=');
-            let k = it.next().unwrap_or("");
-            let v = it.next().unwrap_or("");
-            if k == "jwt" || k == "token" {
-                let decoded = percent_decode(v);
-                return Some((decoded, true));
+    // WebSocket subprotocol smuggling: `Sec-WebSocket-Protocol: bearer, <jwt>`.
+    // Browsers don't let us set custom headers on `new WebSocket(...)`, but
+    // they do let us pass subprotocols. Token follows the literal "bearer"
+    // entry. The ws_middleware strips this header before forwarding upstream
+    // and echoes back only "bearer" so the token never appears in responses.
+    if let Some(p) = req.headers().get("sec-websocket-protocol") {
+        if let Ok(s) = p.to_str() {
+            let parts: Vec<&str> = s.split(',').map(|p| p.trim()).collect();
+            if let Some(i) = parts.iter().position(|p| *p == "bearer") {
+                if let Some(tok) = parts.get(i + 1) {
+                    if !tok.is_empty() {
+                        return Some((*tok).to_string());
+                    }
+                }
             }
         }
     }
 
-    // Cookie: session=
+    // Cookie: session= (set by /__auth__/exchange)
     if let Some(c) = req.headers().get(header::COOKIE) {
         if let Ok(s) = c.to_str() {
             for part in s.split(';') {
                 let part = part.trim();
                 if let Some(v) = part.strip_prefix("session=") {
-                    return Some((percent_decode(v), false));
+                    return Some(percent_decode(v));
                 }
             }
         }
@@ -194,7 +219,7 @@ pub async fn auth_middleware(
     mut req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    let Some((token, from_query)) = extract_token_from_request(&req) else {
+    let Some(token) = extract_token_from_request(&req) else {
         return Err(StatusCode::UNAUTHORIZED);
     };
     let Some(user_id) = verify_jwt(&token, &state.jwks_cache, &state.http_client, &state.config)
@@ -203,37 +228,6 @@ pub async fn auth_middleware(
         return Err(StatusCode::UNAUTHORIZED);
     };
 
-    let ctx = AuthContext {
-        user_id,
-        session_token: if from_query { Some(token) } else { None },
-    };
-    let session_token = ctx.session_token.clone();
-    req.extensions_mut().insert(ctx);
-
-    let mut resp = next.run(req).await;
-
-    // If the token came from a query param, persist it as a session cookie.
-    if let Some(tok) = session_token {
-        if let Ok(value) = HeaderValue::from_str(&format!(
-            "session={}; HttpOnly; SameSite=None; Secure; Path=/",
-            url_encode(&tok)
-        )) {
-            resp.headers_mut().append(header::SET_COOKIE, value);
-        }
-    }
-
-    Ok(resp)
-}
-
-fn url_encode(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for b in s.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char)
-            }
-            _ => out.push_str(&format!("%{:02X}", b)),
-        }
-    }
-    out
+    req.extensions_mut().insert(AuthContext { user_id });
+    Ok(next.run(req).await)
 }

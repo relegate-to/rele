@@ -115,7 +115,7 @@ export default function TerminalPage() {
       if (cancelled) return;
 
       const base = auth.url.replace(/\/+$/, "");
-      ws = new WebSocket(`${base}/api/terminal?token=${encodeURIComponent(auth.token)}`);
+      ws = new WebSocket(`${base}/api/terminal`, ["bearer", auth.token]);
       ws.binaryType = "arraybuffer";
 
       const sendResize = (cols: number, rows: number) => {
