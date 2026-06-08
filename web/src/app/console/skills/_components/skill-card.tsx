@@ -6,8 +6,9 @@
 // installSessionKey/installSessionLabel and bubbled back up via
 // onInstallSessionStart.
 
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Lottie from "lottie-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -34,12 +35,26 @@ export const SkillCard = memo(function SkillCard({
 }) {
   const emoji = skill.emoji ?? "🔧";
   const emojiColor = useEmojiColor(emoji);
-  const animatedEmojiUrl = `https://fonts.gstatic.com/s/e/notoemoji/latest/${[...emoji].map((c) => c.codePointAt(0)?.toString(16)).filter(Boolean).join("_")}/512.gif`;
+  const lottieUrl = `https://fonts.gstatic.com/s/e/notoemoji/latest/${[...emoji].map((c) => c.codePointAt(0)?.toString(16)).filter(Boolean).join("_")}/lottie.json`;
   const [open, setOpen] = useState(false);
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
   const [hasHoveredIcon, setHasHoveredIcon] = useState(false);
   const [animFailed, setAnimFailed] = useState(false);
-  const [animLoaded, setAnimLoaded] = useState(false);
+  const [lottieData, setLottieData] = useState<object | null>(null);
+  const [dialogAnimDone, setDialogAnimDone] = useState(false);
+
+  useEffect(() => { if (!open) setDialogAnimDone(false); }, [open]);
+
+  const needsLottie = hasHoveredIcon || open;
+  useEffect(() => {
+    if (!needsLottie || lottieData || animFailed) return;
+    let cancelled = false;
+    fetch(lottieUrl)
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
+      .then((d) => { if (!cancelled) setLottieData(d); })
+      .catch(() => { if (!cancelled) setAnimFailed(true); });
+    return () => { cancelled = true; };
+  }, [needsLottie, lottieData, animFailed, lottieUrl]);
 
   const missingAnyBins = skill.missingAnyBins ?? [];
   const missingEnv = skill.missingEnv ?? [];
@@ -74,17 +89,14 @@ export const SkillCard = memo(function SkillCard({
           onMouseEnter={() => setHasHoveredIcon(true)}
           style={{ background: emojiColor ? `linear-gradient(135deg, rgba(${emojiColor}, 0.7), rgba(${emojiColor}, 0.45))` : "var(--surface-hi)" }}
         >
-          <span className={cn("block text-[2.5rem] leading-none pointer-events-none transition-opacity", animLoaded && "group-hover/icon:opacity-0")} style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none", lineHeight: 1, transform: "translateY(0.06em)", filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}>{emoji}</span>
-          {hasHoveredIcon && !animFailed && (
-            <img
-              src={animatedEmojiUrl}
-              alt=""
-              aria-hidden
-              onLoad={() => setAnimLoaded(true)}
-              onError={() => setAnimFailed(true)}
-              className={cn("pointer-events-none absolute inset-0 m-auto size-[3.25rem] object-contain opacity-0 transition-opacity", animLoaded && "group-hover/icon:opacity-100")}
+          <span className={cn("block text-[2.5rem] leading-none pointer-events-none", lottieData && "group-hover/icon:opacity-0")} style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none", lineHeight: 1, transform: "translateY(0.06em)", filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}>{emoji}</span>
+          {lottieData && (
+            <div
+              className="pointer-events-none absolute inset-0 grid place-items-center opacity-0 group-hover/icon:opacity-100"
               style={{ filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}
-            />
+            >
+              <Lottie animationData={lottieData} loop autoplay className="size-[2.875rem]" />
+            </div>
           )}
         </div>
 
@@ -114,17 +126,14 @@ export const SkillCard = memo(function SkillCard({
               className="relative grid size-14 shrink-0 place-items-center rounded-md overflow-hidden"
               style={{ background: emojiColor ? `linear-gradient(135deg, rgba(${emojiColor}, 0.7), rgba(${emojiColor}, 0.45))` : "var(--surface-hi)" }}
             >
-              <span className={cn("block text-[2.25rem] leading-none pointer-events-none transition-opacity", animLoaded && "opacity-0")} style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none", lineHeight: 1, transform: "translateY(0.06em)", filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}>{emoji}</span>
-              {!animFailed && (
-                <img
-                  src={animatedEmojiUrl}
-                  alt=""
-                  aria-hidden
-                  onLoad={() => setAnimLoaded(true)}
-                  onError={() => setAnimFailed(true)}
-                  className={cn("pointer-events-none absolute inset-0 m-auto size-12 object-contain transition-opacity", animLoaded ? "opacity-100" : "opacity-0")}
+              <span className={cn("block text-[2.25rem] leading-none pointer-events-none", lottieData && !dialogAnimDone && "opacity-0")} style={{ fontFamily: "'Noto Color Emoji', sans-serif", userSelect: "none", lineHeight: 1, transform: "translateY(0.06em)", filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}>{emoji}</span>
+              {lottieData && !dialogAnimDone && (
+                <div
+                  className="pointer-events-none absolute inset-0 grid place-items-center"
                   style={{ filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}
-                />
+                >
+                  <Lottie animationData={lottieData} loop={2} autoplay onComplete={() => setDialogAnimDone(true)} className="size-[2.625rem]" />
+                </div>
               )}
             </div>
             <div className="flex flex-1 min-w-0 flex-col gap-1.5">
