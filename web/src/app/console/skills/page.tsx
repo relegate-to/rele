@@ -125,9 +125,9 @@ export default function SkillsPage() {
                       key={f.id}
                       onClick={() => setActiveFilter(f.id)}
                       className={cn(
-                        "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
+                        "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                         activeFilter === f.id
-                          ? "bg-[var(--surface-hi)] text-[var(--text)] shadow-sm"
+                          ? "bg-[var(--surface-hi)] text-[var(--accent)]"
                           : "text-[var(--muted)] hover:text-[var(--text-dim)]",
                       )}
                     >
@@ -157,7 +157,7 @@ export default function SkillsPage() {
                   placeholder="Search…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1.5 pl-8 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--border-hi)] focus:outline-none transition-colors"
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1.5 pl-8 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--accent)]/60 focus:outline-none transition-colors"
                 />
                 {search && (
                   <button

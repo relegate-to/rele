@@ -43,10 +43,10 @@ function oklchToRgb(L: number, C: number, H: number) {
 
 // Analogous-ish background tone: nudge hue, clamp chroma so it recedes,
 // pin lightness into a band that reads well under the gradient's alpha.
-const HUE_SHIFT = 25;          // degrees — analogous neighbor on the wheel
-const CHROMA_MIN = 0.06;       // floor so grey emoji still get a tint
-const CHROMA_MAX = 0.11;       // ceiling so saturated emoji don't scream
-const LIGHTNESS_TARGET = 0.68; // perceptual L for the surface band
+const HUE_SHIFT = 8;           // degrees — slight analogous nudge
+const CHROMA_MIN = 0.14;       // floor so grey emoji still get a tint
+const CHROMA_MAX = 0.32;       // ceiling — vivid, near gamut edge
+const LIGHTNESS_TARGET = 0.66; // perceptual L for the surface band
 
 const emojiColorCache = new Map<string, string>();
 let _sharedCanvas: HTMLCanvasElement | null = null;
