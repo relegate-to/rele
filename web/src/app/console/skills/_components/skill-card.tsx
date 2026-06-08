@@ -8,13 +8,12 @@
 
 import { memo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { FadeScroll } from "@/components/ui/fade-scroll";
 import { useEmojiColor } from "../_lib/emoji-color";
-import { apiFetch, type Skill, type SkillStatus } from "../_lib/skills";
+import { type Skill } from "../_lib/skills";
 import { detectResult, useSessionObserver } from "../_lib/install-helpers";
 import { InstallButton } from "./install-button";
 import { AskAiInstallButton } from "./ai-install-button";
@@ -23,34 +22,19 @@ import { ConfigEditor } from "./config-editor";
 export const SkillCard = memo(function SkillCard({
   skill,
   onChanged,
-  onToggled,
   installSessionKey,
   installSessionLabel,
   onInstallSessionStart,
 }: {
   skill: Skill;
   onChanged: () => void;
-  onToggled: (skillId: string, lockedStatus: SkillStatus, newEnabled: boolean) => void;
   installSessionKey?: string;
   installSessionLabel?: string;
   onInstallSessionStart: (skillId: string, sessionKey: string, label: string) => void;
 }) {
-  const [toggling, setToggling] = useState(false);
   const emojiColor = useEmojiColor(skill.emoji ?? "🔧");
   const [open, setOpen] = useState(false);
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
-
-  const doToggle = async () => {
-    setToggling(true);
-    onToggled(skill.id, skill.status, !skill.enabled);
-    try {
-      await apiFetch(`/api/skills/${skill.id}/${skill.enabled ? "disable" : "enable"}`, { method: "POST" });
-    } catch (err) {
-      console.error("Toggle failed:", err);
-    } finally {
-      setToggling(false);
-    }
-  };
 
   const missingAnyBins = skill.missingAnyBins ?? [];
   const missingEnv = skill.missingEnv ?? [];
@@ -67,30 +51,21 @@ export const SkillCard = memo(function SkillCard({
     skill.installEntries.length > 0 ||
     !!installSessionKey;
 
-  const dotColor =
-    skill.status === "ready" ? "bg-[var(--status-success-text)]"
-    : needsSetup              ? "bg-[var(--status-warning-text)]"
-                              : "bg-[var(--border-hi)]";
+  const dotColor = needsSetup
+    ? "bg-[var(--status-warning-text)]"
+    : "bg-[var(--status-success-text)]";
 
-  const statusLabel =
-    skill.status === "ready"          ? "Active"
-    : skill.status === "missing-deps" ? "Missing deps"
-    : skill.status === "needs-config" ? "Needs config"
-                                      : "Disabled";
+  const statusLabel = needsSetup ? "Needs setup" : "Ready";
 
-  const statusBadgeClass =
-    skill.status === "ready" ? "bg-[var(--status-success-bg)] text-[var(--status-success-text)] ring-1 ring-[var(--status-success)]"
-    : needsSetup              ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] ring-1 ring-[var(--status-warning)]"
-                              : "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)] ring-1 ring-[var(--status-neutral)]";
+  const statusBadgeClass = needsSetup
+    ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] ring-1 ring-[var(--status-warning)]"
+    : "bg-[var(--status-success-bg)] text-[var(--status-success-text)] ring-1 ring-[var(--status-success)]";
 
   return (
     <>
       <div
         onClick={() => setOpen(true)}
-        className={cn(
-          "group relative flex h-32 flex-row rounded-md bg-[var(--surface)] cursor-pointer overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.08)] transition-all duration-200 hover:scale-[1.02] hover:bg-[var(--surface-hi)]/30 hover:shadow-[0_4px_16px_-2px_rgba(99,102,241,0.15)] active:scale-[0.98] active:shadow-sm",
-          !skill.enabled && !needsSetup && "opacity-50 hover:opacity-100",
-        )}
+        className="group relative flex h-32 flex-row rounded-md bg-[var(--surface)] cursor-pointer overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.08)] transition-all duration-200 hover:scale-[1.02] hover:bg-[var(--surface-hi)]/30 hover:shadow-[0_4px_16px_-2px_rgba(99,102,241,0.15)] active:scale-[0.98] active:shadow-sm"
       >
         {/* Emoji panel */}
         <div
@@ -114,8 +89,8 @@ export const SkillCard = memo(function SkillCard({
             )}
           </div>
 
-          {/* Footer: badge + toggle */}
-          <div className="flex items-center justify-between px-3.5 py-2 bg-[var(--surface-hi)]/50">
+          {/* Footer: status badge */}
+          <div className="flex items-center px-3.5 py-2 bg-[var(--surface-hi)]/50">
             <span className={cn(
               "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold",
               statusBadgeClass,
@@ -123,14 +98,6 @@ export const SkillCard = memo(function SkillCard({
               <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
               {statusLabel}
             </span>
-            <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-              <Switch
-                checked={skill.enabled && !needsSetup}
-                onClick={() => { void doToggle(); }}
-                disabled={toggling || needsSetup}
-                title={needsSetup ? "Fix issues before enabling" : skill.enabled ? "Disable" : "Enable"}
-              />
-            </div>
           </div>
         </div>
       </div>
@@ -171,26 +138,9 @@ export const SkillCard = memo(function SkillCard({
             </p>
           )}
 
-          {/* Enable row — hidden when deps are missing (user needs to install first) */}
-          {skill.status !== "missing-deps" && (
-            <div className="flex items-center justify-between border-t border-[var(--border)] pt-5">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Enable skill</p>
-                {needsSetup && (
-                  <p className="text-xs text-[var(--status-warning-text)]">Fix issues before enabling</p>
-                )}
-              </div>
-              <Switch
-                checked={skill.enabled && !needsSetup}
-                onClick={() => { void doToggle(); }}
-                disabled={toggling || needsSetup}
-              />
-            </div>
-          )}
-
           {/* Details */}
           {hasDetails && (
-            <div className="min-w-0 border-t border-[var(--border)] pt-5 mt-5">
+            <div className="min-w-0">
               <AnimatePresence mode="sync">
                 {(skill.missingBins.length > 0 || missingAnyBins.length > 0 || missingEnv.length > 0 || skill.missingConfig.length > 0) && (
                   <motion.div

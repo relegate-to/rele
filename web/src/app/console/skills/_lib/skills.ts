@@ -3,7 +3,7 @@
 export const INSTANCE_PROXY = "/api/instance";
 
 export type SkillStatus = "ready" | "missing-deps" | "needs-config" | "disabled";
-export type FilterTab = "all" | "ready" | "needs-setup" | "enabled";
+export type FilterTab = "all" | "ready" | "needs-setup";
 
 export interface InstallEntry {
   id: string;
@@ -38,8 +38,7 @@ export async function apiFetch(path: string, init?: RequestInit) {
 
 export const FILTERS: { id: FilterTab; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "enabled", label: "Enabled" },
-  { id: "ready", label: "Disabled" },
+  { id: "ready", label: "Ready" },
   { id: "needs-setup", label: "Setup" },
 ];
 
@@ -52,15 +51,26 @@ export function hasAllDeps(s: Skill) {
   );
 }
 
+export function isCompatible(s: Skill): boolean {
+  return s.status !== "disabled";
+}
+
+export function isReady(s: Skill): boolean {
+  return isCompatible(s) && s.status !== "missing-deps" && s.status !== "needs-config";
+}
+
+export function needsSetup(s: Skill): boolean {
+  return isCompatible(s) && (s.status === "missing-deps" || s.status === "needs-config");
+}
+
 export function filterSkills(skills: Skill[], filter: FilterTab): Skill[] {
+  const compatible = skills.filter(isCompatible);
   switch (filter) {
-    case "enabled":
-      return skills.filter((s) => s.enabled && s.status !== "missing-deps" && s.status !== "needs-config");
     case "ready":
-      return skills.filter((s) => !s.enabled && (s.status === "ready" || (s.status === "disabled" && hasAllDeps(s))));
+      return compatible.filter(isReady);
     case "needs-setup":
-      return skills.filter((s) => s.status === "missing-deps" || s.status === "needs-config");
+      return compatible.filter(needsSetup);
     default:
-      return skills;
+      return compatible;
   }
 }

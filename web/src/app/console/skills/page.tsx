@@ -14,10 +14,11 @@ import {
   apiFetch,
   FILTERS,
   filterSkills,
-  hasAllDeps,
+  isCompatible,
+  isReady,
+  needsSetup,
   type FilterTab,
   type Skill,
-  type SkillStatus,
 } from "./_lib/skills";
 
 const SKILLS_CACHE_KEY = "skills-page-cache-v1";
@@ -40,8 +41,6 @@ export default function SkillsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
-  const [lockedStatus, setLockedStatus] = useState<Record<string, SkillStatus>>({});
-  const [pendingEnabled, setPendingEnabled] = useState<Record<string, boolean>>({});
   const [installSessions, setInstallSessions] = useState<Record<string, { key: string; label: string }>>({});
 
   const fetchSkills = useCallback(async (config: Record<string, unknown>) => {
@@ -75,51 +74,35 @@ export default function SkillsPage() {
     }
   }, [connected, rpc, fetchSkills]);
 
-  const handleToggled = useCallback((skillId: string, status: SkillStatus, newEnabled: boolean) => {
-    setLockedStatus((prev) => ({ ...prev, [skillId]: status }));
-    setPendingEnabled((prev) => ({ ...prev, [skillId]: newEnabled }));
-  }, []);
-
   const handleChanged = useCallback(async () => {
     let config: Record<string, unknown> = {};
     try { config = (await rpc("config.get")) as Record<string, unknown>; } catch {}
     fetchSkills(config);
   }, [rpc, fetchSkills]);
 
-  // For filtering/counts: lock status to pre-toggle value, keep enabled unchanged
-  const skillsForFilter = useMemo(() => skills.map((s) => ({
-    ...s,
-    ...(s.id in lockedStatus && { status: lockedStatus[s.id] }),
-  })), [skills, lockedStatus]);
+  const compatibleSkills = useMemo(() => skills.filter(isCompatible), [skills]);
 
-  // For display: also apply the new enabled state so the switch reflects the toggle
-  const skillsForDisplay = useMemo(() => skillsForFilter.map((s) => ({
-    ...s,
-    ...(s.id in pendingEnabled && { enabled: pendingEnabled[s.id] }),
-  })), [skillsForFilter, pendingEnabled]);
-
-  const { total, needsSetup, counts } = useMemo(() => {
-    const total = skillsForFilter.length;
-    const ready = skillsForFilter.filter((s) => !s.enabled && (s.status === "ready" || (s.status === "disabled" && hasAllDeps(s)))).length;
-    const needsSetup = skillsForFilter.filter((s) => s.status === "missing-deps" || s.status === "needs-config").length;
+  const { total, needsSetupCount, counts } = useMemo(() => {
+    const total = compatibleSkills.length;
+    const readyCount = compatibleSkills.filter(isReady).length;
+    const needsSetupCount = compatibleSkills.filter(needsSetup).length;
     const counts: Record<FilterTab, number> = {
       all: total,
-      enabled: skillsForFilter.filter((s) => s.enabled && s.status !== "missing-deps" && s.status !== "needs-config").length,
-      ready,
-      "needs-setup": needsSetup,
+      ready: readyCount,
+      "needs-setup": needsSetupCount,
     };
-    return { total, needsSetup, counts };
-  }, [skillsForFilter]);
+    return { total, needsSetupCount, counts };
+  }, [compatibleSkills]);
 
   const filtered = useMemo(() => {
-    const filteredIds = new Set(filterSkills(skillsForFilter, activeFilter).map((s) => s.id));
-    return skillsForDisplay.filter((s) => {
+    const filteredIds = new Set(filterSkills(compatibleSkills, activeFilter).map((s) => s.id));
+    return compatibleSkills.filter((s) => {
       if (!filteredIds.has(s.id) && !installSessions[s.id]?.key) return false;
       if (!search.trim()) return true;
       const q = search.toLowerCase();
       return s.name.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q) || s.id.toLowerCase().includes(q);
     });
-  }, [skillsForDisplay, skillsForFilter, activeFilter, search, installSessions]);
+  }, [compatibleSkills, activeFilter, search, installSessions]);
 
   return (
     <div className="h-[100svh] relative flex flex-col">
@@ -153,7 +136,7 @@ export default function SkillsPage() {
                         <span
                           className={cn(
                             "min-w-[16px] rounded-full px-1 py-px text-[10px] font-semibold tabular-nums text-center",
-                            f.id === "needs-setup" && needsSetup > 0
+                            f.id === "needs-setup" && needsSetupCount > 0
                               ? "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]"
                               : "bg-[var(--border)] text-[var(--muted)]",
                           )}
@@ -225,7 +208,7 @@ export default function SkillsPage() {
                         transition={{ duration: 0.2, layout: { duration: 0.25, ease: EASE } }}
                         className="will-change-[transform,opacity]"
                       >
-                        <SkillCard skill={skill} onChanged={handleChanged} onToggled={handleToggled} installSessionKey={installSessions[skill.id]?.key} installSessionLabel={installSessions[skill.id]?.label} onInstallSessionStart={(skillId, key, label) => setInstallSessions((prev) => ({ ...prev, [skillId]: { key, label } }))} />
+                        <SkillCard skill={skill} onChanged={handleChanged} installSessionKey={installSessions[skill.id]?.key} installSessionLabel={installSessions[skill.id]?.label} onInstallSessionStart={(skillId, key, label) => setInstallSessions((prev) => ({ ...prev, [skillId]: { key, label } }))} />
                       </motion.div>
                     ))}
                   </AnimatePresence>
