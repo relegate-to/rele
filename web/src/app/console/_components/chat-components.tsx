@@ -230,10 +230,9 @@ function groupMessages(messages: ChatMessage[]): RenderGroup[] {
   return groups;
 }
 
-function renderMessages(messages: ChatMessage[], compact?: boolean, showSystem?: boolean) {
+function renderMessages(messages: ChatMessage[], compact?: boolean) {
   const visible = messages.filter((m) => {
     if (m.role === "user" && isKnownSlashMessage(stripHiddenPrefix(m.content))) return false;
-    if (!showSystem && m.isSystem) return false;
     // Bare compaction marker — the paired gateway-injected assistant message
     // carries the human-readable summary, so skip the marker itself.
     if (m.role === "system" && m.systemKind === "compaction") return false;
@@ -249,7 +248,7 @@ function renderMessages(messages: ChatMessage[], compact?: boolean, showSystem?:
   );
 }
 
-function CompactionCollapse({ msgs, compact, showSystem }: { msgs: ChatMessage[]; compact?: boolean; showSystem?: boolean }) {
+function CompactionCollapse({ msgs, compact }: { msgs: ChatMessage[]; compact?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <motion.div
@@ -276,7 +275,7 @@ function CompactionCollapse({ msgs, compact, showSystem }: { msgs: ChatMessage[]
             className="overflow-hidden"
           >
             <div className="mt-3 flex flex-col gap-3 border-l border-dashed border-[var(--border)] pl-3 opacity-70">
-              {renderMessages(msgs, compact, showSystem)}
+              {renderMessages(msgs, compact)}
             </div>
           </motion.div>
         )}
@@ -285,7 +284,7 @@ function CompactionCollapse({ msgs, compact, showSystem }: { msgs: ChatMessage[]
   );
 }
 
-export function MessageList({ messages, compact, showSystem }: { messages: ChatMessage[]; compact?: boolean; showSystem?: boolean }) {
+export function MessageList({ messages, compact }: { messages: ChatMessage[]; compact?: boolean }) {
   // Find the most recent compaction boundary; everything before it gets
   // collapsed since the assistant has already been re-grounded on a summary.
   let boundary = -1;
@@ -300,9 +299,9 @@ export function MessageList({ messages, compact, showSystem }: { messages: ChatM
   return (
     <>
       {before.length > 0 && (
-        <CompactionCollapse key={`compact:${boundary}`} msgs={before} compact={compact} showSystem={showSystem} />
+        <CompactionCollapse key={`compact:${boundary}`} msgs={before} compact={compact} />
       )}
-      {renderMessages(after, compact, showSystem)}
+      {renderMessages(after, compact)}
     </>
   );
 }
@@ -329,7 +328,6 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { name: "session", aliases: [], desc: "Manage session-level settings", hasArgs: true, category: "Session" },
   { name: "stop", desc: "Stop the current run", category: "Session" },
   { name: "reset", aliases: ["clear"], desc: "Clear context of the current session", category: "Session" },
-  { name: "new", desc: "Start a fresh session (preserves this one in history)", category: "Session" },
   { name: "compact", desc: "Compact the session context", category: "Session" },
 
   // Options

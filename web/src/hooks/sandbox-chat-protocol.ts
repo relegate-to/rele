@@ -12,9 +12,6 @@ export interface ChatMessage {
   toolMeta?: string;
   toolError?: boolean;
   isStreaming?: boolean;
-  // True when a "user" role message was injected by OpenClaw rather than typed
-  // by a human. Detected by absence of senderLabel on the wire entry.
-  isSystem?: boolean;
   // For role="system" entries — the __openclaw.kind tag (e.g. "compaction").
   systemKind?: string;
   // True when the assistant message originates from the Gateway itself
@@ -108,7 +105,6 @@ export function parseHistoryMessages(messages: any[]): ChatMessage[] {
       role: m.role,
       content: m.role === "user" ? stripHiddenPrefix(rawContent) : rawContent,
       timestamp: m.timestamp ?? Date.now(),
-      isSystem: m.role === "user" && !m.senderLabel,
       systemKind: m.role === "system" ? m.__openclaw?.kind : undefined,
       gatewayNotice: m.role === "assistant" && m.model === "gateway-injected",
     };

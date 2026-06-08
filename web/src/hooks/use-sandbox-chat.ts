@@ -37,10 +37,37 @@ interface SessionStore {
   segCounter: Record<string, number>;
   currentStreamId: string | null;
   historyFetched: boolean;
+  // Ground truth for isThinking: set when we send (or see res status=started),
+  // cleared when chat event with state=final/error arrives for this runId.
+  // Stale finals for older runs are ignored.
+  activeRunId: string | null;
+  // /compact has no completion event — after the user sends it we poll on
+  // tick/cron until the server history grows a newer compaction marker.
+  pendingCompactRefresh: boolean;
+  lastCompactionTs: number;
 }
 
 function emptyStore(): SessionStore {
-  return { messages: [], isThinking: false, segCounter: {}, currentStreamId: null, historyFetched: false };
+  return {
+    messages: [],
+    isThinking: false,
+    segCounter: {},
+    currentStreamId: null,
+    historyFetched: false,
+    activeRunId: null,
+    pendingCompactRefresh: false,
+    lastCompactionTs: 0,
+  };
+}
+
+function maxCompactionTs(messages: ChatMessage[]): number {
+  let ts = 0;
+  for (const m of messages) {
+    if (m.role === "system" && m.systemKind === "compaction" && m.timestamp > ts) {
+      ts = m.timestamp;
+    }
+  }
+  return ts;
 }
 
 export function useSandboxChat(sessionKey: string = SESSION_KEY) {
@@ -53,6 +80,8 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
   const sessionKeyRef = useRef(sessionKey);
   sessionKeyRef.current = sessionKey;
   const listenersRef = useRef<Map<string, Set<() => void>>>(new Map());
+  // chat-history request ids that should replace (not merge) local messages.
+  const pendingReplaceRef = useRef<Set<string>>(new Set());
 
   const getStore = useCallback((key: string): SessionStore => {
     if (!storeRef.current[key]) storeRef.current[key] = emptyStore();
@@ -97,6 +126,9 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
     s.isThinking = false;
     s.currentStreamId = null;
     s.historyFetched = false;
+    s.activeRunId = null;
+    s.pendingCompactRefresh = false;
+    s.lastCompactionTs = 0;
     flush(target);
   }, [getStore, flush]);
 
@@ -130,6 +162,21 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
     return subscribe((raw) => {
       const data = raw as Record<string, unknown>;
 
+      // Run started confirmation: res { ok, payload: { runId, status: "started" } }.
+      // This is the ground-truth signal that the agent has begun thinking.
+      if (data.type === "res" && data.ok) {
+        const payload = data.payload as { runId?: string; status?: string } | undefined;
+        if (payload?.runId && payload.status === "started") {
+          for (const [key, store] of Object.entries(storeRef.current)) {
+            if (store.activeRunId === payload.runId) {
+              store.isThinking = true;
+              flush(key);
+              break;
+            }
+          }
+        }
+      }
+
       // History response
       if (
         data.type === "res" &&
@@ -137,15 +184,31 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
         data.id.startsWith("chat-hist-")
       ) {
         const payload = data.payload as Record<string, unknown> | undefined;
+        const idStr = data.id as string;
+        const isReplace = pendingReplaceRef.current.delete(idStr);
         if (data.ok && payload?.messages) {
           // Extract the session key from the request id: "chat-hist-<sessionKey>-<timestamp>"
-          const idStr = data.id as string;
           const afterPrefix = idStr.slice("chat-hist-".length);
           const lastDash = afterPrefix.lastIndexOf("-");
           const histKey = lastDash > 0 ? afterPrefix.slice(0, lastDash) : sessionKeyRef.current;
 
           const store = getStore(histKey);
           const history = parseHistoryMessages(payload.messages as unknown[]);
+
+          // Post-/compact poll: only adopt the server view once it shows a
+          // compaction newer than what we've seen — otherwise the work hasn't
+          // landed yet and we just keep polling on the next tick/cron.
+          if (isReplace) {
+            const ts = maxCompactionTs(history);
+            if (ts > store.lastCompactionTs) {
+              store.messages = history.sort((a, b) => a.timestamp - b.timestamp);
+              store.lastCompactionTs = ts;
+              store.pendingCompactRefresh = false;
+              store.isThinking = false;
+              flush(histKey);
+            }
+            return;
+          }
 
           // History entries can carry different ids than the live stream
           // (history uses `hist:` or `run:<runId>`, stream uses
@@ -178,7 +241,30 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
 
           store.messages = dedupe([...filteredHistory, ...store.messages])
             .sort((a, b) => a.timestamp - b.timestamp);
+          const ts = maxCompactionTs(history);
+          if (ts > store.lastCompactionTs) store.lastCompactionTs = ts;
           flush(histKey);
+        }
+        return;
+      }
+
+      // tick / cron events are our polling clock for compactions that have no
+      // completion event — refetch history on each tick while a /compact is
+      // pending; the response handler decides whether to adopt it.
+      if (
+        data.type === "event" &&
+        (data.event === "tick" || data.event === "cron")
+      ) {
+        for (const [key, store] of Object.entries(storeRef.current)) {
+          if (!store.pendingCompactRefresh) continue;
+          const reqId = `chat-hist-${key}-${Date.now()}`;
+          pendingReplaceRef.current.add(reqId);
+          send({
+            type: "req",
+            id: reqId,
+            method: "chat.history",
+            params: { sessionKey: key },
+          });
         }
         return;
       }
@@ -197,7 +283,6 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
           const seg = store.segCounter[runId] ?? 0;
           const messageId = `run:${runId}:${seg}`;
           store.currentStreamId = messageId;
-          store.isThinking = false;
 
           const idx = store.messages.findIndex((m) => m.id === messageId);
           if (idx !== -1) {
@@ -252,12 +337,10 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
         }
 
         if (stream === "lifecycle") {
+          // isThinking is no longer driven from lifecycle — `res status=started`
+          // and chat `state=final` are the ground truth. We still use phase=end
+          // to clean up the streaming flag on the last segment.
           const phase = (payload.data as Record<string, unknown> | undefined)?.phase;
-          if (phase === "start") {
-            store.isThinking = true;
-            flush(evtKey);
-            return;
-          }
           if (phase !== "end") return;
           const msgId = store.currentStreamId;
           if (msgId) {
@@ -267,7 +350,6 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
             }
             store.currentStreamId = null;
           }
-          store.isThinking = false;
           const runId = payload.runId as string | undefined;
           if (runId != null) delete store.segCounter[runId];
           flush(evtKey);
@@ -287,11 +369,6 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
           const parsed = parseHistoryMessages([entry]);
           if (parsed.length > 0) {
             store.messages = dedupe([...store.messages, ...parsed]);
-            // Gateway-injected assistant entries (compaction, status) end the
-            // current "thinking" state.
-            if (parsed.some((m) => m.role === "assistant")) {
-              store.isThinking = false;
-            }
             flush(evtKey);
           }
           return;
@@ -299,13 +376,26 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
 
         const event = parseChatEvent(chatPayload);
         if (!event) return;
+        const runId = chatPayload?.runId as string | undefined;
+        const isActiveRun = runId != null && store.activeRunId === runId;
         if (event.state === "final") {
-          store.isThinking = false;
-          flush(evtKey);
+          if (isActiveRun) {
+            store.activeRunId = null;
+            // After /compact, the slash command's `final` fires before the
+            // compaction itself runs — keep "thinking" true and let the
+            // tick/cron poll clear it once the new compaction lands.
+            if (!store.pendingCompactRefresh) {
+              store.isThinking = false;
+            }
+            flush(evtKey);
+          }
           return;
         }
         if (event.state === "error") {
-          store.isThinking = false;
+          if (isActiveRun) {
+            store.isThinking = false;
+            store.activeRunId = null;
+          }
           store.messages = dedupe([
             ...store.messages,
             {
@@ -319,7 +409,7 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
         }
       }
     });
-  }, [subscribe, getStore, flush]);
+  }, [subscribe, getStore, flush, send]);
 
   const setModel = useCallback(
     (model: string) => {
@@ -345,6 +435,8 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
 
       store.messages = dedupe([...store.messages, { id, role: "user", content, timestamp: Date.now() }]);
       store.isThinking = true;
+      store.activeRunId = id;
+      if (/^\/compact\b/i.test(content.trim())) store.pendingCompactRefresh = true;
       flush(sessionKey);
 
       const gatewayMessage = hiddenPrefix
@@ -374,6 +466,8 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
 
       store.messages = dedupe([...store.messages, { id, role: "user", content, timestamp: Date.now() }]);
       store.isThinking = true;
+      store.activeRunId = id;
+      if (/^\/compact\b/i.test(content.trim())) store.pendingCompactRefresh = true;
       flush(targetKey);
 
       const gatewayMessage = hiddenPrefix
