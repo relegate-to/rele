@@ -3,7 +3,7 @@
 // TODO: Improve status at end of install.
 // Fix messages not showing in log.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { HelpCircleIcon, SearchIcon, XCircleIcon } from "lucide-react";
@@ -28,6 +28,16 @@ import {
 const SKILLS_CACHE_KEY = "skills-page-cache-v1";
 
 export default function SkillsPage() {
+  // useSearchParams() requires a Suspense boundary above it during static
+  // prerender (Next 16). Wrap the inner page so the build doesn't bail.
+  return (
+    <Suspense fallback={null}>
+      <SkillsPageInner />
+    </Suspense>
+  );
+}
+
+function SkillsPageInner() {
   const { connected, rpc } = useGateway();
   const { sessions } = useSessions();
   const router = useRouter();
