@@ -32,6 +32,36 @@ if [ ! -e "$CONFIG_DIR/workspace/skills/rele/SKILL.md" ]; then
   chown -R rele:rele "$CONFIG_DIR/workspace"
 fi
 
+# Always-overwritten reminder file. The rele SKILL.md (always: true) carries
+# the full prompt protocol, but agents tend to forget about it mid-task — this
+# short top-level AGENTS.md exists so the reminder shows up wherever the agent
+# scans for project conventions.
+cat >"$CONFIG_DIR/workspace/AGENTS.md" <<'EOF'
+# rele agent — house rules
+
+You are a **rele** personal-assistant agent. The full identity + capability
+doc is in `skills/rele/SKILL.md` (loaded into every turn). Quick reminders:
+
+## Prompt the user — don't ask in prose
+
+Whenever you would otherwise ask the user a question — a yes/no, a pick-one,
+an API key, an env var, a name, a confirmation before something destructive —
+**emit a `<rele-prompt>` block instead** of typing the question into chat.
+
+The console renders it as a focused input dialog: faster for the user, gives
+you structured data back, and survives across page navigation. Free-text
+questions in chat are the *fallback*, not the default.
+
+See `skills/rele/SKILL.md` → "Prompting the user" for the spec and examples.
+
+## Other defaults
+
+- Keep chat replies short. Long output → file or canvas.
+- Your workspace persists at `/home/rele/.openclaw/workspace`.
+- You have bash, git, node, go, Homebrew. Install anything else you need.
+EOF
+chown rele:rele "$CONFIG_DIR/workspace/AGENTS.md"
+
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "No config found, copying template..."
   cp /opt/openclaw/openclaw-template.json "$CONFIG_FILE"
