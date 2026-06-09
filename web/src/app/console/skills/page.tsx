@@ -4,11 +4,14 @@
 // Fix messages not showing in log.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { HelpCircleIcon, SearchIcon, XCircleIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { useGateway } from "../_context/gateway-context";
+import { useSessions } from "../_context/sessions-context";
+import { INSTALL_LABEL_PREFIX } from "./_lib/install-helpers";
 import { SkillCard } from "./_components/skill-card";
 import { AboutSkillsDialog } from "./_components/about-dialog";
 import {
@@ -26,6 +29,19 @@ const SKILLS_CACHE_KEY = "skills-page-cache-v1";
 
 export default function SkillsPage() {
   const { connected, rpc } = useGateway();
+  const { sessions } = useSessions();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const autoOpenSkillId = searchParams.get("skill");
+
+  // One-shot: strip the param once consumed so a refresh/back doesn't re-open.
+  const [openedSkillId, setOpenedSkillId] = useState<string | null>(null);
+  useEffect(() => {
+    if (autoOpenSkillId && autoOpenSkillId !== openedSkillId) {
+      setOpenedSkillId(autoOpenSkillId);
+      router.replace("/console/skills");
+    }
+  }, [autoOpenSkillId, openedSkillId, router]);
   const [skills, setSkills] = useState<Skill[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -42,8 +58,32 @@ export default function SkillsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
-  const [installSessions, setInstallSessions] = useState<Record<string, { key: string; label: string }>>({});
   const [aboutOpen, setAboutOpen] = useState(false);
+
+  // Derived from the live session list so an in-progress install survives a
+  // page refresh — the .tmp set up <skillId> session is what we key off.
+  const installSessions = useMemo(() => {
+    const out: Record<string, { key: string; label: string }> = {};
+    for (const s of sessions) {
+      if (!s.displayName.startsWith(INSTALL_LABEL_PREFIX)) continue;
+      const skillId = s.displayName.slice(INSTALL_LABEL_PREFIX.length);
+      out[skillId] = { key: s.key, label: s.displayName };
+    }
+    return out;
+  }, [sessions]);
+
+  // Warn before unload while an install is in flight — the .tmp session keeps
+  // running on the backend but the user loses the live transcript and prompts.
+  const hasActiveInstall = Object.keys(installSessions).length > 0;
+  useEffect(() => {
+    if (!hasActiveInstall) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasActiveInstall]);
 
   const fetchSkills = useCallback(async (config: Record<string, unknown>) => {
     try {
@@ -217,7 +257,7 @@ export default function SkillsPage() {
                         transition={{ duration: 0.2, layout: { duration: 0.25, ease: EASE } }}
                         className="will-change-[transform,opacity]"
                       >
-                        <SkillCard skill={skill} onChanged={handleChanged} installSessionKey={installSessions[skill.id]?.key} installSessionLabel={installSessions[skill.id]?.label} onInstallSessionStart={(skillId, key, label) => setInstallSessions((prev) => ({ ...prev, [skillId]: { key, label } }))} />
+                        <SkillCard skill={skill} onChanged={handleChanged} installSessionKey={installSessions[skill.id]?.key} installSessionLabel={installSessions[skill.id]?.label} autoOpen={openedSkillId === skill.id} />
                       </motion.div>
                     ))}
                   </AnimatePresence>

@@ -37,15 +37,18 @@ export function formatArgs(args: unknown): string {
 export const HIDDEN_START = "\uE001";
 export const HIDDEN_END = "\uE002";
 
-// Inline prompt block \u2014 distinct PUA pair so it can sit anywhere in assistant
-// content (not just at the start, the way HIDDEN_START prefixes work).
-export const PROMPT_START = "\uE010";
-export const PROMPT_END = "\uE011";
+// Inline prompt block. Tag-style so the model can reliably emit it \u2014 PUA
+// codepoints (which we tried first) get refused or escaped by most models.
+export const PROMPT_START = "<rele-prompt>";
+export const PROMPT_END = "</rele-prompt>";
 
 export type PromptSpec = {
   id: string;
   kind: "text" | "choice" | "multi" | "confirm";
   title?: string;
+  // Optional one-sentence explanation shown under the title — for context the
+  // user might not have ("what's a Google Places API key, where do I get one?").
+  description?: string;
   placeholder?: string;
   multiline?: boolean;
   options?: string[];
@@ -58,15 +61,15 @@ export function extractPrompt(
 ): { before: string; prompt: PromptSpec; after: string } | null {
   const i = text.indexOf(PROMPT_START);
   if (i === -1) return null;
-  const j = text.indexOf(PROMPT_END, i + 1);
+  const j = text.indexOf(PROMPT_END, i + PROMPT_START.length);
   if (j === -1) return null;
   try {
-    const prompt = JSON.parse(text.slice(i + 1, j)) as PromptSpec;
+    const prompt = JSON.parse(text.slice(i + PROMPT_START.length, j)) as PromptSpec;
     if (!prompt?.id || !prompt?.kind) return null;
     return {
       before: text.slice(0, i),
       prompt,
-      after: text.slice(j + 1),
+      after: text.slice(j + PROMPT_END.length),
     };
   } catch {
     return null;

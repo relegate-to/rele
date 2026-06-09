@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "./_components/app-sidebar";
+import { InstallPromptToasts } from "./_components/install-prompt-toasts";
 import { MachinesProvider } from "./_context/machines-context";
 import { GatewayProvider } from "./_context/gateway-context";
 import { ChatProvider } from "./_context/chat-context";
 import { SessionsProvider } from "./_context/sessions-context";
+import { SkillDialogProvider } from "./_context/skill-dialog-context";
 import { useTranslation } from "./_context/i18n-context";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
@@ -74,6 +76,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
       <GatewayProvider>
         <SessionsProvider>
         <ChatProvider>
+        <SkillDialogProvider>
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
@@ -84,9 +87,11 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
               />
             )}
             <ConsoleTrigger />
+            <InstallPromptToasts />
             {children}
           </SidebarInset>
         </SidebarProvider>
+        </SkillDialogProvider>
         </ChatProvider>
         </SessionsProvider>
       </GatewayProvider>

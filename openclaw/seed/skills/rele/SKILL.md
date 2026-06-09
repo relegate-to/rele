@@ -29,6 +29,7 @@ Use a prompt:
 - **Whenever you'd otherwise list options in prose** ("would you like A, B, or C?") — make it a `choice` prompt.
 - **When you need a small structured value** — a name, a URL, a number, a choice from a set you can enumerate.
 - **When the user's intent is ambiguous and you have a guess** — present the guesses as choices.
+- **When you need setup input — an API key, an env var, an account name, a config value** — *always* prompt for it, even mid-task (e.g. while installing a skill). This is the strongly preferred way to collect anything the user has to type. The console will pop a focused dialog so they don't have to dig through chat to find your question.
 
 Default to prompting. The cost of a prompt is tiny; the cost of acting on the wrong assumption is large.
 
@@ -36,9 +37,7 @@ When *not* to prompt: open-ended conversation (let them type), anything they've 
 
 ### How to emit one
 
-Wrap a JSON spec in two sentinel characters — `U+E010` (start) and `U+E011` (end). These are real, single Unicode codepoints in the Private Use Area. Emit them as actual characters, not as the literal text `<U+E010>` and not as a backslash-u escape sequence. Markdown around them renders normally; the web UI swaps the block out for an inline input.
-
-In the examples below the sentinels are written as `<U+E010>` and `<U+E011>` for readability. When you actually emit one, replace those with the real characters.
+Wrap a JSON spec in `<rele-prompt>` … `</rele-prompt>` tags. Emit the tags literally — they're the actual delimiters, not placeholders for something else. Markdown around them renders normally; the web UI swaps the tag block out for an inline input.
 
 ### Spec
 
@@ -47,6 +46,10 @@ In the examples below the sentinels are written as `<U+E010>` and `<U+E011>` for
   "id": "p_abc",          // your id — you'll receive it back with the reply
   "kind": "text" | "choice" | "multi" | "confirm",
   "title": "string",      // shown above the input
+  "description": "string", // optional — one sentence under the title explaining
+                           // what this is for or where to get it. Use it when
+                           // the user might not know offhand (API keys, env
+                           // vars, technical jargon). Skip it for obvious asks.
 
   // kind=text
   "placeholder": "string",
@@ -66,33 +69,39 @@ In the examples below the sentinels are written as `<U+E010>` and `<U+E011>` for
 Text:
 
 ```
-What should I call the new project? <U+E010>{"id":"p1","kind":"text","title":"Project name","placeholder":"my-project"}<U+E011>
+What should I call the new project? <rele-prompt>{"id":"p1","kind":"text","title":"Project name","placeholder":"my-project"}</rele-prompt>
+```
+
+Text, with a description for context:
+
+```
+<rele-prompt>{"id":"p_gp","kind":"text","title":"Google Places API key","description":"Used to look up business hours and addresses. Get one at console.cloud.google.com under APIs & Services → Credentials.","placeholder":"AIza…"}</rele-prompt>
 ```
 
 Single choice:
 
 ```
-<U+E010>{"id":"p2","kind":"choice","title":"Pick a backend","options":["Postgres","SQLite","Redis"]}<U+E011>
+<rele-prompt>{"id":"p2","kind":"choice","title":"Pick a backend","options":["Postgres","SQLite","Redis"]}</rele-prompt>
 ```
 
 Multi select:
 
 ```
-<U+E010>{"id":"p3","kind":"multi","title":"Which integrations?","options":["GitHub","Linear","Slack"]}<U+E011>
+<rele-prompt>{"id":"p3","kind":"multi","title":"Which integrations?","options":["GitHub","Linear","Slack"]}</rele-prompt>
 ```
 
 Confirm:
 
 ```
-About to delete the workspace volume — sure? <U+E010>{"id":"p4","kind":"confirm","title":"Delete workspace?","confirmLabel":"Delete","denyLabel":"Cancel"}<U+E011>
+About to delete the workspace volume — sure? <rele-prompt>{"id":"p4","kind":"confirm","title":"Delete workspace?","confirmLabel":"Delete","denyLabel":"Cancel"}</rele-prompt>
 ```
 
 ### Reply format
 
-When the user submits, you receive a normal user message. The visible content is what they picked (e.g. `Postgres`, `Yes`, the typed string). A hidden prefix carries the structured value and the prompt id you gave:
+When the user submits, you receive a normal user message. The visible content is what they picked (e.g. `Postgres`, `Yes`, the typed string). A hidden prefix carries the structured value and the prompt id you gave (the prefix uses different invisible delimiters; you don't need to emit it, just read it):
 
 ```
-<U+E001>prompt-reply id=p2 value="Postgres"<U+E002>
+prompt-reply id=p2 value="Postgres"
 
 Postgres
 ```

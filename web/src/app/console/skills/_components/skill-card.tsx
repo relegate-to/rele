@@ -2,18 +2,19 @@
 
 // One row in the skills grid + its dialog. Renders the card, owns the dialog
 // open state, and delegates per-skill optimistic toggle to the page via
-// onToggled. Install state lives at the page level too — passed in here as
-// installSessionKey/installSessionLabel and bubbled back up via
-// onInstallSessionStart.
+// onToggled. Install state is discovered at the page level by scanning the
+// session list — passed in here as installSessionKey/installSessionLabel.
 
 import { memo, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Lottie from "lottie-react";
+import { RefreshCwIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { FadeScroll } from "@/components/ui/fade-scroll";
 import { useEmojiColor } from "../_lib/emoji-color";
+import { useSkillDialog } from "../../_context/skill-dialog-context";
 import { type Skill } from "../_lib/skills";
 import { detectResult, useSessionObserver } from "../_lib/install-helpers";
 import { InstallButton } from "./install-button";
@@ -25,13 +26,13 @@ export const SkillCard = memo(function SkillCard({
   onChanged,
   installSessionKey,
   installSessionLabel,
-  onInstallSessionStart,
+  autoOpen,
 }: {
   skill: Skill;
   onChanged: () => void;
   installSessionKey?: string;
   installSessionLabel?: string;
-  onInstallSessionStart: (skillId: string, sessionKey: string, label: string) => void;
+  autoOpen?: boolean;
 }) {
   const emoji = skill.emoji ?? "🔧";
   const emojiColor = useEmojiColor(emoji);
@@ -44,6 +45,17 @@ export const SkillCard = memo(function SkillCard({
   const [dialogAnimDone, setDialogAnimDone] = useState(false);
 
   useEffect(() => { if (!open) setDialogAnimDone(false); }, [open]);
+
+  useEffect(() => { if (autoOpen) setOpen(true); }, [autoOpen]);
+
+  // Publish open state so the global install alert can suppress for this skill
+  // while its dialog is showing (and re-appear when closed).
+  const { setOpenSkillId } = useSkillDialog();
+  useEffect(() => {
+    if (!open) return;
+    setOpenSkillId(skill.id);
+    return () => setOpenSkillId(null);
+  }, [open, skill.id, setOpenSkillId]);
 
   const needsLottie = hasHoveredIcon || open;
   useEffect(() => {
@@ -71,18 +83,32 @@ export const SkillCard = memo(function SkillCard({
     skill.installEntries.length > 0 ||
     !!installSessionKey;
 
-  const dotColor = needsSetup
-    ? "bg-[var(--status-warning-text)]"
-    : "bg-[var(--status-success-text)]";
+  const installing = !!installSessionKey && !installResult;
+  const dotColor = installing
+    ? "bg-[var(--accent)]"
+    : needsSetup
+      ? "bg-[var(--status-warning-text)]"
+      : "bg-[var(--status-success-text)]";
 
-  const statusLabel = needsSetup ? "Needs setup" : "Ready";
+  const statusLabel = installing ? "Installing…" : needsSetup ? "Needs setup" : "Ready";
 
   return (
     <>
       <div
         onClick={() => setOpen(true)}
-        className="group relative flex h-28 flex-row items-center gap-4 rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 py-3 cursor-pointer transition-colors duration-150 hover:border-[var(--accent)]/40"
+        className={cn(
+          "group relative flex h-28 flex-row items-center gap-4 rounded-md border bg-[var(--surface)] px-4 py-3 cursor-pointer transition-colors duration-150 hover:border-[var(--accent)]/40",
+          installing
+            ? "border-[var(--accent)] shadow-[0_0_0_3px_rgba(var(--accent-rgb,99_102_241)/0.15)]"
+            : "border-[var(--border)]",
+        )}
       >
+        {installing && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -inset-px rounded-md border border-[var(--accent)]/60 animate-pulse"
+          />
+        )}
         {/* Emoji app-icon tile */}
         <div
           className="group/icon relative grid aspect-square h-full shrink-0 place-items-center rounded-md overflow-hidden"
@@ -110,8 +136,15 @@ export const SkillCard = memo(function SkillCard({
               {skill.description}
             </p>
           )}
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-[var(--muted)]">
-            <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
+          <div className={cn(
+            "mt-2 flex items-center gap-1.5 text-[10px] font-medium",
+            installing ? "text-[var(--accent)]" : "text-[var(--muted)]",
+          )}>
+            {installing ? (
+              <RefreshCwIcon className="size-3 shrink-0 animate-spin" />
+            ) : (
+              <span className={cn("size-1.5 rounded-full shrink-0", dotColor)} />
+            )}
             {statusLabel}
           </div>
         </div>
@@ -262,7 +295,7 @@ export const SkillCard = memo(function SkillCard({
                     transition={{ duration: 0.25, ease: EASE }}
                     className="overflow-hidden"
                   >
-                    <AskAiInstallButton skill={skill} onChanged={onChanged} initialSessionKey={installSessionKey} initialSessionLabel={installSessionLabel} onSessionStart={(key, label) => onInstallSessionStart(skill.id, key, label)} />
+                    <AskAiInstallButton skill={skill} onChanged={onChanged} initialSessionKey={installSessionKey} initialSessionLabel={installSessionLabel} />
                   </motion.div>
                 )}
                 {skill.pluginConfig !== null && (

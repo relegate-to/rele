@@ -13,6 +13,11 @@ import { useChat } from "../../_context/chat-context";
 
 export type InstallResult = "ok" | "fail" | "attention" | null;
 
+// Background install sessions get labelled ".tmp set up <skillId>". Exported
+// so the skills page can scan sessions.list and surface in-progress installs
+// after a page refresh.
+export const INSTALL_LABEL_PREFIX = ".tmp set up ";
+
 export function detectResult(messages: ChatMessage[]): InstallResult {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
