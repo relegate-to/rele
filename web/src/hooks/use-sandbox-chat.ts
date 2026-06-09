@@ -13,6 +13,12 @@ import {
   HIDDEN_END,
 } from "./sandbox-chat-protocol";
 
+function promptReplyIdFromHiddenPrefix(hiddenPrefix?: string): string | undefined {
+  if (!hiddenPrefix) return undefined;
+  const m = hiddenPrefix.match(/^prompt-reply\s+id=([\w.-]+)/);
+  return m ? m[1] : undefined;
+}
+
 export type { ChatMessage };
 
 function dedupe(messages: ChatMessage[]): ChatMessage[] {
@@ -433,7 +439,7 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
       const id = crypto.randomUUID();
       const store = getStore(sessionKey);
 
-      store.messages = dedupe([...store.messages, { id, role: "user", content, timestamp: Date.now() }]);
+      store.messages = dedupe([...store.messages, { id, role: "user", content, timestamp: Date.now(), promptReplyId: promptReplyIdFromHiddenPrefix(hiddenPrefix) }]);
       store.isThinking = true;
       store.activeRunId = id;
       if (/^\/compact\b/i.test(content.trim())) store.pendingCompactRefresh = true;
@@ -464,7 +470,7 @@ export function useSandboxChat(sessionKey: string = SESSION_KEY) {
       const id = crypto.randomUUID();
       const store = getStore(targetKey);
 
-      store.messages = dedupe([...store.messages, { id, role: "user", content, timestamp: Date.now() }]);
+      store.messages = dedupe([...store.messages, { id, role: "user", content, timestamp: Date.now(), promptReplyId: promptReplyIdFromHiddenPrefix(hiddenPrefix) }]);
       store.isThinking = true;
       store.activeRunId = id;
       if (/^\/compact\b/i.test(content.trim())) store.pendingCompactRefresh = true;

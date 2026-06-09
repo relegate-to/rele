@@ -36,6 +36,10 @@ export default function ChatPage() {
   if (trimmed.startsWith("/")) pendingSlashRef.current = true;
   sendMessage(text);
  }, [sendMessage, clearMessages]);
+
+ const handlePromptReply = useCallback((id: string, displayValue: string, structured: unknown) => {
+  sendMessage(displayValue, `prompt-reply id=${id} value=${JSON.stringify(structured)}`);
+ }, [sendMessage]);
  const scrollContainerRef = useRef<HTMLDivElement>(null);
  const pinnedToBottomRef = useRef(true);
  const rafRef = useRef<number | null>(null);
@@ -108,7 +112,7 @@ export default function ChatPage() {
     </AnimatePresence>
     <div className="mx-auto max-w-4xl px-6 py-6">
      <div className="flex min-w-0 flex-col gap-3">
-      <MessageList messages={messages} />
+      <MessageList messages={messages} onPromptReply={handlePromptReply} />
       <motion.div animate={{ opacity: isThinking && connected ? 1 : 0 }}>
        <TypingIndicator />
       </motion.div>

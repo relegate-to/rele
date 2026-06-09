@@ -17,6 +17,10 @@ export interface ChatMessage {
   // True when the assistant message originates from the Gateway itself
   // (model === "gateway-injected") — e.g. the post-compaction summary.
   gatewayNotice?: boolean;
+  // For role="user" entries that came from an inline prompt — the id of the
+  // prompt they answered. Lets the UI mark that prompt as answered after a
+  // history reload.
+  promptReplyId?: string;
 }
 
 export function formatArgs(args: unknown): string {
@@ -33,12 +37,58 @@ export function formatArgs(args: unknown): string {
 export const HIDDEN_START = "\uE001";
 export const HIDDEN_END = "\uE002";
 
+// Inline prompt block \u2014 distinct PUA pair so it can sit anywhere in assistant
+// content (not just at the start, the way HIDDEN_START prefixes work).
+export const PROMPT_START = "\uE010";
+export const PROMPT_END = "\uE011";
+
+export type PromptSpec = {
+  id: string;
+  kind: "text" | "choice" | "multi" | "confirm";
+  title?: string;
+  placeholder?: string;
+  multiline?: boolean;
+  options?: string[];
+  confirmLabel?: string;
+  denyLabel?: string;
+};
+
+export function extractPrompt(
+  text: string,
+): { before: string; prompt: PromptSpec; after: string } | null {
+  const i = text.indexOf(PROMPT_START);
+  if (i === -1) return null;
+  const j = text.indexOf(PROMPT_END, i + 1);
+  if (j === -1) return null;
+  try {
+    const prompt = JSON.parse(text.slice(i + 1, j)) as PromptSpec;
+    if (!prompt?.id || !prompt?.kind) return null;
+    return {
+      before: text.slice(0, i),
+      prompt,
+      after: text.slice(j + 1),
+    };
+  } catch {
+    return null;
+  }
+}
+
 // Strip hidden system prefix: \uE001...\uE002\n\n
 export function stripHiddenPrefix(text: string): string {
   if (!text.startsWith(HIDDEN_START)) return text;
   const end = text.indexOf(HIDDEN_END);
   if (end === -1) return text;
   return text.slice(end + HIDDEN_END.length).replace(/^\n\n/, "");
+}
+
+// Pull the prompt id out of a `prompt-reply id=<id> value=...` hidden prefix.
+export function extractPromptReplyId(text: string): string | null {
+  if (!text.startsWith(HIDDEN_START)) return null;
+  const end = text.indexOf(HIDDEN_END);
+  if (end === -1) return null;
+  const inner = text.slice(HIDDEN_START.length, end);
+  const m = inner.match(/^prompt-reply\s+id=([\w.-]+)/);
+  return m ? m[1] : null;
 }
 
 // User messages can be wrapped by OpenClaw with leading "System: ..." context
@@ -107,6 +157,7 @@ export function parseHistoryMessages(messages: any[]): ChatMessage[] {
       timestamp: m.timestamp ?? Date.now(),
       systemKind: m.role === "system" ? m.__openclaw?.kind : undefined,
       gatewayNotice: m.role === "assistant" && m.model === "gateway-injected",
+      promptReplyId: m.role === "user" ? extractPromptReplyId(rawContent) ?? undefined : undefined,
     };
   });
 }

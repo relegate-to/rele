@@ -54,6 +54,14 @@ export function FloatingChat({ contextPrompt, sessionName }: { contextPrompt?: s
     },
     [sessionKey, sendToSession, sendMessage, contextPrompt],
   );
+  const handlePromptReply = useCallback(
+    (id: string, displayValue: string, structured: unknown) => {
+      const hidden = `prompt-reply id=${id} value=${JSON.stringify(structured)}`;
+      if (sessionKey) sendToSession(sessionKey, displayValue, hidden);
+      else sendMessage(displayValue, hidden);
+    },
+    [sessionKey, sendToSession, sendMessage],
+  );
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pinnedToBottomRef = useRef(true);
   const rafRef = useRef<number | null>(null);
@@ -157,7 +165,7 @@ export function FloatingChat({ contextPrompt, sessionName }: { contextPrompt?: s
                 )}
               </AnimatePresence>
               <div className="px-4 py-4 flex flex-col gap-3">
-                <MessageList messages={messages} />
+                <MessageList messages={messages} onPromptReply={handlePromptReply} />
                 <motion.div animate={{ opacity: isThinking && connected ? 1 : 0 }}>
                   <TypingIndicator />
                 </motion.div>

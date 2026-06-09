@@ -46,6 +46,7 @@ RUN setcap 'cap_net_bind_service=+ep' /opt/openclaw/sidecar
 
 COPY openclaw-template.json /opt/openclaw/openclaw-template.json
 COPY canvas/index.html /opt/openclaw/canvas-placeholder.html
+COPY seed/ /opt/openclaw/seed/
 COPY --chmod=755 entrypoint.sh /opt/openclaw/entrypoint.sh
 
 RUN mkdir -p /app /opt/openclaw && chown -R rele:rele /app /opt/openclaw

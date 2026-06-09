@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpIcon, ChevronDownIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import type { ChatMessage } from "@/hooks/sandbox-chat-protocol";
-import { stripHiddenPrefix, stripUserContextPrefix } from "@/hooks/sandbox-chat-protocol";
+import type { ChatMessage, PromptSpec } from "@/hooks/sandbox-chat-protocol";
+import { stripHiddenPrefix, stripUserContextPrefix, extractPrompt, PROMPT_START } from "@/hooks/sandbox-chat-protocol";
 import { ToolIcon } from "@/components/ui/tool-icon";
 import { MarkdownProse } from "@/components/ui/markdown-prose";
 import { useTranslation } from "../_context/i18n-context";
@@ -49,7 +49,177 @@ function ToolPill({ msg }: { msg: ChatMessage }) {
   );
 }
 
-export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: { msg: ChatMessage; compact?: boolean; prevRole?: string }) {
+export type PromptReply = (id: string, displayValue: string, structured: unknown) => void;
+
+function InlinePrompt({ spec, onReply, answeredWith }: { spec: PromptSpec; onReply?: PromptReply; answeredWith?: string }) {
+  const [text, setText] = useState("");
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const focusTargetRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement | null>(null);
+  const answered = answeredWith !== undefined;
+
+  useEffect(() => {
+    if (answered) return;
+    // Wait one frame so the mount animation doesn't fight the focus call.
+    const id = requestAnimationFrame(() => focusTargetRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [answered]);
+
+  const submit = useCallback(
+    (display: string, structured: unknown) => {
+      if (answered) return;
+      onReply?.(spec.id, display, structured);
+    },
+    [answered, onReply, spec.id],
+  );
+
+  if (answered) {
+    return (
+      <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)]/60 px-3 py-1 text-xs text-[var(--muted)] backdrop-blur-sm">
+        <span className="opacity-60">→</span>
+        <span className="truncate text-[var(--text)]">{answeredWith}</span>
+      </div>
+    );
+  }
+
+  const disabled = !onReply;
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/60 p-4 backdrop-blur-sm">
+      {spec.title && (
+        <div className="mb-3 text-sm font-medium text-[var(--text)]">{spec.title}</div>
+      )}
+      {spec.kind === "text" && (
+        <div className="flex flex-col gap-2">
+          {spec.multiline ? (
+            <textarea
+              ref={focusTargetRef as React.RefObject<HTMLTextAreaElement>}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={spec.placeholder}
+              rows={3}
+              disabled={disabled}
+              className="min-h-[60px] w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm leading-relaxed text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none disabled:opacity-50"
+            />
+          ) : (
+            <input
+              ref={focusTargetRef as React.RefObject<HTMLInputElement>}
+              type="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && text.trim()) {
+                  e.preventDefault();
+                  submit(text.trim(), text.trim());
+                }
+              }}
+              placeholder={spec.placeholder}
+              disabled={disabled}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none disabled:opacity-50"
+            />
+          )}
+          <button
+            type="button"
+            disabled={disabled || !text.trim()}
+            onClick={() => submit(text.trim(), text.trim())}
+            className="self-end rounded-xl bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--accent-dim)] disabled:opacity-30"
+          >
+            Send
+          </button>
+        </div>
+      )}
+      {spec.kind === "choice" && (
+        <div className="flex flex-wrap gap-2">
+          {(spec.options ?? []).map((opt, i) => (
+            <button
+              key={i}
+              ref={i === 0 ? (focusTargetRef as React.RefObject<HTMLButtonElement>) : undefined}
+              type="button"
+              disabled={disabled}
+              onClick={() => submit(opt, opt)}
+              className="rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-sm text-[var(--text)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-50"
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+      {spec.kind === "multi" && (
+        <div className="flex flex-col gap-2">
+          {(spec.options ?? []).map((opt, i) => {
+            const on = picked.has(i);
+            return (
+              <button
+                key={i}
+                ref={i === 0 ? (focusTargetRef as React.RefObject<HTMLButtonElement>) : undefined}
+                type="button"
+                disabled={disabled}
+                onClick={() =>
+                  setPicked((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(i)) next.delete(i);
+                    else next.add(i);
+                    return next;
+                  })
+                }
+                className={cn(
+                  "flex items-center gap-2 rounded-xl border bg-[var(--bg)] px-3 py-2 text-left text-sm transition-colors disabled:opacity-50",
+                  on
+                    ? "border-[var(--accent)] text-[var(--text)]"
+                    : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)]",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex size-4 shrink-0 items-center justify-center rounded border",
+                    on ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)]",
+                  )}
+                >
+                  {on && <span className="text-[10px]">✓</span>}
+                </span>
+                <span>{opt}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            disabled={disabled || picked.size === 0}
+            onClick={() => {
+              const opts = spec.options ?? [];
+              const values = [...picked].sort().map((i) => opts[i]);
+              submit(values.join(", "), values);
+            }}
+            className="mt-1 self-end rounded-xl bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--accent-dim)] disabled:opacity-30"
+          >
+            Send
+          </button>
+        </div>
+      )}
+      {spec.kind === "confirm" && (
+        <div className="flex gap-2">
+          <button
+            ref={focusTargetRef as React.RefObject<HTMLButtonElement>}
+            type="button"
+            disabled={disabled}
+            onClick={() => submit(spec.confirmLabel ?? "Yes", true)}
+            className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-dim)] disabled:opacity-50"
+          >
+            {spec.confirmLabel ?? "Yes"}
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => submit(spec.denyLabel ?? "No", false)}
+            className="rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-2 text-sm text-[var(--text)] transition-colors hover:border-[var(--accent)] disabled:opacity-50"
+          >
+            {spec.denyLabel ?? "No"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export const MessageRow = memo(function MessageRow({ msg, compact, prevRole, onPromptReply, answeredPrompts }: { msg: ChatMessage; compact?: boolean; prevRole?: string; onPromptReply?: PromptReply; answeredPrompts?: Map<string, string> }) {
   const turnBoundary = !!prevRole && isAssistant(prevRole) !== isAssistant(msg.role);
 
   const isNotice = msg.gatewayNotice || msg.role === "system";
@@ -100,19 +270,42 @@ export const MessageRow = memo(function MessageRow({ msg, compact, prevRole }: {
             <MarkdownProse variant="user">{stripUserContextPrefix(stripHiddenPrefix(msg.content))}</MarkdownProse>
           </div>
         </div>
-      ) : compact ? (
-        <MarkdownProse isStreaming={msg.isStreaming}>
-          {msg.content}
-        </MarkdownProse>
-      ) : (
-        <AssistantMessage content={msg.content}>
-          <div className="py-0">
-            <MarkdownProse isStreaming={msg.isStreaming}>
-              {msg.content}
-            </MarkdownProse>
-          </div>
-        </AssistantMessage>
-      )}
+      ) : (() => {
+        const extracted = extractPrompt(msg.content);
+        // Streaming partial: if PROMPT_START has arrived but PROMPT_END hasn't,
+        // hide the in-progress block so raw JSON doesn't flash into the bubble.
+        const visibleContent = (() => {
+          if (extracted) return msg.content;
+          const i = msg.content.indexOf(PROMPT_START);
+          return i === -1 ? msg.content : msg.content.slice(0, i);
+        })();
+        const before = extracted ? extracted.before : visibleContent;
+        const after = extracted ? extracted.after : "";
+
+        const body = (
+          <>
+            {before && (
+              <MarkdownProse isStreaming={msg.isStreaming && !extracted}>
+                {before}
+              </MarkdownProse>
+            )}
+            {extracted && (
+              <div className="my-2">
+                <InlinePrompt
+                  spec={extracted.prompt}
+                  onReply={onPromptReply}
+                  answeredWith={answeredPrompts?.get(extracted.prompt.id)}
+                />
+              </div>
+            )}
+            {after && (
+              <MarkdownProse isStreaming={msg.isStreaming}>{after}</MarkdownProse>
+            )}
+          </>
+        );
+
+        return compact ? body : <div className="py-0">{body}</div>;
+      })()}
     </motion.div>
   );
 });
@@ -230,25 +423,28 @@ function groupMessages(messages: ChatMessage[]): RenderGroup[] {
   return groups;
 }
 
-function renderMessages(messages: ChatMessage[], compact?: boolean) {
+function renderMessages(messages: ChatMessage[], compact?: boolean, onPromptReply?: PromptReply, answeredPrompts?: Map<string, string>) {
   const visible = messages.filter((m) => {
     if (m.role === "user" && isKnownSlashMessage(stripHiddenPrefix(m.content))) return false;
     // Bare compaction marker — the paired gateway-injected assistant message
     // carries the human-readable summary, so skip the marker itself.
     if (m.role === "system" && m.systemKind === "compaction") return false;
+    // Prompt replies are represented by the "→ answered" chip on the prompt
+    // itself; suppress the duplicate user bubble.
+    if (m.role === "user" && m.promptReplyId) return false;
     return true;
   });
   const groups = groupMessages(visible);
   return groups.map((g) =>
     g.kind === "single" ? (
-      <MessageRow key={g.msg.id} msg={g.msg} prevRole={g.prevRole} compact={compact} />
+      <MessageRow key={g.msg.id} msg={g.msg} prevRole={g.prevRole} compact={compact} onPromptReply={onPromptReply} answeredPrompts={answeredPrompts} />
     ) : (
       <ToolGroup key={g.msgs[0].id} msgs={g.msgs} prevRole={g.prevRole} compact={compact} />
     ),
   );
 }
 
-function CompactionCollapse({ msgs, compact }: { msgs: ChatMessage[]; compact?: boolean }) {
+function CompactionCollapse({ msgs, compact, onPromptReply, answeredPrompts }: { msgs: ChatMessage[]; compact?: boolean; onPromptReply?: PromptReply; answeredPrompts?: Map<string, string> }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <motion.div
@@ -275,7 +471,7 @@ function CompactionCollapse({ msgs, compact }: { msgs: ChatMessage[]; compact?: 
             className="overflow-hidden"
           >
             <div className="mt-3 flex flex-col gap-3 border-l border-dashed border-[var(--border)] pl-3 opacity-70">
-              {renderMessages(msgs, compact)}
+              {renderMessages(msgs, compact, onPromptReply, answeredPrompts)}
             </div>
           </motion.div>
         )}
@@ -284,7 +480,17 @@ function CompactionCollapse({ msgs, compact }: { msgs: ChatMessage[]; compact?: 
   );
 }
 
-export function MessageList({ messages, compact }: { messages: ChatMessage[]; compact?: boolean }) {
+export function MessageList({ messages, compact, onPromptReply }: { messages: ChatMessage[]; compact?: boolean; onPromptReply?: PromptReply }) {
+  const answeredPrompts = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of messages) {
+      if (m.role === "user" && m.promptReplyId) {
+        // The displayed value is the stripped content of the user message.
+        map.set(m.promptReplyId, stripUserContextPrefix(stripHiddenPrefix(m.content)));
+      }
+    }
+    return map;
+  }, [messages]);
   // Find the most recent compaction boundary; everything before it gets
   // collapsed since the assistant has already been re-grounded on a summary.
   let boundary = -1;
@@ -299,9 +505,9 @@ export function MessageList({ messages, compact }: { messages: ChatMessage[]; co
   return (
     <>
       {before.length > 0 && (
-        <CompactionCollapse key={`compact:${boundary}`} msgs={before} compact={compact} />
+        <CompactionCollapse key={`compact:${boundary}`} msgs={before} compact={compact} onPromptReply={onPromptReply} answeredPrompts={answeredPrompts} />
       )}
-      {renderMessages(after, compact)}
+      {renderMessages(after, compact, onPromptReply, answeredPrompts)}
     </>
   );
 }

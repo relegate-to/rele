@@ -25,6 +25,13 @@ if [ ! -f "$CONFIG_DIR/canvas/index.html" ]; then
   chown rele:rele "$CONFIG_DIR/canvas/index.html"
 fi
 
+# Seed workspace skills on first boot only. The marker is the rele SKILL.md —
+# if it's present, the seed has already landed; never clobber the user's edits.
+if [ ! -e "$CONFIG_DIR/workspace/skills/rele/SKILL.md" ]; then
+  cp -R /opt/openclaw/seed/. "$CONFIG_DIR/workspace/"
+  chown -R rele:rele "$CONFIG_DIR/workspace"
+fi
+
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "No config found, copying template..."
   cp /opt/openclaw/openclaw-template.json "$CONFIG_FILE"
