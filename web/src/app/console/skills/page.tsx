@@ -5,11 +5,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SearchIcon, XCircleIcon } from "lucide-react";
+import { HelpCircleIcon, SearchIcon, XCircleIcon } from "lucide-react";
 import { EASE } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { useGateway } from "../_context/gateway-context";
 import { SkillCard } from "./_components/skill-card";
+import { AboutSkillsDialog } from "./_components/about-dialog";
 import {
   apiFetch,
   FILTERS,
@@ -42,6 +43,7 @@ export default function SkillsPage() {
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
   const [installSessions, setInstallSessions] = useState<Record<string, { key: string; label: string }>>({});
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const fetchSkills = useCallback(async (config: Record<string, unknown>) => {
     try {
@@ -106,6 +108,13 @@ export default function SkillsPage() {
 
   return (
     <div className="h-[100svh] relative flex flex-col">
+      <button
+        onClick={() => setAboutOpen(true)}
+        className="absolute right-6 bottom-6 z-20 inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 transition-colors shadow-sm"
+      >
+        <HelpCircleIcon className="size-3.5" />
+        What are skills?
+      </button>
       <div className="flex-1 overflow-y-auto stable-gutter">
       <div className="relative bg-[var(--bg)] text-[var(--text)]">
         <div className="relative z-10 mx-auto px-8 py-8">
@@ -239,6 +248,7 @@ export default function SkillsPage() {
         </div>
       </div>
       </div>
+      <AboutSkillsDialog open={aboutOpen} onOpenChange={setAboutOpen} />
     </div>
   );
 }
