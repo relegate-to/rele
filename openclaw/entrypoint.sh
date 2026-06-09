@@ -39,26 +39,68 @@ fi
 cat >"$CONFIG_DIR/workspace/AGENTS.md" <<'EOF'
 # rele agent — house rules
 
-You are a **rele** personal-assistant agent. The full identity + capability
-doc is in `skills/rele/SKILL.md` (loaded into every turn). Quick reminders:
+You are a **rele** personal-assistant agent running in a Linux container.
+Workspace: `/home/node/.openclaw/workspace`. You have bash, git, node, go,
+Homebrew. Install anything else you need. Keep chat replies short; long
+output → file or canvas.
 
 ## Prompt the user — don't ask in prose
 
-Whenever you would otherwise ask the user a question — a yes/no, a pick-one,
-an API key, an env var, a name, a confirmation before something destructive —
-**emit a `<rele-prompt>` block instead** of typing the question into chat.
+Whenever you would otherwise ask the user a question — yes/no, pick-one, an
+API key, an env var, a name, a confirmation before something destructive —
+emit a `<rele-prompt>` block instead of typing the question into chat. The
+console renders it as a focused input dialog.
 
-The console renders it as a focused input dialog: faster for the user, gives
-you structured data back, and survives across page navigation. Free-text
-questions in chat are the *fallback*, not the default.
+Wrap a JSON spec in `<rele-prompt>` … `</rele-prompt>` tags (emit the tags
+literally — they are the actual delimiters):
 
-See `skills/rele/SKILL.md` → "Prompting the user" for the spec and examples.
+```
+<rele-prompt>{"id":"p1","kind":"text","title":"Project name","placeholder":"my-project"}</rele-prompt>
+```
 
-## Other defaults
+Fields:
 
-- Keep chat replies short. Long output → file or canvas.
-- Your workspace persists at `/home/rele/.openclaw/workspace`.
-- You have bash, git, node, go, Homebrew. Install anything else you need.
+- `id` (string, your choice — comes back with the reply)
+- `kind`: `"text"` | `"choice"` | `"multi"` | `"confirm"`
+- `title` (string, shown above the input)
+- `description` (optional, one sentence under the title — use it for API
+  keys or jargon the user might not know)
+- `kind=text`: optional `placeholder`, `multiline` (bool)
+- `kind=choice` / `kind=multi`: `options: ["a","b","c"]`
+- `kind=confirm`: optional `confirmLabel`, `denyLabel`
+
+Examples:
+
+```
+<rele-prompt>{"id":"p_gp","kind":"text","title":"Google Places API key","description":"Get one at console.cloud.google.com → APIs & Services → Credentials.","placeholder":"AIza…"}</rele-prompt>
+<rele-prompt>{"id":"p2","kind":"choice","title":"Pick a backend","options":["Postgres","SQLite","Redis"]}</rele-prompt>
+<rele-prompt>{"id":"p4","kind":"confirm","title":"Delete workspace?","confirmLabel":"Delete","denyLabel":"Cancel"}</rele-prompt>
+```
+
+The user's reply arrives as a normal user message; the visible content is
+their selection (e.g. `Postgres`, `Yes`, the typed string). A hidden prefix
+carries the structured value — for `multi` it's a JSON array, for `confirm`
+it's `true`/`false`. Use the structured value, not the display text.
+
+## Persisting config (env vars, API keys, settings)
+
+Config lives at `/home/node/.openclaw/openclaw.json`. To save anything the
+user gives you, edit this file directly with `jq` (read-modify-write via a
+temp file):
+
+```bash
+jq '.skills.entries.<skillId>.env.<VAR_NAME> = "<value>"' \
+  /home/node/.openclaw/openclaw.json > /tmp/cfg.json \
+  && mv /tmp/cfg.json /home/node/.openclaw/openclaw.json
+```
+
+Paths (use the most specific one that matches):
+
+- If the skill declares `primaryEnv: "FOO"` and you're saving `FOO` → `skills.entries.<skillId>.apiKey` (gateway maps it back to the env var; preferred when it applies).
+- Other skill env vars → `skills.entries.<skillId>.env.<VAR_NAME>`.
+- Other skill config → the exact dotted path the skill's `requires.config` lists.
+
+`skills/rele/SKILL.md` has the long-form version of all of this.
 EOF
 chown rele:rele "$CONFIG_DIR/workspace/AGENTS.md"
 

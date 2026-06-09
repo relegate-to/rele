@@ -123,15 +123,26 @@ export function AskAiInstallButton({
     const key = await createSession(label, false);
     setSessionKey(key);
     setSessionLabel(label);
-    const tasks = [
-      missingBins.length > 0 && `install these binaries (and only these — the rest are already on PATH): ${missingBins.join(", ")}`,
-      missingEnv.length > 0 && `collect these env vars from the user via rele prompts (never prose), then save them to config: ${missingEnv.join(", ")}`,
-      missingConfig.length > 0 && `collect these config values from the user via rele prompts, then write to the matching config path: ${missingConfig.join(", ")}`,
-    ].filter(Boolean).join(". ");
-    sendToSession(
-      key,
-      `Set up "${skill.name}". Do exactly this and nothing else: ${tasks}. Don't reinstall, re-check, or touch anything not in that list — the other prerequisites are already satisfied. Check /app/skills/${skill.id}/SKILL.md for install instructions for the missing binaries. For env/config prompts, see your rele skill for the syntax. Before each action send "STATUS: <1-5 words>" (e.g. "STATUS: Installing via apt", "STATUS: Asking for API key"). End final message with INSTALL_OK once *everything* in the list above is done — binaries installed AND env vars/config saved — not just the binary part. Use INSTALL_FAIL if you can't complete it, or INSTALL_ATTENTION if it needs a human to take over.`,
-    );
+    const tasks: string[] = [];
+    if (missingBins.length > 0) {
+      tasks.push(`Install: ${missingBins.join(", ")} (see /app/skills/${skill.id}/SKILL.md).`);
+    }
+    for (const v of missingEnv) {
+      tasks.push(`Ask the user for ${v} via <rele-prompt>, then jq-write the value to .skills.entries.${skill.id}.env.${v} in /home/node/.openclaw/openclaw.json.`);
+    }
+    for (const path of missingConfig) {
+      tasks.push(`Ask the user for ${path} via <rele-prompt>, then jq-write the value to .${path} in /home/node/.openclaw/openclaw.json.`);
+    }
+    const prompt = [
+      `Set up "${skill.name}". Do only these tasks:`,
+      ...tasks.map((t, i) => `${i + 1}. ${t}`),
+      ``,
+      `Rules:`,
+      `- Talk to the user only via <rele-prompt>. No prose questions.`,
+      `- Emit "STATUS: <few words>" before each action.`,
+      `- End with INSTALL_OK (all tasks done), INSTALL_FAIL (can't complete), or INSTALL_ATTENTION (blocked).`,
+    ].join("\n");
+    sendToSession(key, prompt);
   };
 
   const handleCancel = async (e: React.MouseEvent) => {

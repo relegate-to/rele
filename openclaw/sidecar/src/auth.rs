@@ -136,6 +136,7 @@ pub async fn verify_jwt(
 
 #[derive(Clone, Debug)]
 pub struct AuthContext {
+    #[allow(dead_code)] // surfaced in Debug logs; not otherwise read
     pub user_id: String,
 }
 

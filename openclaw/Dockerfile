@@ -21,7 +21,7 @@ USER root
 
 # Install package managers and runtimes for skill installation
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nodejs npm curl git build-essential libcap2-bin gosu \
+    nodejs npm curl git build-essential libcap2-bin gosu jq \
   && rm -rf /var/lib/apt/lists/*
 # Install Go from official tarball (apt version is too old for many modules)
 RUN curl -fsSL https://go.dev/dl/go1.24.2.linux-amd64.tar.gz | tar -C /usr/local -xz

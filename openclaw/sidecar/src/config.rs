@@ -16,6 +16,11 @@ pub struct AppConfig {
     pub user_id: String,
     pub skills_dir: PathBuf,
     pub workspace_skills_dir: PathBuf,
+    /// Absolute path to openclaw.json. Read fresh from disk on every skill
+    /// listing so jq-style edits made by the agent reflect immediately —
+    /// going through the gateway's in-memory config means we'd see stale
+    /// data until it restarts.
+    pub config_file: PathBuf,
     pub upstream: SocketAddr,
     /// Origins permitted to receive a reflected `Access-Control-Allow-Origin`.
     /// Anything not in this set gets no ACAO from us, regardless of what the
@@ -35,8 +40,10 @@ impl AppConfig {
         let skills_dir = std::env::var("SKILLS_DIR")
             .unwrap_or_else(|_| "/app/skills".to_string())
             .into();
-        let workspace_skills_dir =
-            PathBuf::from("/home/node/.openclaw/workspace/skills");
+        let state_dir = std::env::var("OPENCLAW_STATE_DIR")
+            .unwrap_or_else(|_| "/home/node/.openclaw".to_string());
+        let workspace_skills_dir = PathBuf::from(format!("{}/workspace/skills", state_dir));
+        let config_file = PathBuf::from(format!("{}/openclaw.json", state_dir));
         let upstream: SocketAddr = "127.0.0.1:18789".parse().unwrap();
 
         let allowed_origins = std::env::var("ALLOWED_ORIGINS")
@@ -53,6 +60,7 @@ impl AppConfig {
             user_id,
             skills_dir,
             workspace_skills_dir,
+            config_file,
             upstream,
             allowed_origins,
             frame_ancestors,

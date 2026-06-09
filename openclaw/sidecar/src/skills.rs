@@ -484,7 +484,11 @@ async fn load_skill(
 // ── Cache ────────────────────────────────────────────────────────────────────
 
 pub struct SkillsCache {
-    inner: RwLock<Option<(Vec<Skill>, Instant)>>,
+    // Cache keyed by a hash of the resolved config. The skill list bakes in
+    // config-derived fields (missing_env, missing_config, status) so a TTL-
+    // only cache will hand back stale "missing" results after the user edits
+    // openclaw.json. Hashing the config keeps caching while staying correct.
+    inner: RwLock<Option<(u64, Vec<Skill>, Instant)>>,
 }
 
 impl SkillsCache {
@@ -498,19 +502,26 @@ impl SkillsCache {
         *self.inner.write() = None;
     }
 
-    fn get(&self) -> Option<Vec<Skill>> {
+    fn get(&self, config_hash: u64) -> Option<Vec<Skill>> {
         let g = self.inner.read();
-        let (skills, at) = g.as_ref()?;
-        if at.elapsed() < CACHE_TTL {
+        let (hash, skills, at) = g.as_ref()?;
+        if *hash == config_hash && at.elapsed() < CACHE_TTL {
             Some(skills.clone())
         } else {
             None
         }
     }
 
-    fn put(&self, v: Vec<Skill>) {
-        *self.inner.write() = Some((v, Instant::now()));
+    fn put(&self, config_hash: u64, v: Vec<Skill>) {
+        *self.inner.write() = Some((config_hash, v, Instant::now()));
     }
+}
+
+fn hash_config(v: &serde_json::Value) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    v.to_string().hash(&mut h);
+    h.finish()
 }
 
 // ── Listing ──────────────────────────────────────────────────────────────────
@@ -557,7 +568,8 @@ async fn list_dir_skills(
 }
 
 pub async fn list_skills(state: &AppState, config: &serde_json::Value) -> Vec<Skill> {
-    if let Some(v) = state.skills_cache.get() {
+    let config_hash = hash_config(config);
+    if let Some(v) = state.skills_cache.get(config_hash) {
         return v;
     }
 
@@ -577,7 +589,7 @@ pub async fn list_skills(state: &AppState, config: &serde_json::Value) -> Vec<Sk
         _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
 
-    state.skills_cache.put(skills.clone());
+    state.skills_cache.put(config_hash, skills.clone());
     skills
 }
 
@@ -623,16 +635,27 @@ pub struct ListBody {
     config: Option<serde_json::Value>,
 }
 
+async fn load_config_from_disk(state: &AppState) -> serde_json::Value {
+    match fs::read_to_string(&state.config.config_file).await {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::Value::Object(Default::default())),
+        Err(_) => serde_json::Value::Object(Default::default()),
+    }
+}
+
 pub async fn list_handler(State(state): State<AppState>) -> impl IntoResponse {
-    let skills = list_skills(&state, &serde_json::Value::Object(Default::default())).await;
+    let cfg = load_config_from_disk(&state).await;
+    let skills = list_skills(&state, &cfg).await;
     axum::Json(serde_json::json!({ "skills": skills }))
 }
 
 pub async fn list_with_config_handler(
     State(state): State<AppState>,
-    axum::Json(body): axum::Json<ListBody>,
+    axum::Json(_body): axum::Json<ListBody>,
 ) -> impl IntoResponse {
-    let cfg = body.config.unwrap_or(serde_json::Value::Object(Default::default()));
+    // Body is accepted for back-compat but ignored — disk is authoritative
+    // so agent jq edits to openclaw.json reflect immediately, without waiting
+    // for the gateway's in-memory config to refresh.
+    let cfg = load_config_from_disk(&state).await;
     let skills = list_skills(&state, &cfg).await;
     axum::Json(serde_json::json!({ "skills": skills }))
 }
