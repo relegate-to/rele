@@ -65,8 +65,10 @@ export default function CanvasPage() {
   // Kick off the ws-auth fetch immediately on mount in parallel with the
   // machines query. If it turns out we have no running machine the result
   // is discarded by the gating effect below.
+  // Guarded with `typeof window` because Next.js prerenders this page at build
+  // time — a relative-URL fetch on the server throws "Invalid URL".
   const authPromiseRef = useRef<Promise<{ url: string; token: string }> | null>(null);
-  if (authPromiseRef.current === null) {
+  if (authPromiseRef.current === null && typeof window !== "undefined") {
     authPromiseRef.current = fetch("/api/gate/ws-auth")
       .then((r) => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e.error ?? "Failed")));
   }
